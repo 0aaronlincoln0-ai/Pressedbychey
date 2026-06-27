@@ -7,3 +7,7 @@ dist/
 .vite/
 *.zip
 *.bundle
+Pressedbychey-netlify-ready-latest/
+
+# Local Netlify folder
+.netlify
