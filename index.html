@@ -7,23 +7,29 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260626-photo-replace-v4" />
   </head>
   <body>
+    <div class="scroll-progress" aria-hidden="true"></div>
     <div class="site-shell">
       <header class="nav" data-reveal>
-        <a class="brand" href="#top" aria-label="Pressed by Chey home">
-          <img class="brand-logo" src="pressed-by-chey-logo-transparent.png" alt="" />
+        <a class="brand" href="#home" data-page-link="home" aria-label="Pressed by Chey home">
+          <img
+            class="brand-logo"
+            src="assets/pressed-by-chey-logo.svg"
+            onerror="this.onerror=null; this.src='assets/pressed-by-chey-logo-transparent.png';"
+            alt=""
+          />
           <span>Pressed by Chey</span>
         </a>
         <nav class="nav-links" aria-label="Main navigation">
-          <a href="#shop">Shop</a>
-          <a href="#custom">Custom</a>
-          <a href="#fit">Fit Guide</a>
-          <a href="#reviews">Reviews</a>
+          <a href="#home" data-page-link="home">Home</a>
+          <a href="#shop" data-page-link="shop">Shop</a>
+          <a href="#fit" data-page-link="fit">Fit Guide</a>
+          <a href="#reviews" data-page-link="reviews">Reviews</a>
           <a href="#adminPage" id="adminNav" hidden>Admin</a>
         </nav>
         <button class="account-button" type="button">Account</button>
@@ -33,19 +39,21 @@
         </button>
       </header>
 
-      <main id="top">
+      <main id="top" class="page-stage">
+        <div class="page-book" id="pageBook">
+          <section class="site-page is-active" id="home" data-page-panel="home" aria-label="Home page">
+            <div class="page-surface">
         <section class="hero" aria-labelledby="hero-title">
           <div class="hero-copy" data-reveal>
-            <p class="eyebrow">Handmade press-ons for 2026 beauty routines</p>
-            <h1 id="hero-title">Salon-shine nails, made personal.</h1>
+            <p class="eyebrow">Handmade press-ons for your next full set</p>
+            <h1 id="hero-title">Salon-shine nails that fit your style.</h1>
             <p class="hero-text">
-              Custom reusable sets in pink chrome, jelly aura, coquette pearl,
-              and sculpted bow finishes. Built for quick application, confident
-              sizing, and main-character photos.
+              Shop Chey's latest handmade sets, save your sizing, and find
+              reusable press-ons that match your vibe and your routine.
             </p>
             <div class="hero-actions">
-              <a class="button primary" href="#shop">Shop Sets</a>
-              <a class="button secondary" href="#custom">Build Yours</a>
+              <a class="button primary" href="#shop" data-page-link="shop">Shop Sets</a>
+              <a class="button secondary" href="#fit" data-page-link="fit">Find Your Fit</a>
             </div>
             <div class="hero-stats" aria-label="Store highlights">
               <span><strong>10 sizes</strong> per kit</span>
@@ -55,8 +63,8 @@
           </div>
           <div class="hero-visual" data-reveal>
             <img
-              src="pink-press-on-hero.png"
-              alt="Pink handmade press-on nail kits with chrome, jelly, and pearl designs"
+              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 760'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fffdf9'/%3E%3Cstop offset='52%25' stop-color='%23fff1f6'/%3E%3Cstop offset='100%25' stop-color='%23edf4ec'/%3E%3C/linearGradient%3E%3CradialGradient id='glow' cx='50%25' cy='50%25' r='50%25'%3E%3Cstop offset='0%25' stop-color='%23ffffff' stop-opacity='.95'/%3E%3Cstop offset='100%25' stop-color='%23d84f88' stop-opacity='.12'/%3E%3C/radialGradient%3E%3ClinearGradient id='nail' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffffff'/%3E%3Cstop offset='48%25' stop-color='%23ffd7e5'/%3E%3Cstop offset='100%25' stop-color='%23d84f88'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='900' height='760' rx='48' fill='url(%23bg)'/%3E%3Ccircle cx='730' cy='126' r='260' fill='url(%23glow)' opacity='.72'/%3E%3Ccircle cx='130' cy='642' r='230' fill='%23edf4ec' opacity='.74'/%3E%3Cg opacity='.82' transform='translate(110 88) rotate(-8 340 300)'%3E%3Crect x='88' y='124' width='92' height='336' rx='46' fill='url(%23nail)'/%3E%3Crect x='210' y='76' width='108' height='414' rx='54' fill='url(%23nail)' opacity='.95'/%3E%3Crect x='356' y='48' width='116' height='470' rx='58' fill='url(%23nail)'/%3E%3Crect x='510' y='92' width='104' height='404' rx='52' fill='url(%23nail)' opacity='.94'/%3E%3Crect x='650' y='170' width='82' height='312' rx='41' fill='url(%23nail)' opacity='.9'/%3E%3C/g%3E%3Cg fill='none' stroke='%238f1d51' stroke-linecap='round' opacity='.24'%3E%3Cpath d='M86 118 C188 58 316 68 404 140' stroke-width='5'/%3E%3Cpath d='M488 602 C608 666 748 632 818 522' stroke-width='6'/%3E%3Cpath d='M150 610 C238 560 302 574 364 640' stroke-width='4'/%3E%3C/g%3E%3Cg fill='%23ffffff' opacity='.82'%3E%3Ccircle cx='632' cy='198' r='7'/%3E%3Ccircle cx='684' cy='236' r='4'/%3E%3Ccircle cx='246' cy='238' r='5'/%3E%3Ccircle cx='564' cy='556' r='6'/%3E%3C/g%3E%3C/svg%3E"
+              alt=""
             />
             <div class="floating-tag tag-one">Rose chrome</div>
             <div class="floating-tag tag-two">Custom sizing</div>
@@ -72,9 +80,24 @@
           <span>French remix</span>
         </section>
 
+        <section class="service-strip" aria-label="Service highlights" data-reveal>
+          <article>
+            <strong>Made by Chey</strong>
+            <span>Each product is uploaded and managed from her admin studio.</span>
+          </article>
+          <article>
+            <strong>Fit first</strong>
+            <span>Sizing, prep, and reuse guidance are built into the customer flow.</span>
+          </article>
+          <article>
+            <strong>Easy checkout</strong>
+            <span>Customers can sign in, save sizes, or check out as a guest.</span>
+          </article>
+        </section>
+
         <section class="section intro" aria-labelledby="intro-title">
           <div data-reveal>
-            <p class="eyebrow">Why buyers choose us</p>
+            <p class="eyebrow">Why clients come back</p>
             <h2 id="intro-title">Premium details without the salon wait.</h2>
           </div>
           <div class="feature-grid">
@@ -95,236 +118,138 @@
             </article>
           </div>
         </section>
+              <footer class="footer page-footer">
+                <div class="footer-brand">
+                  <img
+                    class="footer-logo"
+                    src="assets/pressed-by-chey-logo.svg"
+                    onerror="this.onerror=null; this.src='assets/pressed-by-chey-logo-transparent.png';"
+                    alt=""
+                  />
+                  <div>
+                  <strong>Pressed by Chey</strong>
+                  <p>Handmade press-on nail sets, custom color drops, and pink favorites.</p>
+                  </div>
+                </div>
+                <a class="button secondary" href="#shop" data-page-link="shop">Shop Sets</a>
+              </footer>
+            </div>
+          </section>
 
+          <section class="site-page" data-page-panel="shop" aria-label="Shop page" hidden>
+            <div class="page-surface">
         <section class="section shop" id="shop" aria-labelledby="shop-title">
           <div class="section-heading" data-reveal>
-            <p class="eyebrow">Shop the first drop</p>
-            <h2 id="shop-title">Soft pink sets with serious shine.</h2>
+            <p class="eyebrow">Shop the latest sets</p>
+            <h2 id="shop-title">Fresh uploads from Chey's current collection.</h2>
           </div>
-          <div class="filter-row" aria-label="Product filters" data-reveal>
+          <div class="filter-row" id="shopFilters" aria-label="Product filters" data-reveal hidden>
             <button class="filter active" type="button" data-filter="all">All</button>
             <button class="filter" type="button" data-filter="chrome">Chrome</button>
             <button class="filter" type="button" data-filter="jelly">Jelly</button>
             <button class="filter" type="button" data-filter="coquette">Coquette</button>
           </div>
-          <div class="product-grid">
-            <article class="product" data-category="chrome" data-reveal>
-              <div class="nail-preview photo-preview" aria-hidden="true">
-                <img src="rose-mirror-muse.png" alt="" />
-              </div>
-              <div class="product-copy">
-                <p class="product-tag">Best seller</p>
-                <h3>Rose Mirror Muse</h3>
-                <div class="swatch-row" aria-label="Color palette">
-                  <span style="--swatch: #ffe0eb"></span>
-                  <span style="--swatch: #f3659e"></span>
-                  <span style="--swatch: #fff7fb"></span>
-                </div>
-                <p>Almond press-ons with blush chrome and tiny crystal accents.</p>
-                <div class="product-bottom">
-                  <strong>$38</strong>
-                  <button type="button" data-name="Rose Mirror Muse" data-price="38">Add</button>
-                </div>
-              </div>
-            </article>
-            <article class="product" data-category="jelly" data-reveal>
-              <div class="nail-preview photo-preview" aria-hidden="true">
-                <img src="berry-aura-glaze.png" alt="" />
-              </div>
-              <div class="product-copy">
-                <p class="product-tag">Trend drop</p>
-                <h3>Berry Aura Glaze</h3>
-                <div class="swatch-row" aria-label="Color palette">
-                  <span style="--swatch: rgba(255, 194, 217, 0.72)"></span>
-                  <span style="--swatch: #ea3c86"></span>
-                  <span style="--swatch: #ff8fbd"></span>
-                </div>
-                <p>Translucent square set with pink aura centers and glassy topcoat.</p>
-                <div class="product-bottom">
-                  <strong>$42</strong>
-                  <button type="button" data-name="Berry Aura Glaze" data-price="42">Add</button>
-                </div>
-              </div>
-            </article>
-            <article class="product" data-category="coquette" data-reveal>
-              <div class="nail-preview photo-preview" aria-hidden="true">
-                <img src="ribbon-crush.png" alt="" />
-              </div>
-              <div class="product-copy">
-                <p class="product-tag">Hand-sculpted</p>
-                <h3>Ribbon Crush</h3>
-                <div class="swatch-row" aria-label="Color palette">
-                  <span style="--swatch: #fff4f8"></span>
-                  <span style="--swatch: #ffc0d6"></span>
-                  <span style="--swatch: #f0d9bb"></span>
-                </div>
-                <p>Milky pink coffin set with pearl dots and sculpted bow accents.</p>
-                <div class="product-bottom">
-                  <strong>$48</strong>
-                  <button type="button" data-name="Ribbon Crush" data-price="48">Add</button>
-                </div>
-              </div>
-            </article>
-            <article class="product" data-category="chrome" data-reveal>
-              <div class="nail-preview photo-preview" aria-hidden="true">
-                <img src="pink-cat-eye-flash.png" alt="" />
-              </div>
-              <div class="product-copy">
-                <p class="product-tag">Magnetic</p>
-                <h3>Pink Cat-Eye Flash</h3>
-                <div class="swatch-row" aria-label="Color palette">
-                  <span style="--swatch: #7a123f"></span>
-                  <span style="--swatch: #ff79b0"></span>
-                  <span style="--swatch: #f6e9ef"></span>
-                </div>
-                <p>Oval set with velvet magnetic shimmer and silver micro lines.</p>
-                <div class="product-bottom">
-                  <strong>$44</strong>
-                  <button type="button" data-name="Pink Cat-Eye Flash" data-price="44">Add</button>
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section class="section custom" id="custom" aria-labelledby="custom-title">
-          <div class="custom-panel" data-reveal>
-            <div>
-              <p class="eyebrow">Custom builder</p>
-              <h2 id="custom-title">Design a set around her exact style.</h2>
+          <div class="product-grid"></div>
+          <section class="custom-order-panel" aria-labelledby="customOrderTitle" data-reveal>
+            <div class="custom-order-copy">
+              <p class="eyebrow">Custom Orders</p>
+              <h3 id="customOrderTitle">Send Chey your inspo.</h3>
               <p>
-                Start with a core shade, then layer length, shape, finish,
-                and accents. This is the kind of guided customization that helps
-                small brands feel premium and personal.
+                Upload a reference photo and write exactly what you want. Your request will be added to your bag as a quote request,
+                then Chey can review the photo, notes, sizing, and final price before making the set.
               </p>
+              <div class="custom-order-highlights" aria-label="How custom orders work">
+                <div>
+                  <strong>1 photo required</strong>
+                  <span>Send the exact nail look Chey should match.</span>
+                </div>
+                <div>
+                  <strong>Added to your bag</strong>
+                  <span>Your request stays with the rest of your order details.</span>
+                </div>
+                <div>
+                  <strong>Reviewed before payment</strong>
+                  <span>Chey confirms sizing, notes, and final pricing first.</span>
+                </div>
+              </div>
             </div>
-            <div class="builder" aria-label="Custom nail set builder">
-              <label>
-                Shade
-                <select id="shade">
-                  <option value="blush">Blush Pink</option>
-                  <option value="rose">Rose Chrome</option>
-                  <option value="berry">Berry Jelly</option>
-                </select>
-              </label>
-              <label>
-                Shape
-                <select id="shape">
-                  <option value="almond">Almond</option>
-                  <option value="square">Soft Square</option>
-                  <option value="coffin">Coffin</option>
-                </select>
-              </label>
-              <label>
-                Preview Detail
-                <input id="accent" type="range" min="0" max="100" value="72" />
-              </label>
-              <div class="custom-request">
-                <label>
-                  Design details
-                  <textarea
-                    id="customDetails"
-                    rows="4"
-                    placeholder="Example: short coffin, sheer nude base, pink chrome French tips, tiny bow on ring finger, no rhinestones."
-                  ></textarea>
+            <div class="custom-order-grid">
+              <section class="custom-order-card custom-order-request-card" aria-labelledby="customOrderWriteTitle">
+                <div class="custom-order-card-head">
+                  <strong id="customOrderWriteTitle">Tell Chey what you want</strong>
+                  <p>Keep this short and clear. Include shape, length, colors, finish, charms, and nail art.</p>
+                </div>
+                <label class="custom-order-field">
+                  Request name
+                  <input id="customOrderName" type="text" placeholder="Birthday chrome set, vacation aura set..." />
                 </label>
-                <div class="inspiration-upload">
-                  <label class="inspiration-tile" for="inspirationPhoto">
+                <label class="custom-order-field custom-order-field-wide">
+                  Describe your custom order
+                  <textarea id="customOrderDescription" rows="4" placeholder="Example: Short almond, pink chrome, pearl charms, glossy finish, with a soft aura fade."></textarea>
+                </label>
+              </section>
+              <section class="custom-order-card custom-order-photo-card" aria-labelledby="customOrderPhotoTitle">
+                <div class="custom-order-card-head">
+                  <strong id="customOrderPhotoTitle">Upload the inspiration photo</strong>
+                  <p>This helps Chey match the exact set you want.</p>
+                </div>
+                <div class="custom-order-upload-shell">
+                  <label class="custom-order-upload" for="customOrderPhoto">
                     <span>+</span>
                     <strong>Upload inspiration photo</strong>
-                    <small>Use a nail picture she found or a set she wants recreated.</small>
-                    <input id="inspirationPhoto" type="file" accept="image/*" />
+                    <small>Required for custom order requests.</small>
+                    <input id="customOrderPhoto" type="file" accept="image/*" />
                   </label>
-                  <div class="inspiration-preview" id="inspirationPreview" hidden>
-                    <img alt="Uploaded nail inspiration preview" />
+                  <div class="custom-order-preview" id="customOrderPreview" hidden>
+                    <img alt="Custom order inspiration preview" />
                     <div>
-                      <strong id="inspirationName">Inspiration uploaded</strong>
-                      <button type="button" id="removeInspiration">Remove</button>
+                      <strong id="customOrderPhotoName">Reference photo uploaded</strong>
+                      <button type="button" id="customOrderPhotoRemove">Remove Photo</button>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div class="builder-preview" id="builderPreview" aria-label="Live nail preview">
-                <svg class="nail-map" viewBox="0 0 1581 995" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                  <defs>
-                    <linearGradient id="nailPaint" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stop-color="var(--nail-base)" />
-                      <stop offset="56%" stop-color="var(--nail-accent)" />
-                      <stop offset="100%" stop-color="var(--nail-base)" />
-                    </linearGradient>
-                    <linearGradient id="nailGloss" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stop-color="rgba(255,255,255,0.52)" />
-                      <stop offset="28%" stop-color="rgba(255,255,255,0.08)" />
-                      <stop offset="58%" stop-color="rgba(255,255,255,0.38)" />
-                      <stop offset="100%" stop-color="rgba(255,255,255,0)" />
-                    </linearGradient>
-                    <radialGradient id="cuticleGlow" cx="50%" cy="92%" r="45%">
-                      <stop offset="0%" stop-color="rgba(255,255,255,0.5)" />
-                      <stop offset="56%" stop-color="rgba(255,255,255,0.14)" />
-                      <stop offset="100%" stop-color="rgba(255,255,255,0)" />
-                    </radialGradient>
-                    <clipPath id="nailClip0"><path data-nail-clip="0" d="M415 388 C445 392 468 418 472 455 C477 500 462 540 436 556 C414 570 380 558 362 533 C340 502 348 448 374 415 C386 400 399 391 415 388 Z" /></clipPath>
-                    <clipPath id="nailClip1"><path data-nail-clip="1" d="M641 145 C681 151 706 184 709 232 C713 284 699 326 669 350 C641 372 602 359 581 327 C557 290 562 223 594 178 C607 160 622 149 641 145 Z" /></clipPath>
-                    <clipPath id="nailClip2"><path data-nail-clip="2" d="M845 10 C889 15 920 52 923 104 C927 166 909 215 874 242 C840 268 797 250 776 211 C750 164 758 84 795 36 C809 19 825 11 845 10 Z" /></clipPath>
-                    <clipPath id="nailClip3"><path data-nail-clip="3" d="M1066 145 C1104 150 1131 181 1135 227 C1140 279 1125 321 1093 346 C1064 369 1024 357 1003 325 C978 288 983 222 1015 177 C1029 159 1045 148 1066 145 Z" /></clipPath>
-                    <clipPath id="nailClip4"><path data-nail-clip="4" d="M1325 560 C1362 554 1387 587 1388 630 C1390 690 1367 742 1330 762 C1297 780 1267 752 1258 710 C1247 660 1267 584 1325 560 Z" /></clipPath>
-                  </defs>
-                  <g class="nail-shapes">
-                    <path class="nail-fill" data-nail-path="0" d="M415 388 C445 392 468 418 472 455 C477 500 462 540 436 556 C414 570 380 558 362 533 C340 502 348 448 374 415 C386 400 399 391 415 388 Z" />
-                    <path class="nail-fill" data-nail-path="1" d="M641 145 C681 151 706 184 709 232 C713 284 699 326 669 350 C641 372 602 359 581 327 C557 290 562 223 594 178 C607 160 622 149 641 145 Z" />
-                    <path class="nail-fill" data-nail-path="2" d="M845 10 C889 15 920 52 923 104 C927 166 909 215 874 242 C840 268 797 250 776 211 C750 164 758 84 795 36 C809 19 825 11 845 10 Z" />
-                    <path class="nail-fill" data-nail-path="3" d="M1066 145 C1104 150 1131 181 1135 227 C1140 279 1125 321 1093 346 C1064 369 1024 357 1003 325 C978 288 983 222 1015 177 C1029 159 1045 148 1066 145 Z" />
-                    <path class="nail-fill" data-nail-path="4" d="M1325 560 C1362 554 1387 587 1388 630 C1390 690 1367 742 1330 762 C1297 780 1267 752 1258 710 C1247 660 1267 584 1325 560 Z" />
-                    <image class="nail-art" data-nail-art="0" x="330" y="370" width="170" height="215" preserveAspectRatio="xMidYMid slice" clip-path="url(#nailClip0)" />
-                    <image class="nail-art" data-nail-art="1" x="535" y="125" width="205" height="255" preserveAspectRatio="xMidYMid slice" clip-path="url(#nailClip1)" />
-                    <image class="nail-art" data-nail-art="2" x="720" y="0" width="245" height="290" preserveAspectRatio="xMidYMid slice" clip-path="url(#nailClip2)" />
-                    <image class="nail-art" data-nail-art="3" x="940" y="125" width="235" height="255" preserveAspectRatio="xMidYMid slice" clip-path="url(#nailClip3)" />
-                    <image class="nail-art" data-nail-art="4" x="1225" y="535" width="215" height="265" preserveAspectRatio="xMidYMid slice" clip-path="url(#nailClip4)" />
-                    <path class="nail-gloss" data-nail-path="0" d="M415 388 C445 392 468 418 472 455 C477 500 462 540 436 556 C414 570 380 558 362 533 C340 502 348 448 374 415 C386 400 399 391 415 388 Z" />
-                    <path class="nail-gloss" data-nail-path="1" d="M641 145 C681 151 706 184 709 232 C713 284 699 326 669 350 C641 372 602 359 581 327 C557 290 562 223 594 178 C607 160 622 149 641 145 Z" />
-                    <path class="nail-gloss" data-nail-path="2" d="M845 10 C889 15 920 52 923 104 C927 166 909 215 874 242 C840 268 797 250 776 211 C750 164 758 84 795 36 C809 19 825 11 845 10 Z" />
-                    <path class="nail-gloss" data-nail-path="3" d="M1066 145 C1104 150 1131 181 1135 227 C1140 279 1125 321 1093 346 C1064 369 1024 357 1003 325 C978 288 983 222 1015 177 C1029 159 1045 148 1066 145 Z" />
-                    <path class="nail-gloss" data-nail-path="4" d="M1325 560 C1362 554 1387 587 1388 630 C1390 690 1367 742 1330 762 C1297 780 1267 752 1258 710 C1247 660 1267 584 1325 560 Z" />
-                    <path class="nail-cuticle" data-nail-path="0" d="M415 388 C445 392 468 418 472 455 C477 500 462 540 436 556 C414 570 380 558 362 533 C340 502 348 448 374 415 C386 400 399 391 415 388 Z" />
-                    <path class="nail-cuticle" data-nail-path="1" d="M641 145 C681 151 706 184 709 232 C713 284 699 326 669 350 C641 372 602 359 581 327 C557 290 562 223 594 178 C607 160 622 149 641 145 Z" />
-                    <path class="nail-cuticle" data-nail-path="2" d="M845 10 C889 15 920 52 923 104 C927 166 909 215 874 242 C840 268 797 250 776 211 C750 164 758 84 795 36 C809 19 825 11 845 10 Z" />
-                    <path class="nail-cuticle" data-nail-path="3" d="M1066 145 C1104 150 1131 181 1135 227 C1140 279 1125 321 1093 346 C1064 369 1024 357 1003 325 C978 288 983 222 1015 177 C1029 159 1045 148 1066 145 Z" />
-                    <path class="nail-cuticle" data-nail-path="4" d="M1325 560 C1362 554 1387 587 1388 630 C1390 690 1367 742 1330 762 C1297 780 1267 752 1258 710 C1247 660 1267 584 1325 560 Z" />
-                  </g>
-                </svg>
-              </div>
-              <div class="finish-card" id="finishCard">
-                <strong>Blush Pink</strong>
-                <span>Opaque milky gel with a soft salon-pink finish.</span>
-              </div>
-              <button class="button primary wide" type="button" id="customAdd">Add Custom Set - $55</button>
-            </div>
-          </div>
-          <div class="look-library" data-reveal>
-            <div class="section-heading compact-heading">
-              <div>
-                <p class="eyebrow">Color and style library</p>
-                <h2>80 ways to make every set feel personal.</h2>
+              </section>
+              <div class="custom-order-actions">
+                <button class="button primary" type="button" id="customOrderSubmit">Add Custom Order Request</button>
+                <p class="custom-order-status" id="customOrderStatus" role="status"></p>
               </div>
             </div>
-            <div class="look-grid" id="lookGrid" aria-label="Choose a nail color or style"></div>
-          </div>
+          </section>
         </section>
+            </div>
+          </section>
 
+          <section class="site-page" data-page-panel="product" aria-label="Product details page" hidden>
+            <div class="page-surface">
+              <section class="section product-detail-page" id="productDetailPage" aria-live="polite">
+                <div id="productDetailContent"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="site-page" data-page-panel="fit" aria-label="Fit guide page" hidden>
+            <div class="page-surface">
         <section class="section fit" id="fit" aria-labelledby="fit-title">
           <div class="section-heading" data-reveal>
             <p class="eyebrow">Fit Guide</p>
             <h2 id="fit-title">Simple sizing keeps returns low.</h2>
           </div>
           <div class="photo-proof-grid" aria-label="Real manicure references" data-reveal>
-            <img src="online-polish-application.jpg" alt="Real manicure polish application close up" />
-            <img src="online-nail-art-process.jpg" alt="Real nail art process close up" />
+            <img
+              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 600'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fff8fb'/%3E%3Cstop offset='100%25' stop-color='%23ffe5ef'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='900' height='600' rx='36' fill='url(%23bg)'/%3E%3Crect x='42' y='42' width='816' height='516' rx='30' fill='none' stroke='%23cb2e72' stroke-opacity='.2' stroke-width='6' stroke-dasharray='18 18'/%3E%3Ctext x='450' y='282' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='700' fill='%238f1d51'%3ESizing reference%3C/text%3E%3Ctext x='450' y='338' text-anchor='middle' font-family='Arial,sans-serif' font-size='26' fill='%23714c5f'%3Ecoming soon%3C/text%3E%3C/svg%3E"
+              alt="Sizing reference guide"
+            />
+            <img
+              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 600'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fff8fb'/%3E%3Cstop offset='100%25' stop-color='%23ffe5ef'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='900' height='600' rx='36' fill='url(%23bg)'/%3E%3Crect x='42' y='42' width='816' height='516' rx='30' fill='none' stroke='%23cb2e72' stroke-opacity='.2' stroke-width='6' stroke-dasharray='18 18'/%3E%3Ctext x='450' y='282' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='700' fill='%238f1d51'%3EApplication guide%3C/text%3E%3Ctext x='450' y='338' text-anchor='middle' font-family='Arial,sans-serif' font-size='26' fill='%23714c5f'%3Ecoming soon%3C/text%3E%3C/svg%3E"
+              alt="Application guide"
+            />
           </div>
+          <p class="photo-proof-tip" data-reveal>Tap any sizing photo to view it full screen.</p>
           <div class="fit-grid">
             <article data-reveal>
               <span>01</span>
               <h3>Order a sizing kit</h3>
-              <p>Try every size before buying a custom set.</p>
+              <p>Try every size before buying your next set.</p>
             </article>
             <article data-reveal>
               <span>02</span>
@@ -338,7 +263,11 @@
             </article>
           </div>
         </section>
+            </div>
+          </section>
 
+          <section class="site-page" data-page-panel="reviews" aria-label="Reviews page" hidden>
+            <div class="page-surface">
         <section class="section reviews" id="reviews" aria-labelledby="reviews-title">
           <div class="section-heading" data-reveal>
             <p class="eyebrow">Customer love</p>
@@ -350,7 +279,7 @@
               <figcaption>Maya R.</figcaption>
             </figure>
             <figure>
-              <blockquote>"The sizing kit made ordering customs way less stressful."</blockquote>
+              <blockquote>"The sizing kit made ordering press-ons way less stressful."</blockquote>
               <figcaption>Jules T.</figcaption>
             </figure>
             <figure>
@@ -359,33 +288,34 @@
             </figure>
           </div>
         </section>
-      </main>
-
-      <footer class="footer">
-        <div class="footer-brand">
-          <img class="footer-logo" src="pressed-by-chey-logo-transparent.png" alt="" />
-          <div>
-          <strong>Pressed by Chey</strong>
-          <p>Handmade press-on nail sets, custom color drops, and pink favorites.</p>
-          </div>
+            </div>
+          </section>
+          <div class="book-status" id="bookStatus" aria-live="polite" aria-atomic="true"></div>
         </div>
-        <a class="button secondary" href="#custom">Start a Custom Set</a>
-      </footer>
+      </main>
     </div>
 
     <aside class="cart-drawer" aria-hidden="true" aria-label="Shopping cart">
       <div class="cart-header">
-        <h2>Your Bag</h2>
+        <div>
+          <p class="cart-kicker">Pressed by Chey</p>
+          <h2>Your glossy bag</h2>
+          <span class="cart-subtitle">Fresh sets, fit notes, and checkout all in one cute little drawer.</span>
+        </div>
         <button class="close-cart" type="button" aria-label="Close cart">&times;</button>
       </div>
       <div class="cart-items"></div>
       <div class="cart-empty">Your bag is ready for something glossy.</div>
       <div class="cart-footer">
-        <div>
-          <span>Total</span>
+        <div class="cart-total-row">
+          <span>Bag total</span>
           <strong class="cart-total">$0</strong>
         </div>
-        <button type="button" class="button primary wide" id="checkoutButton">Checkout With Account</button>
+        <p class="cart-mini-note">Chey will confirm sizing, timing, and any custom notes before your set is finished.</p>
+        <div class="cart-checkout-actions">
+          <button type="button" class="button primary wide" id="checkoutButton">Checkout With Account</button>
+          <button type="button" class="button secondary wide" id="guestCheckoutOpen">Checkout As Guest</button>
+        </div>
         <details class="guest-checkout" id="guestCheckout">
           <summary>Checkout as guest</summary>
           <label>Name <input id="guestName" autocomplete="name" placeholder="Full name" /></label>
@@ -406,43 +336,102 @@
         <button class="close-account" type="button" aria-label="Close account">&times;</button>
       </div>
       <div class="account-auth" id="accountAuth">
-        <div class="auth-card">
-          <h3>Sign In</h3>
-          <input id="loginEmail" type="text" placeholder="Email or admin name" autocomplete="username" />
-          <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" />
-          <button class="button primary wide" type="button" id="customerLogin">Sign In</button>
+        <div class="account-auth-hero">
+          <span class="account-sparkle">Made for your next set</span>
+          <h3>Your nail profile lives here.</h3>
+          <p>Save your sizes, favorite sets, and past orders so checkout feels quick and personal every time.</p>
+          <div class="account-benefits" aria-label="Account benefits">
+            <span>Fast reorder</span>
+            <span>Saved sizing</span>
+            <span>Favorite sets</span>
+          </div>
         </div>
         <div class="auth-card">
-          <h3>Create Account</h3>
+          <h3>Welcome Back</h3>
+          <input id="loginEmail" type="text" placeholder="Email" autocomplete="email" />
+          <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" />
+          <button class="button primary wide" type="button" id="customerLogin">Open My Profile</button>
+          <button class="account-link-button" type="button" id="forgotPasswordButton">Forgot password?</button>
+        </div>
+        <div class="auth-card password-reset-card" id="passwordResetCard" hidden>
+          <h3>Reset Password</h3>
+          <p>Enter your account email. We will create a one-time passcode so only the customer with email access can reset the password.</p>
+          <input id="resetEmail" type="email" placeholder="Account email" autocomplete="email" />
+          <button class="button secondary wide" type="button" id="sendResetCode">Send Email Passcode</button>
+          <div class="reset-code-step" id="resetCodeStep" hidden>
+            <input id="resetCode" inputmode="numeric" maxlength="6" placeholder="6-digit passcode" autocomplete="one-time-code" />
+            <input id="resetNewPassword" type="password" placeholder="New password" autocomplete="new-password" />
+            <button class="button primary wide" type="button" id="verifyResetCode">Verify & Update Password</button>
+          </div>
+          <button class="account-link-button" type="button" id="cancelResetPassword">Back to sign in</button>
+        </div>
+        <div class="auth-card admin-session-card" id="adminSessionCard" hidden>
+          <h3>Admin Session</h3>
+          <p>You are signed in as Chey. Keep editing the live site or exit admin mode to return to the customer account flow.</p>
+          <div class="admin-session-actions">
+            <button class="button primary wide" type="button" id="adminContinueEditing">Continue Editing</button>
+            <button class="button secondary wide" type="button" id="adminExitMode">Exit Admin</button>
+          </div>
+        </div>
+        <div class="auth-card">
+          <h3>New Here?</h3>
+          <p>Create a profile before ordering so Chey can keep your sizing and favorites together.</p>
           <input id="registerName" placeholder="Name" autocomplete="name" />
           <input id="registerEmail" type="email" placeholder="Email" autocomplete="email" />
           <input id="registerPassword" type="password" placeholder="Password" autocomplete="new-password" />
-          <button class="button secondary wide" type="button" id="customerRegister">Create Account</button>
+          <button class="button secondary wide" type="button" id="customerRegister">Create My Nail Profile</button>
         </div>
-        <p class="account-status" id="accountStatus" role="status"></p>
       </div>
+      <p class="account-status" id="accountStatus" role="status"></p>
       <div class="account-dashboard" id="accountDashboard" hidden>
         <div class="account-welcome">
-          <strong id="accountName">Welcome back</strong>
+          <div>
+            <span>Your nail profile</span>
+            <strong id="accountName">Welcome back</strong>
+            <p>Update your sizing, grab saved sets, or review past orders.</p>
+          </div>
           <button type="button" id="customerLogout">Log Out</button>
         </div>
-        <section class="account-section">
+        <div class="account-kpi-row" aria-label="Profile shortcuts">
+          <span>Left + right hand sizing</span>
+          <span>Saved favorites</span>
+          <span>Order notes</span>
+        </div>
+        <section class="account-section size-section">
           <h3>Saved Nail Sizes</h3>
-          <div class="size-grid">
-            <label>Thumb <select id="sizeThumb" data-size-select></select></label>
-            <label>Index <select id="sizeIndex" data-size-select></select></label>
-            <label>Middle <select id="sizeMiddle" data-size-select></select></label>
-            <label>Ring <select id="sizeRing" data-size-select></select></label>
-            <label>Pinky <select id="sizePinky" data-size-select></select></label>
+          <p class="account-section-intro">Hands can be different. Save each finger for both hands so custom sets fit better.</p>
+          <div class="hand-size-layout">
+            <div class="hand-size-card">
+              <h4>Left Hand</h4>
+              <div class="size-grid account-size-grid">
+                <label>Thumb <select id="sizeLeftThumb" data-size-select></select></label>
+                <label>Index <select id="sizeLeftIndex" data-size-select></select></label>
+                <label>Middle <select id="sizeLeftMiddle" data-size-select></select></label>
+                <label>Ring <select id="sizeLeftRing" data-size-select></select></label>
+                <label>Pinky <select id="sizeLeftPinky" data-size-select></select></label>
+              </div>
+            </div>
+            <div class="hand-size-card">
+              <h4>Right Hand</h4>
+              <div class="size-grid account-size-grid">
+                <label>Thumb <select id="sizeRightThumb" data-size-select></select></label>
+                <label>Index <select id="sizeRightIndex" data-size-select></select></label>
+                <label>Middle <select id="sizeRightMiddle" data-size-select></select></label>
+                <label>Ring <select id="sizeRightRing" data-size-select></select></label>
+                <label>Pinky <select id="sizeRightPinky" data-size-select></select></label>
+              </div>
+            </div>
           </div>
-          <button class="button primary wide" type="button" id="saveSizes">Save Sizes</button>
+          <button class="button primary wide" type="button" id="saveSizes">Save Both Hands</button>
         </section>
         <section class="account-section">
-          <h3>Saved Products</h3>
+          <h3>Saved Favorites</h3>
+          <p class="account-section-intro">Sets you loved stay here so you can add them back to your bag fast.</p>
           <div class="account-list" id="savedProductsList"></div>
         </section>
         <section class="account-section">
           <h3>Order History</h3>
+          <p class="account-section-intro">Past orders and custom request notes show here after checkout.</p>
           <div class="account-list" id="orderHistoryList"></div>
         </section>
       </div>
@@ -463,11 +452,12 @@
         <div class="admin-view-panel" id="adminSiteView" data-admin-view-panel="site">
         <section class="admin-section admin-publish-note">
           <h3>Publishing Changes</h3>
-          <p>Photo and text edits made here are saved in this browser. To make them show on every customer's device, export the edits and rebuild/redeploy the site, or connect the store to a real backend/dashboard.</p>
+          <p>Changes made here update this storefront right away. On the deployed Netlify site, admin changes are also saved to the live website so products, photos, copy, and layout edits stay visible for customers.</p>
+          <p class="admin-easy-edit-note">Simple mode: press <strong>Click To Edit Site</strong>, then click text or photos directly on the website.</p>
         </section>
         <div class="admin-actions">
-          <button type="button" id="toggleEditText">Edit Text</button>
-          <button type="button" id="saveEdits">Save</button>
+          <button type="button" id="toggleEditText">Click To Edit Site</button>
+          <button type="button" id="saveEdits">Save Current Edits</button>
           <button type="button" id="exportEdits">Export</button>
           <label class="admin-import">
             Import
@@ -476,61 +466,51 @@
           <button type="button" id="resetEdits">Reset</button>
         </div>
         <section class="admin-section">
+          <div class="admin-section-title">
+            <div>
+              <h3>Quick Page Content</h3>
+              <p>Update the main customer-facing copy here. Changes save straight into the page.</p>
+            </div>
+          </div>
+          <div class="admin-content-list" id="adminContentList"></div>
+          <p class="admin-status" id="adminContentStatus" role="status"></p>
+        </section>
+        <section class="admin-section">
+          <div class="admin-section-title">
+            <div>
+              <h3>Page Layout</h3>
+              <p>Show, hide, and reorder the main site pages so the top navigation flows the way you want.</p>
+            </div>
+            <div class="admin-section-actions">
+              <button type="button" id="resetLayoutButton">Reset Layout</button>
+            </div>
+          </div>
+          <div class="admin-layout-list" id="adminLayoutList"></div>
+          <p class="admin-status" id="adminLayoutStatus" role="status"></p>
+        </section>
+        <section class="admin-section">
           <h3>Photos</h3>
           <div class="admin-image-list" id="adminImageList"></div>
         </section>
-        <section class="admin-section">
+        <section class="admin-section product-library-section">
           <div class="admin-section-title">
             <div>
               <h3>Products</h3>
-              <p>Add her handmade sets and update the shop cards.</p>
+              <p>This is the product library. Upload nail photos, polish the product details, then publish finished designs directly to the Shop.</p>
             </div>
             <div class="admin-section-actions">
-              <span id="productCountBadge">0 products</span>
+              <span id="lookCountBadge">0 saved designs</span>
+              <span id="productCountBadge">0 live products</span>
               <button type="button" id="saveProductChanges">Save Products</button>
             </div>
           </div>
-          <div class="admin-control add-product-form" aria-labelledby="add-product-title">
-            <div class="quick-add-head">
-              <div>
-                <strong id="add-product-title">Add a Product</strong>
-                <p>Photo, name, price, done.</p>
-              </div>
-            </div>
-            <label class="photo-upload-tile" for="newProductPhoto">
-              <img id="newProductPreview" alt="" hidden />
-              <span class="upload-icon" aria-hidden="true">+</span>
-              <strong>Choose Product Photo</strong>
-              <small>Square or close-up photos look best.</small>
-            </label>
-            <input class="hidden-file-input" id="newProductPhoto" type="file" accept="image/*" />
-            <label>Product Name <input id="newProductName" placeholder="Pink Pearl Coffin Set" /></label>
-            <div class="admin-field-row">
-              <label>Price <input id="newProductPrice" inputmode="decimal" placeholder="45" /></label>
-              <label>Style <input id="newProductCategory" placeholder="chrome, jelly, custom" /></label>
-            </div>
-            <label>Description <textarea id="newProductDescription" placeholder="Short details customers should know"></textarea></label>
-            <label>Maker notes <textarea class="large-notes" id="newProductNotes" placeholder="Private notes: polish colors, pigments, charms, glue, top coat, timing, customer preference."></textarea></label>
-            <details class="admin-optional">
-              <summary>Optional tag</summary>
-              <label>Tag <input id="newProductTag" placeholder="New drop" /></label>
-            </details>
-            <button type="button" class="button primary wide" id="addProductButton">Add Product</button>
-            <p class="admin-status" id="addProductStatus" role="status"></p>
-          </div>
-          <div class="admin-product-list" id="adminProductList"></div>
-        </section>
-        <section class="admin-section">
-          <div class="admin-section-title">
-            <div>
-              <h3>Color & Style Photos</h3>
-              <p>Change the photo shown for each custom builder look.</p>
-            </div>
-            <div class="admin-section-actions">
-              <span id="lookCountBadge">80 looks</span>
-            </div>
-          </div>
+          <p class="admin-status" id="addProductStatus" role="status"></p>
           <div class="admin-look-list" id="adminLookList"></div>
+          <details class="admin-published-products" open>
+            <summary>Published Shop Products</summary>
+            <p>These are the products customers can see in the Shop. Use the product library above to add more.</p>
+            <div class="admin-product-list" id="adminProductList"></div>
+          </details>
         </section>
         <section class="admin-section">
           <div class="admin-section-title">
@@ -669,6 +649,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=20260626-photo-replace-v4"></script>
   </body>
 </html>

@@ -4,7 +4,7 @@ Luxury press-on nail website for Pressed by Chey.
 
 ## What is included
 
-- Customer storefront with product cards, custom design request, cart, guest checkout, and account area.
+- Customer storefront with product cards, cart, guest checkout, and account area.
 - Admin sign-in through the account panel.
 - Admin product/photo editor.
 - Design Studio with a nail canvas, aura tools, nail brush, French tip, glitter, chrome, and movable 3D objects.
@@ -30,6 +30,14 @@ Then open:
 http://127.0.0.1:4173/
 ```
 
+## Project structure
+
+- `index.html`, `styles.css`, `script.js`: main app files
+- `assets/`: logos, product photos, and preview images
+- `netlify.toml`: deploy settings and security headers
+- `netlify/functions/admin-state.mjs`: live admin saving for Netlify deployments
+- `asset-test.html`: quick image check page for deploy verification
+
 ## Deploy to Netlify
 
 Upload the contents of this folder to Netlify, or use the latest zip artifact in Documents:
@@ -40,4 +48,4 @@ C:\Users\aplin\Documents\UPLOAD-THIS-TO-NETLIFY-LATEST-DESIGN-STUDIO-PHOTO-FIX.z
 
 ## Important note
 
-Customer accounts, admin edits, orders, uploaded photos, and design notes are saved in the browser on this static demo. To share those changes across different computers or real customers, the site will need a backend database and file storage.
+Admin product, photo, copy, layout, design note, and product edits are saved to the deployed Netlify website through `/.netlify/functions/admin-state`, backed by Netlify Blobs. Customer accounts, guest orders, saved sizes, saved products, and order history still use browser storage in this demo. For real public customer accounts, payments, and order management, connect a secure backend/database and checkout provider.

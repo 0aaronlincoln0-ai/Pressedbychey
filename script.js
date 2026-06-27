@@ -14,6 +14,7 @@ const guestEmail = document.querySelector("#guestEmail");
 const guestPhone = document.querySelector("#guestPhone");
 const guestNotes = document.querySelector("#guestNotes");
 const guestCheckoutButton = document.querySelector("#guestCheckoutButton");
+const guestCheckoutOpen = document.querySelector("#guestCheckoutOpen");
 const guestCheckoutStatus = document.querySelector("#guestCheckoutStatus");
 const builderPreview = document.querySelector("#builderPreview");
 const shade = document.querySelector("#shade");
@@ -28,6 +29,15 @@ const inspirationPreview = document.querySelector("#inspirationPreview");
 const inspirationPreviewImage = inspirationPreview?.querySelector("img");
 const inspirationName = document.querySelector("#inspirationName");
 const removeInspiration = document.querySelector("#removeInspiration");
+const customOrderName = document.querySelector("#customOrderName");
+const customOrderDescription = document.querySelector("#customOrderDescription");
+const customOrderPhoto = document.querySelector("#customOrderPhoto");
+const customOrderPreview = document.querySelector("#customOrderPreview");
+const customOrderPreviewImage = customOrderPreview?.querySelector("img");
+const customOrderPhotoName = document.querySelector("#customOrderPhotoName");
+const customOrderPhotoRemove = document.querySelector("#customOrderPhotoRemove");
+const customOrderSubmit = document.querySelector("#customOrderSubmit");
+const customOrderStatus = document.querySelector("#customOrderStatus");
 const adminNav = document.querySelector("#adminNav");
 const adminPage = document.querySelector("#adminPage");
 const adminLogout = document.querySelector("#adminLogout");
@@ -41,12 +51,10 @@ const saveEditsButton = document.querySelector("#saveEdits");
 const exportEditsButton = document.querySelector("#exportEdits");
 const importEditsInput = document.querySelector("#importEdits");
 const resetEditsButton = document.querySelector("#resetEdits");
-const addProductButton = document.querySelector("#addProductButton");
 const saveProductChangesButton = document.querySelector("#saveProductChanges");
-const newProductPhoto = document.querySelector("#newProductPhoto");
-const newProductPreview = document.querySelector("#newProductPreview");
 const addProductStatus = document.querySelector("#addProductStatus");
 const productCountBadge = document.querySelector("#productCountBadge");
+const lookCountBadge = document.querySelector("#lookCountBadge");
 const ideaCountBadge = document.querySelector("#ideaCountBadge");
 const ideaPhoto = document.querySelector("#ideaPhoto");
 const ideaPhotoPreview = document.querySelector("#ideaPhotoPreview");
@@ -77,12 +85,32 @@ const saveIdeaButton = document.querySelector("#saveIdeaButton");
 const ideaStatusMessage = document.querySelector("#ideaStatusMessage");
 const ideaList = document.querySelector("#ideaList");
 const productGrid = document.querySelector(".product-grid");
+const productDetailContent = document.querySelector("#productDetailContent");
+const filterRow = document.querySelector("#shopFilters");
+const pageBook = document.querySelector("#pageBook");
+const bookStatus = document.querySelector("#bookStatus");
+const sitePages = () => document.querySelectorAll("[data-page-panel]");
+const pageLinks = () => document.querySelectorAll("[data-page-link]");
+const navBar = document.querySelector(".nav");
+const scrollProgress = document.querySelector(".scroll-progress");
 const checkoutButton = document.querySelector("#checkoutButton");
 const accountAuth = document.querySelector("#accountAuth");
 const accountDashboard = document.querySelector("#accountDashboard");
 const accountStatus = document.querySelector("#accountStatus");
 const loginEmail = document.querySelector("#loginEmail");
 const loginPassword = document.querySelector("#loginPassword");
+const forgotPasswordButton = document.querySelector("#forgotPasswordButton");
+const passwordResetCard = document.querySelector("#passwordResetCard");
+const adminSessionCard = document.querySelector("#adminSessionCard");
+const adminContinueEditing = document.querySelector("#adminContinueEditing");
+const adminExitMode = document.querySelector("#adminExitMode");
+const resetEmail = document.querySelector("#resetEmail");
+const sendResetCode = document.querySelector("#sendResetCode");
+const resetCodeStep = document.querySelector("#resetCodeStep");
+const resetCode = document.querySelector("#resetCode");
+const resetNewPassword = document.querySelector("#resetNewPassword");
+const verifyResetCode = document.querySelector("#verifyResetCode");
+const cancelResetPassword = document.querySelector("#cancelResetPassword");
 const registerName = document.querySelector("#registerName");
 const registerEmail = document.querySelector("#registerEmail");
 const registerPassword = document.querySelector("#registerPassword");
@@ -94,18 +122,46 @@ const savedProductsList = document.querySelector("#savedProductsList");
 const orderHistoryList = document.querySelector("#orderHistoryList");
 const saveSizesButton = document.querySelector("#saveSizes");
 const sizeInputs = {
-  thumb: document.querySelector("#sizeThumb"),
-  index: document.querySelector("#sizeIndex"),
-  middle: document.querySelector("#sizeMiddle"),
-  ring: document.querySelector("#sizeRing"),
-  pinky: document.querySelector("#sizePinky")
+  left: {
+    thumb: document.querySelector("#sizeLeftThumb"),
+    index: document.querySelector("#sizeLeftIndex"),
+    middle: document.querySelector("#sizeLeftMiddle"),
+    ring: document.querySelector("#sizeLeftRing"),
+    pinky: document.querySelector("#sizeLeftPinky")
+  },
+  right: {
+    thumb: document.querySelector("#sizeRightThumb"),
+    index: document.querySelector("#sizeRightIndex"),
+    middle: document.querySelector("#sizeRightMiddle"),
+    ring: document.querySelector("#sizeRightRing"),
+    pinky: document.querySelector("#sizeRightPinky")
+  }
 };
 const adminUserList = document.querySelector("#adminUserList");
 const adminGuestOrderList = document.querySelector("#adminGuestOrderList");
+const adminContentList = document.querySelector("#adminContentList");
+const adminContentStatus = document.querySelector("#adminContentStatus");
+const adminLayoutList = document.querySelector("#adminLayoutList");
+const adminLayoutStatus = document.querySelector("#adminLayoutStatus");
+const resetLayoutButton = document.querySelector("#resetLayoutButton");
 const cart = [];
 let selectedLook = null;
 let customInspirationSrc = "";
+let customOrderPhotoDataUrl = "";
 let textEditMode = false;
+let inlineEditSaveTimer = null;
+let inlineImageEditTarget = null;
+let adminEditToolbar = null;
+let adminEditToggle = null;
+let adminEditStatus = null;
+let adminToolbarResizeObserver = null;
+let adminInlineImageInput = null;
+let adminInlineProductInput = null;
+let adminInventoryPanel = null;
+let adminInventoryStatus = null;
+let adminInventoryOverview = null;
+let adminInventoryList = null;
+let adminInventoryPhotoInput = null;
 let cartEmptyMessage = "Your bag is ready for something glossy.";
 let isDrawing = false;
 let lastDrawPoint = null;
@@ -113,6 +169,9 @@ let eraserMode = false;
 let drawingMode = "brush";
 let selectedCharmIndex = -1;
 let draggingCharmIndex = -1;
+let visibleLookSlotCount = 12;
+let selectedProductIndex = -1;
+let productDetailQuantity = 1;
 const drawingUndoStack = [];
 const placedCharms = [];
 const nailTemplate = {
@@ -129,24 +188,123 @@ const presetAura = {
 const ADMIN_PASSWORD = "chey2026";
 const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com"];
 const ADMIN_SESSION_KEY = "pressedByCheyAdminSession";
+const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const ADMIN_STORAGE_KEY = "pressedByCheyEdits";
+const ADMIN_REMOTE_STATE_ENDPOINT = "/.netlify/functions/admin-state";
+const ADMIN_REMOTE_PHOTO_ENDPOINT = `${ADMIN_REMOTE_STATE_ENDPOINT}?photo=upload`;
+const ADMIN_PENDING_REMOTE_STATE_KEY = "pressedByCheyPendingAdminRemoteState";
+const ADMIN_REMOTE_SAVE_DEBOUNCE_MS = 700;
+const ADMIN_REMOTE_RETRY_DELAY_MS = 4000;
+const ADMIN_LIVE_SAVE_FAILURE_MESSAGE = "Saved on this device. Live site sync is pending and will retry automatically.";
+const ADMIN_LIVE_SAVE_SUCCESS_MESSAGE = "Saved to the live website.";
 const CUSTOMER_STORAGE_KEY = "pressedByCheyCustomers";
 const GUEST_ORDER_STORAGE_KEY = "pressedByCheyGuestOrders";
 const nailSizeOptions = ["", "000", "00", "0", "0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
+const sizeFingerKeys = ["thumb", "index", "middle", "ring", "pinky"];
+const sizeHandKeys = ["left", "right"];
 let customerState = {
   users: [],
   currentEmail: ""
 };
+let passwordResetRequest = null;
 let guestOrders = [];
+let adminSession = null;
 let adminState = {
   texts: {},
   images: {},
+  imageFits: {},
+  imagePositions: {},
+  imageZooms: {},
+  imageTransforms: {},
   products: {},
   customProducts: [],
   lookPhotos: {},
+  lookPhotoFits: {},
+  lookPhotoPositions: {},
+  lookPhotoZooms: {},
+  lookPhotoTransforms: {},
   lookDetails: {},
-  ideas: []
+  ideas: [],
+  customPages: [],
+    customBlocks: [],
+    hiddenText: {},
+    textOffsets: {},
+    layoutOrder: [],
+    hiddenSections: {}
 };
+const quickContentFields = [
+  { key: "hero-eyebrow", label: "Hero eyebrow", selector: ".hero .eyebrow" },
+  { key: "hero-title", label: "Hero title", selector: "#hero-title" },
+  { key: "hero-description", label: "Hero description", selector: ".hero-text", multiline: true },
+  { key: "hero-primary-button", label: "Primary button label", selector: ".hero-actions .button.primary" },
+  { key: "hero-secondary-button", label: "Secondary button label", selector: ".hero-actions .button.secondary" },
+  { key: "hero-tag-one", label: "Floating tag 1", selector: ".tag-one" },
+  { key: "hero-tag-two", label: "Floating tag 2", selector: ".tag-two" },
+  { key: "shop-eyebrow", label: "Shop eyebrow", selector: "#shop .eyebrow" },
+  { key: "shop-title", label: "Shop heading", selector: "#shop-title" },
+  { key: "fit-eyebrow", label: "Fit guide eyebrow", selector: "#fit .eyebrow" },
+  { key: "fit-title", label: "Fit guide heading", selector: "#fit-title" },
+  { key: "fit-step-1-title", label: "Fit step 1 title", selector: '.fit-grid article:nth-of-type(1) h3' },
+  { key: "fit-step-1-body", label: "Fit step 1 body", selector: '.fit-grid article:nth-of-type(1) p', multiline: true },
+  { key: "fit-step-2-title", label: "Fit step 2 title", selector: '.fit-grid article:nth-of-type(2) h3' },
+  { key: "fit-step-2-body", label: "Fit step 2 body", selector: '.fit-grid article:nth-of-type(2) p', multiline: true },
+  { key: "fit-step-3-title", label: "Fit step 3 title", selector: '.fit-grid article:nth-of-type(3) h3' },
+  { key: "fit-step-3-body", label: "Fit step 3 body", selector: '.fit-grid article:nth-of-type(3) p', multiline: true },
+  { key: "reviews-eyebrow", label: "Reviews eyebrow", selector: "#reviews .eyebrow" },
+  { key: "reviews-title", label: "Reviews heading", selector: "#reviews-title" },
+  { key: "review-1-quote", label: "Review 1 quote", selector: '.review-track figure:nth-of-type(1) blockquote', multiline: true },
+  { key: "review-1-name", label: "Review 1 name", selector: '.review-track figure:nth-of-type(1) figcaption' },
+  { key: "review-2-quote", label: "Review 2 quote", selector: '.review-track figure:nth-of-type(2) blockquote', multiline: true },
+  { key: "review-2-name", label: "Review 2 name", selector: '.review-track figure:nth-of-type(2) figcaption' },
+  { key: "review-3-quote", label: "Review 3 quote", selector: '.review-track figure:nth-of-type(3) blockquote', multiline: true },
+  { key: "review-3-name", label: "Review 3 name", selector: '.review-track figure:nth-of-type(3) figcaption' },
+  { key: "footer-description", label: "Footer description", selector: ".footer p", multiline: true }
+];
+const layoutSectionMeta = [
+  { key: "home", label: "Home", selector: '[data-page-panel="home"]', note: "Hero, trend strip, and welcome content" },
+  { key: "shop", label: "Shop", selector: '[data-page-panel="shop"]', note: "Product grid and shopping page" },
+  { key: "fit", label: "Fit guide", selector: '[data-page-panel="fit"]', note: "Sizing and application guidance page" },
+  { key: "reviews", label: "Reviews", selector: '[data-page-panel="reviews"]', note: "Customer social proof page" }
+];
+const LOOK_SLOT_BATCH_SIZE = 12;
+
+function safeSlug(value, fallback = "page") {
+  const slug = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 42);
+  return slug || fallback;
+}
+
+function uniquePageKey(label) {
+  const base = safeSlug(label, "page");
+  const taken = new Set(allPageKeys());
+  let key = base;
+  let count = 2;
+  while (taken.has(key)) {
+    key = `${base}-${count}`;
+    count += 1;
+  }
+  return key;
+}
+
+function customPageMeta() {
+  return (adminState.customPages || []).map((page) => ({
+    key: page.key,
+    label: page.label || page.title || "New Page",
+    selector: `[data-page-panel="${page.key}"]`,
+    note: "Custom page added from the live admin toolbar"
+  }));
+}
+
+function allLayoutSections() {
+  return [...layoutSectionMeta, ...customPageMeta()];
+}
+
+function allPageKeys() {
+  return allLayoutSections().map((section) => section.key);
+}
 const finishNotes = {
   blush: {
     title: "Blush Pink",
@@ -189,87 +347,53 @@ const shapePathLibrary = {
     "M1313 558 L1368 585 C1391 633 1377 730 1336 760 C1300 784 1265 756 1256 708 C1247 658 1269 581 1313 558 Z"
   ]
 };
-const lookLibrary = [
-  ["Chey Signature Pink", "#ffbdd4", "#cb2e72", "gloss", "Pressed by Chey signature pink"],
-  ["Milky Ballet", "#fff4f7", "#f5b3c9", "milky", "Soft sheer ballet nude"],
-  ["Rose Chrome", "#ffd7e5", "#cb2e72", "chrome", "Mirror rose chrome"],
-  ["Berry Jelly Aura", "#ffc2d9", "#d82675", "jelly", "Translucent berry aura"],
-  ["Coquette Bow", "#fff0f6", "#ff9cc0", "3d", "Raised bow accent"],
-  ["Pearl French", "#fff8fb", "#f9d7e2", "french", "Clean pearl French"],
-  ["Ruby Micro French", "#fff3f8", "#b20f4f", "french", "Sheer base ruby tip"],
-  ["Black Cherry", "#2a0718", "#8d1647", "gloss", "Deep glossy cherry"],
-  ["Classic Red Gloss", "#8f0712", "#ff3b45", "gloss", "Timeless high-shine red"],
-  ["Burgundy Velvet", "#310613", "#9d183d", "velvet", "Deep wine magnetic finish"],
-  ["Chocolate Glaze", "#3a2118", "#9b6147", "gloss", "Rich cocoa shine"],
-  ["Espresso Cat-Eye", "#160f0c", "#a06a4a", "cat-eye", "Dark coffee light beam"],
-  ["Caramel Chrome", "#9a5a2e", "#f5b96e", "chrome", "Warm caramel metal"],
-  ["Champagne Pearl", "#f7dfc2", "#fff5ee", "pearl", "Soft champagne shimmer"],
-  ["Glazed Nude Almond", "#f1c9bc", "#fff4ec", "pearl", "Nude pearl almond"],
-  ["Taupe Gloss", "#8c7873", "#d8beb8", "gloss", "Neutral taupe shine"],
-  ["Greige French", "#f5eee8", "#9f9790", "french", "Modern greige edge"],
-  ["Coconut Milk", "#fffaf1", "#e9d8c7", "milky", "Creamy white sheer"],
-  ["Vanilla Chrome", "#fff4da", "#d7b760", "chrome", "Soft gold-white chrome"],
-  ["Butter Yellow Aura", "#fff1a6", "#f5b92e", "aura", "Sunny butter glow"],
-  ["Lemon Sorbet", "#fff8b8", "#f4d734", "jelly", "Clear yellow jelly"],
-  ["Tangerine Gloss", "#ff8a38", "#ffbd73", "gloss", "Bright citrus orange"],
-  ["Coral Petal", "#ff8a7a", "#ffc2b5", "gloss", "Vacation coral shine"],
-  ["Peach Cream", "#ffc6a8", "#ffe3d3", "milky", "Soft peach cream"],
-  ["Apricot Pearl", "#ffb17f", "#ffd8bd", "pearl", "Peach pearl topcoat"],
-  ["Terracotta Satin", "#9f4c36", "#d98565", "gloss", "Earthy warm clay"],
-  ["Sage Milk", "#dfe9d5", "#88a57a", "milky", "Soft green milk bath"],
-  ["Olive Chrome", "#4f5f34", "#b3c06f", "chrome", "Muted olive metal"],
-  ["Emerald Cat-Eye", "#063b2e", "#35c18a", "cat-eye", "Luxury green beam"],
-  ["Jade Jelly", "#bbf0d0", "#2ca66d", "jelly", "Translucent jade glass"],
-  ["Mint French", "#f7fff8", "#8adfbd", "french", "Fresh mint tip"],
-  ["Forest Marble", "#0f3024", "#8ec3a7", "marble", "Green stone veining"],
-  ["Seafoam Pearl", "#d7fff6", "#95d7d2", "pearl", "Soft ocean shimmer"],
-  ["Aqua Glass", "#c8f7ff", "#1fb4d6", "jelly", "Clear aqua jelly"],
-  ["Baby Blue Chrome", "#d7edff", "#78aee8", "chrome", "Icy blue metal"],
-  ["Sky Aura", "#d6efff", "#57a6ff", "aura", "Soft blue airbrush"],
-  ["Cobalt Gloss", "#102a8c", "#4b76ff", "gloss", "Bold cobalt shine"],
-  ["Navy Cat-Eye", "#07142d", "#497de0", "cat-eye", "Midnight blue beam"],
-  ["Denim French", "#f4f8ff", "#4b6f9d", "french", "Blue denim tip"],
-  ["Lilac Milk", "#eee3ff", "#b68be8", "milky", "Cool lavender sheer"],
-  ["Orchid Aura", "#d9b3ff", "#ff6fb1", "aura", "Purple-pink aura fade"],
-  ["Amethyst Chrome", "#5e2d83", "#c08cff", "chrome", "Purple gemstone metal"],
-  ["Plum Velvet", "#4f183b", "#b44785", "velvet", "Understated plum shimmer"],
-  ["Midnight Plum", "#261338", "#9a4cc2", "chrome", "Dark purple metal"],
-  ["Iced Lavender French", "#fbf8ff", "#bfa7ff", "french", "Pale lavender edge"],
-  ["Silver Mirror", "#dfe4ef", "#8f9bb0", "chrome", "Liquid silver reflection"],
-  ["Gunmetal Cat-Eye", "#222833", "#a7b0c0", "cat-eye", "Smoky metal beam"],
-  ["Black Patent", "#050505", "#3b3b3b", "gloss", "High-shine black"],
-  ["Black French", "#fff8fb", "#0b0b0c", "french", "Minimal black tip"],
-  ["White Chrome", "#ffffff", "#dce5f2", "chrome", "Clean icy chrome"],
-  ["Pearl Oyster", "#f7e7ed", "#cfd6e8", "pearl", "Cool oyster sheen"],
-  ["Opal Shell", "#fff6fb", "#cfe9ff", "pearl", "Opalescent shell shift"],
-  ["Hologlow", "#ffb8d2", "#b6e5ff", "chrome", "Rainbow holographic flash"],
-  ["Disco Silver", "#f2f4f8", "#b8bcc7", "crystal", "Crystal party shine"],
-  ["Gold Foil French", "#fff8ef", "#d6a64f", "french", "Gold couture edge"],
-  ["Rose Gold Foil", "#ffd1df", "#d99a6c", "chrome", "Rose-gold metal glow"],
-  ["Marble Quartz", "#fff0f7", "#c889a4", "marble", "Rose quartz lines"],
-  ["White Marble", "#ffffff", "#b7b7b7", "marble", "Clean stone veining"],
-  ["Smoky Marble", "#ece8e5", "#4a4343", "marble", "Smoked stone look"],
-  ["Tortoise Shell", "#5c3217", "#d68d3f", "marble", "Amber tortoise depth"],
-  ["Cow Print", "#fffefd", "#151515", "3d", "Graphic black-white spots"],
-  ["Leopard Accent", "#d89b58", "#3a1d10", "3d", "Fashion print accent"],
-  ["Micro Flower", "#ffeaf2", "#ff7eb0", "3d", "Tiny floral accents"],
-  ["Daisy Cream", "#fffaf0", "#f6cc35", "3d", "Small daisy details"],
-  ["Water Droplet Clear", "#eaf8ff", "#ffffff", "3d", "Raised glass drops"],
-  ["Crystal Nude", "#f3d2c7", "#ffffff", "crystal", "Nude with sparkle accent"],
-  ["Birthday Glitter", "#ffd6f0", "#9ed7ff", "crystal", "Confetti sparkle mix"],
-  ["Aurora Ice", "#dbf7ff", "#dab8ff", "chrome", "Blue-lilac aurora"],
-  ["Mermaid Chrome", "#75e0d0", "#8f63ff", "chrome", "Teal violet shift"],
-  ["Unicorn Aura", "#ffd2f1", "#9ed7ff", "aura", "Pastel fantasy fade"],
-  ["Sunset Aura", "#ffb37a", "#e24c87", "aura", "Orange-pink sunset"],
-  ["Moody Aura", "#2e143f", "#e15c96", "aura", "Dark aura center"],
-  ["Cyber Lime", "#d7ff44", "#5fda61", "chrome", "Electric lime shine"],
-  ["Neon Pink Pop", "#ff3b99", "#8f1dff", "chrome", "Bright club pink-violet"],
-  ["Neon Orange Pop", "#ff5a1f", "#ffe14a", "chrome", "Hot orange flash"],
-  ["Neon Green French", "#fffefe", "#68ff4d", "french", "Bright green tip"],
-  ["Holiday Ruby", "#8c061a", "#ffcad5", "crystal", "Red sparkle party set"],
-  ["Winter Snow Pearl", "#ffffff", "#d9ecff", "pearl", "Soft snow shimmer"],
-  ["Fall Cocoa Plaid", "#6b3a2a", "#d8a06f", "3d", "Warm fall accent style"],
-  ["Bridal Lace", "#fff9f5", "#e7d2c2", "3d", "Soft bridal detail"]
+const MAX_LOOK_SLOTS = 80;
+const lookSlotPalette = [
+  ["#ffbdd4", "#cb2e72"],
+  ["#fff4f7", "#f5b3c9"],
+  ["#ffd7e5", "#cb2e72"],
+  ["#ffc2d9", "#d82675"],
+  ["#fff0f6", "#ff9cc0"],
+  ["#fff8fb", "#f9d7e2"],
+  ["#f7dfc2", "#fff5ee"],
+  ["#d7edff", "#78aee8"],
+  ["#dfe9d5", "#88a57a"],
+  ["#eee3ff", "#b68be8"]
+];
+const lookLibrary = Array.from({ length: MAX_LOOK_SLOTS }, (_, index) => {
+  const [base, accentColor] = lookSlotPalette[index % lookSlotPalette.length];
+  return {
+    base,
+    accent: accentColor,
+    finish: "custom"
+  };
+});
+const legacyCopyMigrations = [];
+const corruptedQuickCopyRules = [
+  {
+    key: "hero-description",
+    matches: (value) => /send your inspiration|custom look/i.test(normalizeCopyValue(value))
+  },
+  {
+    key: "hero-secondary-button",
+    matches: (value) => /build yours|custom/i.test(normalizeCopyValue(value))
+  },
+  {
+    key: "shop-eyebrow",
+    matches: (value) => normalizeCopyValue(value) === "Custom builder"
+  },
+  {
+    key: "shop-title",
+    matches: (value) => /design a set around your exact style/i.test(normalizeCopyValue(value))
+  },
+  {
+    key: "reviews-eyebrow",
+    matches: (value) => /^".+"$/.test(normalizeCopyValue(value)) || /salon set/i.test(normalizeCopyValue(value))
+  },
+  {
+    key: "reviews-title",
+    matches: (value) => /^[A-Z][a-z]+ [A-Z]\.?$/.test(normalizeCopyValue(value))
+  }
 ];
 
 function detailFor(finish) {
@@ -308,15 +432,1253 @@ const revealObserver = new IntersectionObserver(
   { threshold: 0.14 }
 );
 
-document.querySelectorAll("[data-reveal]").forEach((el) => revealObserver.observe(el));
+const revealElements = document.querySelectorAll("[data-reveal]");
+
+revealElements.forEach((el, index) => {
+  el.style.setProperty("--reveal-index", String(index % 8));
+  revealObserver.observe(el);
+});
 
 requestAnimationFrame(() => {
-  document.querySelectorAll("[data-reveal]").forEach((el) => {
+  revealElements.forEach((el) => {
     const box = el.getBoundingClientRect();
     const isNearViewport = box.top < window.innerHeight * 1.08 && box.bottom > -window.innerHeight * 0.08;
     if (isNearViewport) el.classList.add("is-visible");
   });
 });
+
+if ("scrollRestoration" in history) {
+  history.scrollRestoration = "manual";
+}
+
+let currentPageKey = "home";
+let adminRemoteSaveTimer = null;
+let adminRemoteRetryTimer = null;
+let adminRemoteSyncEventsBound = false;
+let adminStateRevision = 0;
+let pageVisitStack = [];
+let pageScrollSyncFrame = 0;
+let scrollChromeFrame = 0;
+let removeBubbleFrame = 0;
+let pageNavigationLockTimer = null;
+let isPageNavigationLocked = false;
+let lastScrollProgress = "";
+let lastNavScrolled = false;
+let textDragState = null;
+
+function pageKeyFromHash(hash = window.location.hash) {
+  const key = hash.replace("#", "").trim().toLowerCase();
+  if (!key || key === "top") return "home";
+  if (/^product-\d+$/.test(key)) return "product";
+  return allPageKeys().includes(key) ? key : "home";
+}
+
+function productIndexFromHash(hash = window.location.hash) {
+  const match = hash.match(/^#product-(\d+)$/i);
+  return match ? Number(match[1]) : -1;
+}
+
+function defaultAdminState() {
+  return {
+    texts: {},
+    images: {},
+    imageFits: {},
+    imagePositions: {},
+    imageZooms: {},
+    imageTransforms: {},
+    products: {},
+    customProducts: [],
+    lookPhotos: {},
+    lookPhotoFits: {},
+    lookPhotoPositions: {},
+    lookPhotoZooms: {},
+    lookPhotoTransforms: {},
+    lookDetails: {},
+    ideas: [],
+    customPages: [],
+    customBlocks: [],
+    hiddenText: {},
+    textOffsets: {},
+    layoutOrder: defaultLayoutOrder(),
+    hiddenSections: {}
+  };
+}
+
+function normalizeCopyValue(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+const photoFitOptions = [
+  { value: "contain", label: "Show full photo" },
+  { value: "cover", label: "Fill the frame" },
+  { value: "soft-cover", label: "Soft crop" },
+  { value: "free", label: "Free placement" }
+];
+
+const photoPositionOptions = [
+  { value: "center", label: "Center", css: "center" },
+  { value: "top", label: "Top", css: "center 18%" },
+  { value: "bottom", label: "Bottom", css: "center 82%" },
+  { value: "left", label: "Left", css: "18% center" },
+  { value: "right", label: "Right", css: "82% center" }
+];
+
+function sanitizePhotoFit(value) {
+  return photoFitOptions.some((option) => option.value === value) ? value : "contain";
+}
+
+function sanitizePhotoPosition(value) {
+  return photoPositionOptions.some((option) => option.value === value) ? value : "center";
+}
+
+function sanitizePhotoZoom(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 1;
+  return Math.min(2.5, Math.max(0.25, number));
+}
+
+function defaultPhotoTransform() {
+  return { x: 0, y: 0, scaleX: 1, scaleY: 1 };
+}
+
+function sanitizePhotoTransform(value = {}) {
+  const fallback = defaultPhotoTransform();
+  const source = value && typeof value === "object" ? value : {};
+  const clamp = (number, min, max, backup) => {
+    const parsed = Number(number);
+    if (!Number.isFinite(parsed)) return backup;
+    return Math.min(max, Math.max(min, parsed));
+  };
+  return {
+    x: clamp(source.x, -140, 140, fallback.x),
+    y: clamp(source.y, -140, 140, fallback.y),
+    scaleX: clamp(source.scaleX, 0.2, 4, fallback.scaleX),
+    scaleY: clamp(source.scaleY, 0.2, 4, fallback.scaleY)
+  };
+}
+
+function photoFitOptionsMarkup(selectedFit) {
+  const selected = sanitizePhotoFit(selectedFit);
+  return photoFitOptions
+    .map((option) => `<option value="${option.value}"${option.value === selected ? " selected" : ""}>${option.label}</option>`)
+    .join("");
+}
+
+function photoPositionOptionsMarkup(selectedPosition) {
+  const selected = sanitizePhotoPosition(selectedPosition);
+  return photoPositionOptions
+    .map((option) => `<option value="${option.value}"${option.value === selected ? " selected" : ""}>${option.label}</option>`)
+    .join("");
+}
+
+function normalizePhotoFitMap(map = {}) {
+  return Object.fromEntries(Object.entries(map || {}).map(([key, value]) => [key, sanitizePhotoFit(value)]));
+}
+
+function normalizePhotoPositionMap(map = {}) {
+  return Object.fromEntries(Object.entries(map || {}).map(([key, value]) => [key, sanitizePhotoPosition(value)]));
+}
+
+function normalizePhotoZoomMap(map = {}) {
+  return Object.fromEntries(Object.entries(map || {}).map(([key, value]) => [key, sanitizePhotoZoom(value)]));
+}
+
+function normalizePhotoTransformMap(map = {}) {
+  return Object.fromEntries(Object.entries(map || {}).map(([key, value]) => [key, sanitizePhotoTransform(value)]));
+}
+
+function photoPositionCss(value) {
+  const position = sanitizePhotoPosition(value);
+  return photoPositionOptions.find((option) => option.value === position)?.css || "center";
+}
+
+function photoZoomPercent(value) {
+  return Math.round((sanitizePhotoZoom(value) - 1) * 100);
+}
+
+function normalizeMoneyValue(value) {
+  return String(value || "").replace(/[^0-9.]/g, "").trim();
+}
+
+function moneyNumber(value) {
+  const parsed = Number(normalizeMoneyValue(value));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function effectiveSalePriceValue(product = {}) {
+  const savedSale = normalizeMoneyValue(product.salePrice);
+  if (savedSale && moneyNumber(savedSale) > 0) return savedSale;
+  return calculatedSalePrice(product.price, product.discount);
+}
+
+function productCheckoutPrice(product = {}) {
+  const sale = moneyNumber(effectiveSalePriceValue(product));
+  return sale > 0 ? sale : moneyNumber(product.price);
+}
+
+function productPriceMarkup(product = {}) {
+  const regular = normalizeMoneyValue(product.price);
+  const sale = effectiveSalePriceValue(product);
+  const discountLabel = productDiscountLabel({ ...product, salePrice: sale });
+  if (sale && moneyNumber(sale) > 0 && regular && moneyNumber(regular) > moneyNumber(sale)) {
+    return `
+      <span class="price-stack">
+        <span class="sale-price">$${escapeHTML(sale)}</span>
+        <s>$${escapeHTML(regular)}</s>
+        ${discountLabel ? `<small>${escapeHTML(discountLabel)}</small>` : ""}
+      </span>
+    `;
+  }
+  return `<strong data-admin-product-index="${product.index}" data-admin-product-field="price">$${escapeHTML(regular || "0")}</strong>`;
+}
+
+function productDiscountLabel(product = {}) {
+  const label = String(product.discount || "").trim();
+  if (label) return label;
+  const regular = moneyNumber(product.price);
+  const sale = moneyNumber(product.salePrice);
+  if (regular > sale && sale > 0) return "Sale";
+  return "";
+}
+
+const discountOptions = [
+  ["", "No discount"],
+  ["10% off", "10% off"],
+  ["15% off", "15% off"],
+  ["20% off", "20% off"],
+  ["25% off", "25% off"],
+  ["30% off", "30% off"],
+  ["40% off", "40% off"],
+  ["$5 off", "$5 off"],
+  ["$10 off", "$10 off"],
+  ["$15 off", "$15 off"],
+  ["Sale", "Sale badge only"],
+  ["New Drop", "New Drop badge"],
+  ["Limited", "Limited badge"]
+];
+
+const categoryOptions = [
+  ["custom", "Custom / handmade"],
+  ["chrome", "Chrome"],
+  ["jelly", "Jelly"],
+  ["coquette", "Coquette"],
+  ["french", "French tip"],
+  ["aura", "Aura"],
+  ["cat-eye", "Cat-eye"],
+  ["glitter", "Glitter"],
+  ["seasonal", "Seasonal"],
+  ["sizing-kit", "Sizing kit"]
+];
+
+const stockOptions = [
+  ["Available", "Available"],
+  ["Made to order", "Made to order"],
+  ["Low stock", "Low stock"],
+  ["Sold out", "Sold out"],
+  ["Coming soon", "Coming soon"]
+];
+
+function optionMarkup(options, selectedValue) {
+  const selected = String(selectedValue || "");
+  return options
+    .map(([value, label]) => `<option value="${escapeAttribute(value)}"${value === selected ? " selected" : ""}>${escapeHTML(label)}</option>`)
+    .join("");
+}
+
+function optionLabel(options, selectedValue, fallback = "") {
+  const selected = String(selectedValue || "");
+  const match = options.find(([value]) => value === selected);
+  return match?.[1] || fallback || selected;
+}
+
+function formatMoneyValue(value) {
+  const amount = Math.max(0, Number(value) || 0);
+  return amount % 1 === 0 ? String(amount) : amount.toFixed(2).replace(/0$/, "");
+}
+
+function calculatedSalePrice(price, discount) {
+  const regular = moneyNumber(price);
+  if (regular <= 0) return "";
+  const label = String(discount || "").trim();
+  const percentMatch = label.match(/^(\d+(?:\.\d+)?)%\s*off$/i);
+  if (percentMatch) {
+    return formatMoneyValue(regular * (1 - Number(percentMatch[1]) / 100));
+  }
+  const dollarMatch = label.match(/^\$(\d+(?:\.\d+)?)\s*off$/i);
+  if (dollarMatch) {
+    return formatMoneyValue(Math.max(0, regular - Number(dollarMatch[1])));
+  }
+  return "";
+}
+
+function applyAutomaticDiscount(product, changedField = "") {
+  if (!product) return;
+  if (!["price", "discount"].includes(changedField)) return;
+  const calculated = calculatedSalePrice(product.price, product.discount);
+  if (calculated) product.salePrice = calculated;
+  if (!product.discount) product.salePrice = "";
+}
+
+function productImageMarkup(product, index) {
+  if (product.image) {
+    return `<img src="${escapeAttribute(product.image)}" alt="" data-admin-product-image-index="${index}" data-photo-fit="${escapeAttribute(sanitizePhotoFit(product.imageFit))}" data-photo-position="${escapeAttribute(sanitizePhotoPosition(product.imagePosition))}" style="${photoTransformStyle(product.imageTransform, product.imageZoom)}" />`;
+  }
+  return `
+    <div class="product-photo-placeholder" data-admin-product-placeholder-index="${index}">
+      <div class="sample-set" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <div class="sample-set-caption">
+        <strong>Product photo coming soon</strong>
+        <small>Use this polished preview, or add Chey's real nail photo.</small>
+      </div>
+    </div>
+  `;
+}
+
+function photoTransformStyle(transform = {}, zoom = 1) {
+  const safeTransform = sanitizePhotoTransform(transform);
+  return [
+    `--photo-zoom: ${sanitizePhotoZoom(zoom).toFixed(2)}`,
+    `--photo-x: ${safeTransform.x.toFixed(2)}%`,
+    `--photo-y: ${safeTransform.y.toFixed(2)}%`,
+    `--photo-scale-x: ${safeTransform.scaleX.toFixed(2)}`,
+    `--photo-scale-y: ${safeTransform.scaleY.toFixed(2)}`
+  ].join("; ");
+}
+
+function applyPhotoFitToImage(image, fit, position = "center", zoom = 1, transform = {}) {
+  if (!image) return;
+  const safeTransform = sanitizePhotoTransform(transform);
+  image.dataset.photoFit = sanitizePhotoFit(fit);
+  image.dataset.photoPosition = sanitizePhotoPosition(position);
+  image.style.setProperty("--photo-zoom", sanitizePhotoZoom(zoom).toFixed(2));
+  image.style.setProperty("--photo-x", `${safeTransform.x.toFixed(2)}%`);
+  image.style.setProperty("--photo-y", `${safeTransform.y.toFixed(2)}%`);
+  image.style.setProperty("--photo-scale-x", safeTransform.scaleX.toFixed(2));
+  image.style.setProperty("--photo-scale-y", safeTransform.scaleY.toFixed(2));
+}
+
+function applyLookFitProperties(element, fit, position = "center", zoom = 1) {
+  if (!element) return;
+  const safeFit = sanitizePhotoFit(fit);
+  const safePosition = sanitizePhotoPosition(position);
+  element.dataset.photoFit = safeFit;
+  element.dataset.photoPosition = safePosition;
+  element.style.setProperty("--look-fit", safeFit === "contain" ? "contain" : "cover");
+  element.style.setProperty("--look-position", safeFit === "soft-cover" && safePosition === "center" ? "center 38%" : photoPositionCss(safePosition));
+  element.style.setProperty("--look-zoom", sanitizePhotoZoom(zoom).toFixed(2));
+}
+
+function triggerPhotoBounce(element) {
+  if (!element) return;
+  element.classList.remove("photo-bounce");
+  void element.offsetWidth;
+  element.classList.add("photo-bounce");
+}
+
+let photoStudioModal = null;
+let photoStudioResolve = null;
+let photoStudioTransform = defaultPhotoTransform();
+let photoStudioPointerState = null;
+let adminCelebrationTimer = null;
+
+function updatePhotoStudioPreview() {
+  if (!photoStudioModal) return;
+  const fit = photoStudioModal.querySelector("[data-studio-fit]")?.value;
+  const position = photoStudioModal.querySelector("[data-studio-position]")?.value;
+  const zoom = photoStudioModal.querySelector("[data-studio-zoom]")?.value;
+  const preview = photoStudioModal.querySelector("[data-studio-preview]");
+  const shell = photoStudioModal.querySelector("[data-studio-image-shell]");
+  const zoomLabel = photoStudioModal.querySelector("[data-studio-zoom-label]");
+  const placementLabel = photoStudioModal.querySelector("[data-studio-placement-label]");
+  applyPhotoFitToImage(preview, fit, position, zoom, photoStudioTransform);
+  applyPhotoFitToImage(shell, fit, position, zoom, photoStudioTransform);
+  if (shell) {
+    shell.dataset.photoFit = sanitizePhotoFit(fit);
+    shell.dataset.photoPosition = sanitizePhotoPosition(position);
+  }
+  if (zoomLabel) zoomLabel.textContent = `${photoZoomPercent(zoom)}% zoom`;
+  const widthInput = photoStudioModal.querySelector('[data-studio-scale="scaleX"]');
+  const heightInput = photoStudioModal.querySelector('[data-studio-scale="scaleY"]');
+  const widthLabel = photoStudioModal.querySelector('[data-studio-scale-label="scaleX"]');
+  const heightLabel = photoStudioModal.querySelector('[data-studio-scale-label="scaleY"]');
+  if (widthInput) widthInput.value = photoStudioTransform.scaleX.toFixed(2);
+  if (heightInput) heightInput.value = photoStudioTransform.scaleY.toFixed(2);
+  if (widthLabel) widthLabel.textContent = `${Math.round(photoStudioTransform.scaleX * 100)}%`;
+  if (heightLabel) heightLabel.textContent = `${Math.round(photoStudioTransform.scaleY * 100)}%`;
+  if (placementLabel) {
+    placementLabel.textContent = `Move ${Math.round(photoStudioTransform.x)} / ${Math.round(photoStudioTransform.y)} - Stretch ${Math.round(photoStudioTransform.scaleX * 100)}% x ${Math.round(photoStudioTransform.scaleY * 100)}%`;
+  }
+}
+
+function resetPhotoStudioPlacement() {
+  photoStudioTransform = defaultPhotoTransform();
+  const zoomInput = photoStudioModal?.querySelector("[data-studio-zoom]");
+  if (zoomInput) zoomInput.value = "1.00";
+  updatePhotoStudioPreview();
+}
+
+function startPhotoStudioPointer(event) {
+  if (!photoStudioModal || event.button > 0) return;
+  const frame = event.target.closest("[data-studio-frame]");
+  if (!frame || event.target.closest("select, input, button:not([data-studio-handle])")) return;
+  const handle = event.target.closest("[data-studio-handle]")?.dataset.studioHandle || "move";
+  const rect = frame.getBoundingClientRect();
+  photoStudioPointerState = {
+    handle,
+    startX: event.clientX,
+    startY: event.clientY,
+    width: Math.max(1, rect.width),
+    height: Math.max(1, rect.height),
+    startTransform: { ...photoStudioTransform }
+  };
+  frame.classList.add("is-moving-photo");
+  frame.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+}
+
+function movePhotoStudioPointer(event) {
+  if (!photoStudioPointerState) return;
+  const state = photoStudioPointerState;
+  const dx = event.clientX - state.startX;
+  const dy = event.clientY - state.startY;
+  const dxPercent = (dx / state.width) * 100;
+  const dyPercent = (dy / state.height) * 100;
+  const next = { ...state.startTransform };
+
+  if (state.handle === "move") {
+    next.x = state.startTransform.x + dxPercent;
+    next.y = state.startTransform.y + dyPercent;
+  } else {
+    const horizontal = (dx / state.width) * 2;
+    const vertical = (dy / state.height) * 2;
+    if (state.handle.includes("e")) next.scaleX = state.startTransform.scaleX + horizontal;
+    if (state.handle.includes("w")) next.scaleX = state.startTransform.scaleX - horizontal;
+    if (state.handle.includes("s")) next.scaleY = state.startTransform.scaleY + vertical;
+    if (state.handle.includes("n")) next.scaleY = state.startTransform.scaleY - vertical;
+  }
+
+  photoStudioTransform = sanitizePhotoTransform(next);
+  updatePhotoStudioPreview();
+  event.preventDefault();
+}
+
+function stopPhotoStudioPointer(event) {
+  if (!photoStudioPointerState) return;
+  photoStudioModal?.querySelector("[data-studio-frame]")?.classList.remove("is-moving-photo");
+  photoStudioModal?.querySelector("[data-studio-frame]")?.releasePointerCapture?.(event.pointerId);
+  photoStudioPointerState = null;
+}
+
+function sourcePlacementRect(imageWidth, imageHeight, targetWidth, targetHeight, fit = "contain", position = "center") {
+  const sourceRatio = imageWidth / imageHeight;
+  const targetRatio = targetWidth / targetHeight;
+  const useCover = sanitizePhotoFit(fit) !== "contain";
+  const scale = useCover
+    ? (sourceRatio > targetRatio ? targetHeight / imageHeight : targetWidth / imageWidth)
+    : (sourceRatio > targetRatio ? targetWidth / imageWidth : targetHeight / imageHeight);
+  const width = imageWidth * scale;
+  const height = imageHeight * scale;
+  const extraX = targetWidth - width;
+  const extraY = targetHeight - height;
+  const safePosition = sanitizePhotoPosition(position);
+  const x = safePosition === "left" ? extraX * 0.18 : safePosition === "right" ? extraX * 0.82 : extraX / 2;
+  const y = safePosition === "top" ? extraY * 0.18 : safePosition === "bottom" ? extraY * 0.82 : extraY / 2;
+  return {
+    x,
+    y,
+    width,
+    height
+  };
+}
+
+async function renderPhotoStudioFramedDataUrl() {
+  if (!photoStudioModal) return "";
+  const src = photoStudioModal.dataset.photoSrc || "";
+  if (!src) return "";
+  const frame = photoStudioModal.querySelector("[data-studio-frame]");
+  const fit = sanitizePhotoFit(photoStudioModal.querySelector("[data-studio-fit]")?.value);
+  const position = sanitizePhotoPosition(photoStudioModal.querySelector("[data-studio-position]")?.value);
+  const image = await imageFromDataUrl(src);
+  const frameRect = frame?.getBoundingClientRect();
+  const aspect = frameRect?.width && frameRect?.height ? frameRect.width / frameRect.height : 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = 1400;
+  canvas.height = Math.max(900, Math.round(canvas.width / Math.max(0.55, Math.min(1.65, aspect))));
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff9fc";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const placement = sourcePlacementRect(image.naturalWidth || image.width, image.naturalHeight || image.height, canvas.width, canvas.height, fit, position);
+  const transform = sanitizePhotoTransform(photoStudioTransform);
+  ctx.save();
+  ctx.translate(canvas.width / 2 + (transform.x / 100) * canvas.width, canvas.height / 2 + (transform.y / 100) * canvas.height);
+  ctx.scale(sanitizePhotoZoom(photoStudioModal.querySelector("[data-studio-zoom]")?.value) * transform.scaleX, sanitizePhotoZoom(photoStudioModal.querySelector("[data-studio-zoom]")?.value) * transform.scaleY);
+  ctx.drawImage(image, placement.x - canvas.width / 2, placement.y - canvas.height / 2, placement.width, placement.height);
+  ctx.restore();
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
+function closePhotoStudio(result = null) {
+  if (!photoStudioModal) return;
+  photoStudioModal.classList.remove("is-open");
+  window.setTimeout(() => {
+    if (photoStudioModal) photoStudioModal.hidden = true;
+  }, 180);
+  const resolver = photoStudioResolve;
+  photoStudioResolve = null;
+  if (resolver) resolver(result);
+}
+
+function ensurePhotoStudio() {
+  if (photoStudioModal) return photoStudioModal;
+  photoStudioModal = document.createElement("div");
+  photoStudioModal.className = "photo-studio-modal";
+  photoStudioModal.hidden = true;
+  photoStudioModal.innerHTML = `
+    <div class="photo-studio-panel" role="dialog" aria-modal="true" aria-labelledby="photoStudioTitle">
+      <div class="photo-studio-head">
+        <div>
+          <p class="eyebrow">Photo Studio</p>
+          <h3 id="photoStudioTitle">Make the product photo look right</h3>
+        </div>
+        <button class="photo-studio-close" type="button" data-studio-cancel aria-label="Close photo editor">x</button>
+      </div>
+      <div class="photo-studio-body">
+        <div class="photo-studio-preview-wrap" data-studio-frame>
+          <div class="photo-studio-image-shell" data-studio-image-shell>
+            <img data-studio-preview alt="Photo preview before it goes live" />
+            <button class="photo-resize-handle north" type="button" data-studio-handle="n" aria-label="Stretch photo up"></button>
+            <button class="photo-resize-handle south" type="button" data-studio-handle="s" aria-label="Stretch photo down"></button>
+            <button class="photo-resize-handle east" type="button" data-studio-handle="e" aria-label="Stretch photo right"></button>
+            <button class="photo-resize-handle west" type="button" data-studio-handle="w" aria-label="Stretch photo left"></button>
+            <button class="photo-resize-handle north-east" type="button" data-studio-handle="ne" aria-label="Stretch photo from top right"></button>
+            <button class="photo-resize-handle north-west" type="button" data-studio-handle="nw" aria-label="Stretch photo from top left"></button>
+            <button class="photo-resize-handle south-east" type="button" data-studio-handle="se" aria-label="Stretch photo from bottom right"></button>
+            <button class="photo-resize-handle south-west" type="button" data-studio-handle="sw" aria-label="Stretch photo from bottom left"></button>
+          </div>
+          <span class="photo-studio-grid" aria-hidden="true"></span>
+          <span class="photo-studio-drag-tip">Drag photo to place it</span>
+          <span class="photo-studio-sparkle one"></span>
+          <span class="photo-studio-sparkle two"></span>
+        </div>
+        <div class="photo-studio-controls">
+          <p>Drag the photo itself to place it. Pull the pink handles, or use the width/height sliders, to stretch the actual photo without stretching the frame.</p>
+          <small class="photo-studio-placement-readout" data-studio-placement-label>Move 0 / 0 · Stretch 100% x 100%</small>
+          <label>Frame style
+            <select data-studio-fit>
+              ${photoFitOptionsMarkup("contain")}
+            </select>
+          </label>
+          <label>Focus point
+            <select data-studio-position>
+              ${photoPositionOptionsMarkup("center")}
+            </select>
+          </label>
+          <label>Zoom <span data-studio-zoom-label>0% zoom</span>
+            <input data-studio-zoom type="range" min="0.25" max="2.5" step="0.01" value="1" />
+          </label>
+          <label>Photo width stretch <span data-studio-scale-label="scaleX">100%</span>
+            <input data-studio-scale="scaleX" type="range" min="0.2" max="4" step="0.01" value="1" />
+          </label>
+          <label>Photo height stretch <span data-studio-scale-label="scaleY">100%</span>
+            <input data-studio-scale="scaleY" type="range" min="0.2" max="4" step="0.01" value="1" />
+          </label>
+          <label class="photo-studio-replace">
+            Replace With New Photo
+            <input data-studio-replace type="file" accept="image/*" capture="environment" />
+          </label>
+          <div class="photo-studio-actions">
+            <button class="button secondary" type="button" data-studio-choose>Choose Different Photo</button>
+            <button class="button secondary" type="button" data-studio-reset>Reset Placement</button>
+            <button class="button primary" type="button" data-studio-apply>Use This Photo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(photoStudioModal);
+  photoStudioModal.querySelectorAll("[data-studio-fit], [data-studio-position], [data-studio-zoom]").forEach((control) => {
+    control.addEventListener("input", updatePhotoStudioPreview);
+    control.addEventListener("change", updatePhotoStudioPreview);
+  });
+  photoStudioModal.querySelectorAll("[data-studio-scale]").forEach((control) => {
+    const updateScale = () => {
+      const key = control.dataset.studioScale;
+      photoStudioTransform = sanitizePhotoTransform({
+        ...photoStudioTransform,
+        [key]: Number(control.value)
+      });
+      updatePhotoStudioPreview();
+    };
+    control.addEventListener("input", updateScale);
+    control.addEventListener("change", updateScale);
+  });
+  photoStudioModal.querySelector("[data-studio-frame]")?.addEventListener("pointerdown", startPhotoStudioPointer);
+  window.addEventListener("pointermove", movePhotoStudioPointer);
+  window.addEventListener("pointerup", stopPhotoStudioPointer);
+  window.addEventListener("pointercancel", stopPhotoStudioPointer);
+  photoStudioModal.querySelector("[data-studio-reset]")?.addEventListener("click", resetPhotoStudioPlacement);
+  photoStudioModal.querySelector("[data-studio-replace]")?.addEventListener("change", async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const dataUrl = await fileToCompressedDataUrl(file);
+    photoStudioModal.dataset.photoSrc = dataUrl;
+    photoStudioModal.dataset.sourceChanged = "true";
+    const preview = photoStudioModal.querySelector("[data-studio-preview]");
+    if (preview) preview.src = dataUrl;
+    updatePhotoStudioPreview();
+    event.target.value = "";
+  });
+  photoStudioModal.querySelector("[data-studio-choose]")?.addEventListener("click", () => {
+    photoStudioModal.querySelector("[data-studio-replace]")?.click();
+  });
+  photoStudioModal.querySelectorAll("[data-studio-cancel]").forEach((button) => {
+    button.addEventListener("click", () => closePhotoStudio(null));
+  });
+  photoStudioModal.querySelector("[data-studio-apply]")?.addEventListener("click", async () => {
+    const fit = photoStudioModal.querySelector("[data-studio-fit]")?.value;
+    const position = photoStudioModal.querySelector("[data-studio-position]")?.value;
+    const framedDataUrl = await renderPhotoStudioFramedDataUrl();
+    closePhotoStudio({
+      dataUrl: framedDataUrl || photoStudioModal.dataset.photoSrc || "",
+      fit: "contain",
+      position: sanitizePhotoPosition(position),
+      zoom: 1,
+      transform: defaultPhotoTransform(),
+      sourceChanged: photoStudioModal.dataset.sourceChanged === "true"
+    });
+  });
+  photoStudioModal.addEventListener("click", (event) => {
+    if (event.target === photoStudioModal) closePhotoStudio(null);
+  });
+  photoStudioModal.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closePhotoStudio(null);
+  });
+  return photoStudioModal;
+}
+
+function openPhotoStudio({ dataUrl, title = "Make the product photo look right", fit = "contain", position = "center", zoom = 1, transform = {}, sourceChanged = false } = {}) {
+  const modal = ensurePhotoStudio();
+  modal.dataset.photoSrc = dataUrl || "";
+  modal.dataset.sourceChanged = sourceChanged ? "true" : "false";
+  photoStudioTransform = sanitizePhotoTransform(transform);
+  modal.querySelector("#photoStudioTitle").textContent = title;
+  const preview = modal.querySelector("[data-studio-preview]");
+  const fitSelect = modal.querySelector("[data-studio-fit]");
+  const positionSelect = modal.querySelector("[data-studio-position]");
+  const zoomInput = modal.querySelector("[data-studio-zoom]");
+  if (preview) preview.src = dataUrl || "";
+  if (fitSelect) fitSelect.value = sanitizePhotoFit(fit);
+  if (positionSelect) positionSelect.value = sanitizePhotoPosition(position);
+  if (zoomInput) zoomInput.value = sanitizePhotoZoom(zoom).toFixed(2);
+  updatePhotoStudioPreview();
+  modal.hidden = false;
+  requestAnimationFrame(() => modal.classList.add("is-open"));
+  return new Promise((resolve) => {
+    photoStudioResolve = resolve;
+  });
+}
+
+async function preparePhotoInStudio(file, options = {}) {
+  const dataUrl = await fileToCompressedDataUrl(file, options.max || 1600, options.quality || 0.86);
+  return openPhotoStudio({
+    dataUrl,
+    title: options.title,
+    fit: options.fit,
+    position: options.position,
+    zoom: options.zoom,
+    transform: options.transform,
+    sourceChanged: true
+  });
+}
+
+function bindPhotoDropZone(zone, onFile) {
+  if (!zone || typeof onFile !== "function") return;
+  const leaveDropZone = () => zone.classList.remove("is-dragging-photo");
+  zone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    zone.classList.add("is-dragging-photo");
+  });
+  zone.addEventListener("dragleave", leaveDropZone);
+  zone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    leaveDropZone();
+    const file = Array.from(event.dataTransfer?.files || []).find((item) => item.type.startsWith("image/"));
+    if (file) onFile(file);
+  });
+}
+
+function showAdminUploadCelebration(message = "Photo uploaded to the live website.") {
+  let celebration = document.querySelector(".admin-upload-celebration");
+  if (!celebration) {
+    celebration = document.createElement("div");
+    celebration.className = "admin-upload-celebration";
+    celebration.setAttribute("role", "status");
+    celebration.innerHTML = `
+      <span aria-hidden="true">+</span>
+      <strong></strong>
+      <small>Netlify confirmed it.</small>
+    `;
+    document.body.appendChild(celebration);
+  }
+  celebration.querySelector("strong").textContent = message;
+  celebration.classList.remove("is-showing");
+  void celebration.offsetWidth;
+  celebration.classList.add("is-showing");
+  window.clearTimeout(adminCelebrationTimer);
+  adminCelebrationTimer = window.setTimeout(() => {
+    celebration.classList.remove("is-showing");
+  }, 3600);
+}
+
+function stableQuickFieldKey(field) {
+  return `copy:${field.key}`;
+}
+
+function stableMiscFieldKey(index) {
+  return `misc:${index}`;
+}
+
+function normalizeAdminState(saved = {}) {
+  const nextState = {
+    ...defaultAdminState(),
+    ...saved,
+    texts: saved.texts || {},
+    images: saved.images || {},
+    imageFits: normalizePhotoFitMap(saved.imageFits || {}),
+    imagePositions: normalizePhotoPositionMap(saved.imagePositions || {}),
+    imageZooms: normalizePhotoZoomMap(saved.imageZooms || {}),
+    imageTransforms: normalizePhotoTransformMap(saved.imageTransforms || {}),
+    products: saved.products || {},
+    customProducts: Array.isArray(saved.customProducts)
+      ? saved.customProducts.map((product) => ({
+          ...product,
+          salePrice: normalizeMoneyValue(product.salePrice),
+          discount: product.discount || "",
+          stock: product.stock || "",
+          sku: product.sku || "",
+          imageFit: sanitizePhotoFit(product.imageFit),
+          imagePosition: sanitizePhotoPosition(product.imagePosition),
+          imageZoom: sanitizePhotoZoom(product.imageZoom),
+          imageTransform: sanitizePhotoTransform(product.imageTransform)
+        }))
+      : [],
+    lookPhotos: saved.lookPhotos || {},
+    lookPhotoFits: normalizePhotoFitMap(saved.lookPhotoFits || {}),
+    lookPhotoPositions: normalizePhotoPositionMap(saved.lookPhotoPositions || {}),
+    lookPhotoZooms: normalizePhotoZoomMap(saved.lookPhotoZooms || {}),
+    lookPhotoTransforms: normalizePhotoTransformMap(saved.lookPhotoTransforms || {}),
+    lookDetails: saved.lookDetails || {},
+    ideas: Array.isArray(saved.ideas) ? saved.ideas : [],
+    customPages: Array.isArray(saved.customPages)
+      ? saved.customPages
+          .filter((page) => page && page.key)
+          .map((page) => ({
+            key: safeSlug(page.key, "page"),
+            label: page.label || page.title || "New Page",
+            title: page.title || page.label || "New Page",
+            eyebrow: page.eyebrow || "Custom page",
+            body: page.body || "Click here to write this page."
+          }))
+      : [],
+    customBlocks: Array.isArray(saved.customBlocks)
+      ? saved.customBlocks
+          .filter((block) => block && block.id && block.pageKey)
+          .map((block) => ({
+            id: String(block.id),
+            pageKey: safeSlug(block.pageKey, "home"),
+            title: block.title || "New section",
+            body: block.body || "Click here to add details."
+          }))
+      : [],
+    hiddenText: saved.hiddenText && typeof saved.hiddenText === "object" ? saved.hiddenText : {},
+    textOffsets: saved.textOffsets && typeof saved.textOffsets === "object" ? saved.textOffsets : {},
+    layoutOrder: saved.layoutOrder || defaultLayoutOrder(),
+    hiddenSections: saved.hiddenSections || {}
+  };
+  delete nextState.images["try-on"];
+  return nextState;
+}
+
+function clearAdminRemoteSaveTimer() {
+  if (!adminRemoteSaveTimer) return;
+  clearTimeout(adminRemoteSaveTimer);
+  adminRemoteSaveTimer = null;
+}
+
+function clearAdminRemoteRetryTimer() {
+  if (!adminRemoteRetryTimer) return;
+  clearTimeout(adminRemoteRetryTimer);
+  adminRemoteRetryTimer = null;
+}
+
+function cloneAdminStateSnapshot() {
+  return JSON.parse(JSON.stringify(adminState));
+}
+
+function loadPendingRemoteAdminStateRecord() {
+  try {
+    const raw = localStorage.getItem(ADMIN_PENDING_REMOTE_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || !parsed.state || typeof parsed.state !== "object") return null;
+    return {
+      revision: Number.isFinite(Number(parsed.revision)) ? Number(parsed.revision) : adminStateRevision,
+      updatedAt: Number.isFinite(Number(parsed.updatedAt)) ? Number(parsed.updatedAt) : Date.now(),
+      state: normalizeAdminState(parsed.state)
+    };
+  } catch {
+    return null;
+  }
+}
+
+function storePendingRemoteAdminState(snapshot, revision = adminStateRevision) {
+  try {
+    localStorage.setItem(ADMIN_PENDING_REMOTE_STATE_KEY, JSON.stringify({
+      revision,
+      updatedAt: Date.now(),
+      state: snapshot
+    }));
+  } catch {
+    // Ignore local storage issues and keep the local save path working.
+  }
+}
+
+function clearPendingRemoteAdminState() {
+  try {
+    localStorage.removeItem(ADMIN_PENDING_REMOTE_STATE_KEY);
+  } catch {
+    // Ignore cleanup failures.
+  }
+}
+
+function adminRemoteWriteHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "x-admin-email": ADMIN_EMAILS[0],
+    "x-admin-password": ADMIN_PASSWORD
+  };
+}
+
+function isPhotoDataUrl(value) {
+  return typeof value === "string" && value.startsWith("data:image/");
+}
+
+function isUploadablePhotoDataUrl(value) {
+  return /^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(String(value || ""));
+}
+
+function liveSaveFailureMessage(error) {
+  return error ? `${ADMIN_LIVE_SAVE_FAILURE_MESSAGE} (${error})` : ADMIN_LIVE_SAVE_FAILURE_MESSAGE;
+}
+
+function setAdminSaveMessage(target, message) {
+  if (target) {
+    setAdminMessage(target, message);
+    return;
+  }
+  if (adminEditStatus) adminEditStatus.textContent = message;
+  if (adminContentStatus) adminContentStatus.textContent = message;
+}
+
+function localSaveAdminState() {
+  adminStateRevision += 1;
+  localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
+  return adminStateRevision;
+}
+
+async function fetchRemoteAdminState() {
+  try {
+    const response = await fetch(ADMIN_REMOTE_STATE_ENDPOINT, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store"
+    });
+    if (response.status === 404 || response.status === 405 || response.status >= 500) return null;
+    if (!response.ok) return null;
+    const payload = await response.json();
+    if (!payload?.state) return null;
+    return normalizeAdminState(payload.state);
+  } catch {
+    return null;
+  }
+}
+
+async function hydrateAdminStateFromRemote() {
+  const remoteState = await fetchRemoteAdminState();
+  if (!remoteState) return false;
+  adminState = remoteState;
+  ensureLayoutState();
+  localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
+  return true;
+}
+
+async function persistAdminStateRemotely(snapshot, revision = adminStateRevision) {
+  if (!isAdminSignedIn()) {
+    return { ok: false, error: "admin session is not signed in" };
+  }
+  try {
+    const response = await fetch(ADMIN_REMOTE_STATE_ENDPOINT, {
+      method: "PUT",
+      headers: adminRemoteWriteHeaders(),
+      body: JSON.stringify({ state: snapshot })
+    });
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+    if (!response.ok || payload?.ok === false) {
+      return { ok: false, error: payload?.error || `server returned ${response.status}` };
+    }
+    if (payload?.state && revision === adminStateRevision) {
+      adminState = normalizeAdminState(payload.state);
+      ensureLayoutState();
+      localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
+    }
+    clearPendingRemoteAdminState();
+    return { ok: true, state: payload?.state || snapshot };
+  } catch (error) {
+    return { ok: false, error: error.message || "network error" };
+  }
+}
+
+async function flushPendingRemoteAdminState(options = {}) {
+  if (!isAdminSignedIn()) return { ok: false, skipped: true, error: "admin session is not signed in" };
+  const pending = loadPendingRemoteAdminStateRecord();
+  if (!pending) return { ok: true, skipped: true };
+  const result = await persistAdminStateRemotely(pending.state, pending.revision);
+  if (result.ok) {
+    if (options.showSuccess) {
+      setAdminSaveMessage(options.statusTarget || null, options.successMessage || ADMIN_LIVE_SAVE_SUCCESS_MESSAGE);
+    }
+    return result;
+  }
+  if (options.showFailure) {
+    setAdminSaveMessage(
+      options.statusTarget || null,
+      options.failureMessage === ADMIN_LIVE_SAVE_FAILURE_MESSAGE
+        ? liveSaveFailureMessage(result.error)
+        : (options.failureMessage || ADMIN_LIVE_SAVE_FAILURE_MESSAGE)
+    );
+  }
+  return result;
+}
+
+function schedulePendingRemoteAdminStateFlush(options = {}) {
+  if (!isAdminSignedIn()) return;
+  clearAdminRemoteRetryTimer();
+  const delay = Number(options.delayMs) > 0 ? Number(options.delayMs) : ADMIN_REMOTE_RETRY_DELAY_MS;
+  adminRemoteRetryTimer = window.setTimeout(async () => {
+    const result = await flushPendingRemoteAdminState(options);
+    if (!result.ok && !result.skipped) {
+      schedulePendingRemoteAdminStateFlush({ ...options, delayMs: delay });
+    }
+  }, delay);
+}
+
+function bindAdminRemoteSyncEvents() {
+  if (adminRemoteSyncEventsBound) return;
+  adminRemoteSyncEventsBound = true;
+  window.addEventListener("online", () => {
+    schedulePendingRemoteAdminStateFlush({
+      delayMs: 250,
+      statusTarget: adminInventoryStatus || adminEditStatus || adminContentStatus,
+      showSuccess: true
+    });
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    schedulePendingRemoteAdminStateFlush({
+      delayMs: 250,
+      statusTarget: adminInventoryStatus || adminEditStatus || adminContentStatus,
+      showSuccess: true
+    });
+  });
+}
+
+async function uploadAdminPhoto(dataUrl, kind = "upload") {
+  if (!isAdminSignedIn()) {
+    return { ok: false, error: "admin session is not signed in" };
+  }
+  if (!isUploadablePhotoDataUrl(dataUrl)) {
+    return { ok: true, url: dataUrl };
+  }
+  try {
+    const response = await fetch(ADMIN_REMOTE_PHOTO_ENDPOINT, {
+      method: "POST",
+      headers: adminRemoteWriteHeaders(),
+      body: JSON.stringify({ dataUrl, kind })
+    });
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+    if (!response.ok || payload?.ok === false || !payload?.photo?.url) {
+      return { ok: false, error: payload?.error || `server returned ${response.status}` };
+    }
+    return { ok: true, ...payload.photo };
+  } catch (error) {
+    return { ok: false, error: error.message || "photo upload failed" };
+  }
+}
+
+async function saveAdminState(options = {}) {
+  const {
+    statusTarget = null,
+    savingMessage = "Saving to this device and the live website...",
+    successMessage = ADMIN_LIVE_SAVE_SUCCESS_MESSAGE,
+    failureMessage = ADMIN_LIVE_SAVE_FAILURE_MESSAGE,
+    showSuccess = Boolean(statusTarget),
+    showSaving = Boolean(statusTarget)
+  } = options;
+
+  const revision = localSaveAdminState();
+  const snapshot = cloneAdminStateSnapshot();
+  storePendingRemoteAdminState(snapshot, revision);
+  if (!isAdminSignedIn()) {
+    const result = { ok: false, localOnly: true, error: "admin session is not signed in" };
+    setAdminSaveMessage(statusTarget, liveSaveFailureMessage(result.error));
+    return result;
+  }
+
+  if (showSaving) setAdminSaveMessage(statusTarget, savingMessage);
+  const result = await persistAdminStateRemotely(snapshot, revision);
+
+  if (result.ok) {
+    if (showSuccess) setAdminSaveMessage(statusTarget, successMessage);
+    return result;
+  }
+
+  schedulePendingRemoteAdminStateFlush({
+    statusTarget,
+    successMessage,
+    showSuccess
+  });
+  setAdminSaveMessage(statusTarget, failureMessage === ADMIN_LIVE_SAVE_FAILURE_MESSAGE ? liveSaveFailureMessage(result.error) : failureMessage);
+  return result;
+}
+
+function scheduleRemoteAdminStateSave(options = {}) {
+  if (!isAdminSignedIn()) return;
+  clearAdminRemoteSaveTimer();
+  const revision = adminStateRevision;
+  const snapshot = cloneAdminStateSnapshot();
+  storePendingRemoteAdminState(snapshot, revision);
+  const target = options.statusTarget || null;
+  const successMessage = options.successMessage || ADMIN_LIVE_SAVE_SUCCESS_MESSAGE;
+  const failureMessage = options.failureMessage || ADMIN_LIVE_SAVE_FAILURE_MESSAGE;
+  if (options.savingMessage) setAdminSaveMessage(target, options.savingMessage);
+  adminRemoteSaveTimer = window.setTimeout(async () => {
+    const result = await persistAdminStateRemotely(snapshot, revision);
+    if (result.ok) {
+      if (options.showSuccess) setAdminSaveMessage(target, successMessage);
+      return;
+    }
+    schedulePendingRemoteAdminStateFlush({
+      statusTarget: target,
+      successMessage,
+      showSuccess: options.showSuccess
+    });
+    setAdminSaveMessage(target, failureMessage === ADMIN_LIVE_SAVE_FAILURE_MESSAGE ? liveSaveFailureMessage(result.error) : failureMessage);
+  }, ADMIN_REMOTE_SAVE_DEBOUNCE_MS);
+}
+
+function pageElement(key) {
+  return document.querySelector(`[data-page-panel="${key}"]`);
+}
+
+function pageMeta(key) {
+  if (key === "product") return { key: "product", label: "Product details" };
+  return allLayoutSections().find((section) => section.key === key) || null;
+}
+
+function visiblePageKeys() {
+  return adminState.layoutOrder.filter((key) => !adminState.hiddenSections[key]);
+}
+
+function firstVisiblePageKey() {
+  return visiblePageKeys()[0] || "home";
+}
+
+function updatePageLinkVisibility() {
+  pageLinks().forEach((link) => {
+    const key = link.dataset.pageLink;
+    if (!key || link.id === "adminNav") return;
+    if (link.classList.contains("brand")) return;
+    link.hidden = Boolean(adminState.hiddenSections[key]);
+  });
+}
+
+function updatePageNavState(key) {
+  currentPageKey = key;
+  pageLinks().forEach((link) => {
+    const isCurrent = link.dataset.pageLink === key;
+    link.classList.toggle("is-current", isCurrent);
+    if (isCurrent) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+  updateBookStatus(key);
+}
+
+function navOffset() {
+  return (navBar?.offsetHeight || 0) + 26;
+}
+
+function updateBookStatus(activeKey = currentPageKey) {
+  if (!pageBook || !bookStatus) return;
+  if (activeKey === "product") {
+    bookStatus.innerHTML = "<strong>Product details</strong><span>Review this set, choose a quantity, or return to the Shop.</span>";
+    return;
+  }
+  const orderedKeys = visiblePageKeys();
+  const activeIndex = Math.max(orderedKeys.indexOf(activeKey), 0);
+  pageBook.dataset.pageCurrent = String(activeIndex + 1);
+  pageBook.dataset.pageTotal = String(orderedKeys.length || 1);
+  bookStatus.innerHTML = `<strong>Page ${activeIndex + 1} of ${orderedKeys.length || 1}</strong><span>Use the tabs above to open another page.</span>`;
+}
+
+function sectionFocusLine() {
+  const offset = navOffset();
+  return Math.max(offset + 24, Math.min(window.innerHeight * 0.32, offset + 180));
+}
+
+function syncPageStateFromScroll() {
+  if (currentPageKey === "product") return;
+  const orderedKeys = visiblePageKeys();
+  if (!orderedKeys.length) return;
+  const focusLine = sectionFocusLine();
+  let activeKey = orderedKeys[0];
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  orderedKeys.forEach((key) => {
+    const section = pageElement(key);
+    if (!section || section.hidden) return;
+    const rect = section.getBoundingClientRect();
+
+    if (rect.top <= focusLine && rect.bottom > focusLine) {
+      activeKey = key;
+      bestDistance = 0;
+      return;
+    }
+
+    const distance = Math.min(Math.abs(rect.top - focusLine), Math.abs(rect.bottom - focusLine));
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      activeKey = key;
+    }
+  });
+
+  updatePageNavState(activeKey);
+}
+
+function schedulePageStateFromScroll() {
+  if (isPageNavigationLocked) return;
+  if (pageScrollSyncFrame) return;
+  pageScrollSyncFrame = window.requestAnimationFrame(() => {
+    pageScrollSyncFrame = 0;
+    syncPageStateFromScroll();
+  });
+}
+
+function updateScrollChrome() {
+  const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+  const progress = Math.min(Math.max(window.scrollY / maxScroll, 0), 1);
+  const progressValue = `${(progress * 100).toFixed(1)}%`;
+  if (scrollProgress) {
+    if (progressValue !== lastScrollProgress) {
+      scrollProgress.style.setProperty("--scroll-progress", progressValue);
+      lastScrollProgress = progressValue;
+    }
+  }
+  if (navBar) {
+    const nextScrolled = window.scrollY > 24;
+    if (nextScrolled !== lastNavScrolled) {
+      navBar.classList.toggle("is-scrolled", nextScrolled);
+      lastNavScrolled = nextScrolled;
+    }
+  }
+}
+
+function scheduleScrollChrome() {
+  if (scrollChromeFrame) return;
+  scrollChromeFrame = window.requestAnimationFrame(() => {
+    scrollChromeFrame = 0;
+    updateScrollChrome();
+  });
+}
+
+function finishPageTransition(nextPage) {
+  if (!nextPage) return;
+  sitePages().forEach((page) => {
+    page.classList.remove("is-turning-out", "is-turning-in");
+    page.classList.toggle("is-active", page === nextPage && !page.hidden);
+  });
+  updateBookStatus(nextPage.dataset.pagePanel || currentPageKey);
+}
+
+function lockPageNavigation(duration = 760) {
+  isPageNavigationLocked = true;
+  window.clearTimeout(pageNavigationLockTimer);
+  pageNavigationLockTimer = window.setTimeout(() => {
+    isPageNavigationLocked = false;
+    schedulePageStateFromScroll();
+  }, duration);
+}
+
+function showSitePage(pageKey, options = {}) {
+  const { updateHash = true, force = false, behavior = "smooth", track = true } = options;
+  const resolvedKey = adminState.hiddenSections[pageKey] ? firstVisiblePageKey() : pageKey;
+  const productPage = pageElement("product");
+  if (productPage) productPage.hidden = resolvedKey !== "product";
+  body.classList.toggle("product-detail-open", resolvedKey === "product");
+  const targetPage = pageElement(resolvedKey);
+  if (!targetPage || targetPage.hidden) return;
+
+  if (track && resolvedKey !== currentPageKey) {
+    pageVisitStack = [...pageVisitStack.filter((key) => key !== currentPageKey), currentPageKey].slice(-8);
+  }
+  currentPageKey = resolvedKey;
+  updatePageNavState(resolvedKey);
+  finishPageTransition(targetPage);
+  lockPageNavigation(force ? 80 : 760);
+
+  if (updateHash && window.location.hash !== `#${resolvedKey}`) {
+    history.replaceState(null, "", `#${resolvedKey}`);
+  }
+
+  const performScroll = () => {
+    const top = resolvedKey === firstVisiblePageKey()
+      ? 0
+      : Math.max(window.scrollY + targetPage.getBoundingClientRect().top - navOffset(), 0);
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({
+      top,
+      behavior: force || prefersReducedMotion ? "auto" : behavior
+    });
+    schedulePageStateFromScroll();
+    scheduleScrollChrome();
+    if (textEditMode && isAdminSignedIn()) scheduleRemoveBubbleControls();
+  };
+
+  if (force) {
+    requestAnimationFrame(performScroll);
+    return;
+  }
+
+  performScroll();
+}
 
 function openCart() {
   closeAccountPanel();
@@ -342,46 +1704,1201 @@ function closeAccountPanel() {
   document.querySelector(".account-panel").setAttribute("aria-hidden", "true");
 }
 
-function isAdminSignedIn() {
-  return localStorage.getItem(ADMIN_SESSION_KEY) === "true";
-}
-
 function isAdminLogin(email, password) {
   return ADMIN_EMAILS.includes(email.trim().toLowerCase()) && password === ADMIN_PASSWORD;
 }
 
+function clearAdminSession() {
+  adminSession = null;
+  sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  localStorage.removeItem(ADMIN_SESSION_KEY);
+}
+
+function startAdminSession() {
+  const now = Date.now();
+  adminSession = {
+    authenticated: true,
+    authenticatedAt: now,
+    expiresAt: now + ADMIN_SESSION_TTL_MS
+  };
+  sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  localStorage.removeItem(ADMIN_SESSION_KEY);
+}
+
+function isAdminSignedIn() {
+  localStorage.removeItem(ADMIN_SESSION_KEY);
+  sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  if (adminSession?.authenticated === true && Number(adminSession.expiresAt) > Date.now()) {
+    return true;
+  }
+  adminSession = null;
+  return false;
+}
+
+function exitAdminModeForCustomer() {
+  clearAdminSession();
+  textEditMode = false;
+  closeAdminInventoryPanel();
+  showPasswordReset(false);
+  renderAdminVisibility();
+  if (window.location.hash === "#adminPage") {
+    showSitePage("home", { updateHash: true, force: true });
+  }
+}
+
 function showAdminPage() {
   if (!isAdminSignedIn()) {
-    openAccount("Sign in with the admin login to open the admin page.");
+    openAccount("Please sign in to continue.");
     return;
   }
   closeCartDrawer();
   closeAccountPanel();
+  showSitePage("home", { updateHash: true, force: true });
   renderAdminVisibility();
-  renderAdminUsers();
-  renderAdminGuestOrders();
-  adminPage.scrollIntoView({ behavior: "smooth", block: "start" });
+  setInlineEditStatus("Use Click To Edit Site to make changes directly on the page.");
 }
 
 function renderAdminVisibility() {
   const signedIn = isAdminSignedIn();
-  adminNav.hidden = !signedIn;
-  adminPage.hidden = !signedIn;
+  adminNav.hidden = true;
+  adminPage.hidden = true;
+  if (!signedIn && textEditMode) {
+    textEditMode = false;
+  }
+  if (!signedIn) closeAdminInventoryPanel();
+  renderAdminEditToolbar();
+  syncInlineEditMode();
 }
 
 function logoutAdmin() {
-  localStorage.removeItem(ADMIN_SESSION_KEY);
+  clearAdminSession();
+  textEditMode = false;
+  closeAdminInventoryPanel();
+  showPasswordReset(false);
   renderAdminVisibility();
-  window.location.hash = "top";
-  openAccount("Admin logged out.");
+  showSitePage("home", { updateHash: true, force: true });
+  openAccount("You're signed out.");
 }
 
 function closeAdmin() {}
 
+function syncAdminViewportChrome() {
+  const toolbarHeight = adminEditToolbar && !adminEditToolbar.hidden
+    ? Math.ceil(adminEditToolbar.getBoundingClientRect().height) + 24
+    : 0;
+  document.documentElement.style.setProperty("--admin-toolbar-offset", `${toolbarHeight}px`);
+}
+
+function ensureAdminEditToolbar() {
+  if (adminEditToolbar) return;
+  adminEditToolbar = document.createElement("div");
+  adminEditToolbar.className = "admin-edit-toolbar";
+  adminEditToolbar.hidden = true;
+  adminEditToolbar.innerHTML = `
+    <div class="admin-edit-toolbar-copy">
+      <strong>Admin edit mode</strong>
+      <span id="adminEditStatus">Press Click To Edit Site, then edit the page right where customers see it.</span>
+    </div>
+    <div class="admin-edit-toolbar-actions">
+      <button type="button" id="adminEditBack">Back</button>
+      <button type="button" id="adminEditToggle">Click To Edit Site</button>
+      <button type="button" id="adminEditInventory">Inventory</button>
+      <button type="button" id="adminEditAddProduct">Add Product</button>
+      <button type="button" id="adminEditAddSection">Add Section</button>
+      <button type="button" id="adminEditAddPage">Add Page</button>
+      <button type="button" id="adminEditSave">Save Now</button>
+      <button type="button" id="adminEditLogout">Exit Admin</button>
+    </div>
+  `;
+  document.body.appendChild(adminEditToolbar);
+  if (typeof ResizeObserver === "function") {
+    adminToolbarResizeObserver = new ResizeObserver(() => syncAdminViewportChrome());
+    adminToolbarResizeObserver.observe(adminEditToolbar);
+  }
+  adminEditToggle = adminEditToolbar.querySelector("#adminEditToggle");
+  adminEditStatus = adminEditToolbar.querySelector("#adminEditStatus");
+  adminEditToolbar.querySelector("#adminEditBack").addEventListener("click", handleAdminToolbarBack);
+  adminEditToggle.addEventListener("click", toggleTextEditMode);
+  adminEditToolbar.querySelector("#adminEditInventory").addEventListener("click", openAdminInventoryShelf);
+  adminEditToolbar.querySelector("#adminEditAddProduct").addEventListener("click", startInlineProductAdd);
+  adminEditToolbar.querySelector("#adminEditAddSection").addEventListener("click", addCustomSectionToCurrentPage);
+  adminEditToolbar.querySelector("#adminEditAddPage").addEventListener("click", addCustomPageFromToolbar);
+  adminEditToolbar.querySelector("#adminEditSave").addEventListener("click", async () => {
+    await saveAllAdminEdits({
+      statusTarget: adminEditStatus,
+      successMessage: "Saved to the live website. Customers can see this now."
+    });
+  });
+  adminEditToolbar.querySelector("#adminEditLogout").addEventListener("click", logoutAdmin);
+}
+
+function handleAdminToolbarBack() {
+  if (!isAdminSignedIn()) return;
+  if (adminInventoryPanel && !adminInventoryPanel.hidden) {
+    closeAdminInventoryPanel();
+    setInlineEditStatus("Back to the website. Inventory is closed.");
+    return;
+  }
+  if (body.classList.contains("account-open")) {
+    closeAccountPanel();
+    setInlineEditStatus("Back to the website.");
+    return;
+  }
+  if (body.classList.contains("cart-open")) {
+    closeCartDrawer();
+    setInlineEditStatus("Back to the website.");
+    return;
+  }
+  const previousKey = pageVisitStack.pop();
+  if (previousKey && previousKey !== currentPageKey && pageElement(previousKey)) {
+    showSitePage(previousKey, { updateHash: true, behavior: "smooth", track: false });
+    setInlineEditStatus(`Back to ${pageMeta(previousKey)?.label || "the previous page"}.`);
+    return;
+  }
+  showSitePage(firstVisiblePageKey(), { updateHash: true, behavior: "smooth", track: false });
+  setInlineEditStatus("Back to Home.");
+}
+
+function openAdminInventoryShelf() {
+  if (!isAdminSignedIn()) {
+    openAccount("Please sign in to manage inventory.");
+    return;
+  }
+  ensureAdminInventoryPanel();
+  adminInventoryPanel.hidden = false;
+  body.classList.add("admin-inventory-open");
+  renderAdminInventoryPanel();
+  setInlineEditStatus("Inventory is open. Add drafts here first, then publish only the ready products to the store.");
+  setAdminMessage(adminInventoryStatus, "Private inventory is open. Draft products stay hidden from customers until Chey publishes them.");
+}
+
+function ensureAdminInventoryPanel() {
+  if (adminInventoryPanel) return;
+  adminInventoryPanel = document.createElement("aside");
+  adminInventoryPanel.className = "admin-inventory-panel";
+  adminInventoryPanel.hidden = true;
+  adminInventoryPanel.setAttribute("role", "dialog");
+  adminInventoryPanel.setAttribute("aria-modal", "true");
+  adminInventoryPanel.setAttribute("aria-label", "Chey's admin inventory");
+  adminInventoryPanel.innerHTML = `
+    <div class="admin-inventory-shell">
+      <div class="admin-inventory-head">
+        <div>
+          <span class="admin-inventory-kicker">Admin only</span>
+          <h2>Chey's Inventory</h2>
+          <p>Build, stage, and publish products from one place. Drafts stay private until they are sent to the Shop.</p>
+        </div>
+        <div class="admin-inventory-head-actions">
+          <button class="button primary" type="button" data-admin-inventory-add>Add Product</button>
+          <button class="button ghost" type="button" data-admin-inventory-close>Close</button>
+        </div>
+      </div>
+      <p class="admin-inventory-status" data-admin-inventory-status></p>
+      <div class="admin-inventory-overview" data-admin-inventory-overview></div>
+      <div class="admin-inventory-list" data-admin-inventory-list></div>
+    </div>
+  `;
+  document.body.appendChild(adminInventoryPanel);
+  adminInventoryStatus = adminInventoryPanel.querySelector("[data-admin-inventory-status]");
+  adminInventoryOverview = adminInventoryPanel.querySelector("[data-admin-inventory-overview]");
+  adminInventoryList = adminInventoryPanel.querySelector("[data-admin-inventory-list]");
+  adminInventoryPanel.querySelector("[data-admin-inventory-add]").addEventListener("click", createInventoryDraft);
+  adminInventoryPanel.querySelector("[data-admin-inventory-close]").addEventListener("click", closeAdminInventoryPanel);
+  adminInventoryPanel.addEventListener("click", (event) => {
+    if (event.target === adminInventoryPanel) closeAdminInventoryPanel();
+  });
+}
+
+function closeAdminInventoryPanel() {
+  if (!adminInventoryPanel) return;
+  adminInventoryPanel.hidden = true;
+  body.classList.remove("admin-inventory-open");
+  refreshTextBubbleControlsSoon();
+}
+
+function ensureAdminInventoryPhotoInput() {
+  if (adminInventoryPhotoInput) return;
+  adminInventoryPhotoInput = document.createElement("input");
+  adminInventoryPhotoInput.type = "file";
+  adminInventoryPhotoInput.accept = "image/*";
+  adminInventoryPhotoInput.setAttribute("capture", "environment");
+  adminInventoryPhotoInput.className = "hidden-file-input";
+  document.body.appendChild(adminInventoryPhotoInput);
+  adminInventoryPhotoInput.addEventListener("change", handleAdminInventoryPhotoUpload);
+}
+
+function inventoryPhotoMarkup(look) {
+  if (look.photo) {
+    return `<img src="${escapeAttribute(look.photo)}" alt="" data-photo-fit="${escapeAttribute(look.photoFit)}" data-photo-position="${escapeAttribute(look.photoPosition)}" style="${photoTransformStyle(look.photoTransform, look.photoZoom)}" />`;
+  }
+  return `
+    <div class="product-photo-placeholder inventory-placeholder">
+      <div class="sample-set" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <div class="sample-set-caption">
+        <strong>No photo yet</strong>
+        <small>Add a real nail photo when this product is ready.</small>
+      </div>
+    </div>
+  `;
+}
+
+function inventoryLooks() {
+  return lookLibrary
+    .map((_, index) => readLookData(index))
+    .filter((look) => look.active || look.published);
+}
+
+function inventorySummaryMetrics(looks) {
+  const liveCount = looks.filter((look) => look.published).length;
+  const draftCount = looks.filter((look) => !look.published).length;
+  const pricedCount = looks.filter((look) => moneyNumber(look.price) > 0).length;
+  return { total: looks.length, liveCount, draftCount, pricedCount };
+}
+
+function inventoryPricingSummary(look) {
+  const regular = normalizeMoneyValue(look.price);
+  const calculatedSale = calculatedSalePrice(look.price, look.discount);
+  const sale = normalizeMoneyValue(look.salePrice) || calculatedSale;
+  if (!regular && !sale) {
+    return {
+      headline: "No price set",
+      detail: "Add pricing before publishing"
+    };
+  }
+  if (sale && regular && sale !== regular) {
+    return {
+      headline: `$${formatMoneyValue(sale)} sale`,
+      detail: `$${formatMoneyValue(regular)} regular${look.discount ? ` - ${look.discount}` : ""}`
+    };
+  }
+  return {
+    headline: `$${formatMoneyValue(regular || sale)} regular`,
+    detail: look.discount || "No active discount"
+  };
+}
+
+function inventoryCardMeta(look) {
+  const publishedAt = adminState.lookDetails?.[look.index]?.publishedAt || "";
+  const categoryLabel = optionLabel(categoryOptions, look.finish, "Custom / handmade");
+  const stockLabel = optionLabel(stockOptions, look.stock || "Available", look.stock || "Available");
+  const pricing = inventoryPricingSummary(look);
+  return {
+    visibilityLabel: look.published ? "Live in Shop" : "Private Draft",
+    visibilityDetail: look.published ? "Customers can order this design right now." : "This product is hidden from customers until it is published.",
+    priceHeadline: pricing.headline,
+    priceDetail: pricing.detail,
+    publishHeadline: publishedAt ? "Published to store" : "Not published yet",
+    publishDetail: publishedAt || "Draft only",
+    categoryLabel,
+    stockLabel,
+    photoLabel: look.photo ? "Photo ready" : "Photo needed"
+  };
+}
+
+function renderAdminInventoryPanel() {
+  if (!adminInventoryList) return;
+  const looks = inventoryLooks();
+  const metrics = inventorySummaryMetrics(looks);
+  if (adminInventoryOverview) {
+    adminInventoryOverview.innerHTML = `
+      <div class="admin-inventory-overview-card">
+        <span>Total products</span>
+        <strong>${metrics.total}</strong>
+        <small>All active inventory items</small>
+      </div>
+      <div class="admin-inventory-overview-card">
+        <span>Live in shop</span>
+        <strong>${metrics.liveCount}</strong>
+        <small>Visible to customers now</small>
+      </div>
+      <div class="admin-inventory-overview-card">
+        <span>Private drafts</span>
+        <strong>${metrics.draftCount}</strong>
+        <small>Still hidden from the storefront</small>
+      </div>
+      <div class="admin-inventory-overview-card">
+        <span>Priced and ready</span>
+        <strong>${metrics.pricedCount}</strong>
+        <small>Products with pricing set</small>
+      </div>
+    `;
+  }
+  if (!looks.length) {
+    adminInventoryList.innerHTML = `
+      <div class="admin-inventory-empty">
+        <span class="inline-plus-orb" aria-hidden="true">+</span>
+        <strong>No inventory products yet</strong>
+        <p>Press Add Product to create a private draft. It will not show in the customer store until you publish it.</p>
+      </div>
+    `;
+    return;
+  }
+
+  adminInventoryList.innerHTML = looks.map((look) => {
+    const meta = inventoryCardMeta(look);
+    return `
+      <article class="admin-inventory-card${look.published ? " is-published" : ""}" data-inventory-card="${look.index}">
+        <div class="admin-inventory-photo-column">
+          <div class="admin-inventory-photo photo-preview">
+            ${inventoryPhotoMarkup(look)}
+            ${look.published ? `<span class="published-ribbon">In Store</span>` : `<span class="draft-ribbon">Draft</span>`}
+          </div>
+          <div class="admin-inventory-photo-meta">
+            <div class="admin-inventory-meta-card">
+              <span>Visibility</span>
+              <strong>${escapeHTML(meta.visibilityLabel)}</strong>
+              <small>${escapeHTML(meta.visibilityDetail)}</small>
+            </div>
+            <div class="admin-inventory-meta-card">
+              <span>Pricing</span>
+              <strong>${escapeHTML(meta.priceHeadline)}</strong>
+              <small>${escapeHTML(meta.priceDetail)}</small>
+            </div>
+            <div class="admin-inventory-meta-card">
+              <span>Publish status</span>
+              <strong>${escapeHTML(meta.publishHeadline)}</strong>
+              <small>${escapeHTML(meta.publishDetail)}</small>
+            </div>
+          </div>
+        </div>
+        <div class="admin-inventory-fields">
+          <div class="admin-inventory-card-head">
+            <div class="admin-inventory-card-title">
+              <span>${escapeHTML(look.slotLabel)}</span>
+              <strong>${escapeHTML(look.name)}</strong>
+              <p>${escapeHTML(look.published ? "This listing is live in the customer store." : "This draft is private until you publish it to the Shop.")}</p>
+            </div>
+            <div class="admin-inventory-card-tools">
+              <span class="admin-inventory-chip${look.published ? " is-published" : ""}">${escapeHTML(meta.visibilityLabel)}</span>
+              <span class="admin-inventory-chip">${escapeHTML(meta.stockLabel)}</span>
+              <span class="admin-inventory-chip">${escapeHTML(meta.categoryLabel)}</span>
+              <span class="admin-inventory-chip">${escapeHTML(meta.photoLabel)}</span>
+              <button class="button small" type="button" data-inventory-photo-button="${look.index}">${look.photo ? "Edit Photo" : "Add Photo"}</button>
+            </div>
+          </div>
+          <section class="admin-inventory-section">
+            <div class="admin-inventory-section-head">
+              <h3>Store details</h3>
+              <p>Customer-facing basics for the storefront card and product listing.</p>
+            </div>
+            <div class="admin-inventory-field-grid">
+              <label>Product name
+                <input data-inventory-index="${look.index}" data-inventory-field="name" value="${escapeAttribute(look.name)}" placeholder="Pink chrome bows" />
+              </label>
+              <label>Regular price
+                <input data-inventory-index="${look.index}" data-inventory-field="price" value="${escapeAttribute(look.price)}" inputmode="decimal" placeholder="45" />
+              </label>
+              <label>Discount
+                <select data-inventory-index="${look.index}" data-inventory-field="discount">
+                  ${optionMarkup(discountOptions, look.discount)}
+                </select>
+              </label>
+              <label>Sale price
+                <input data-inventory-index="${look.index}" data-inventory-field="salePrice" value="${escapeAttribute(look.salePrice)}" inputmode="decimal" placeholder="Auto" />
+              </label>
+              <label>Category
+                <select data-inventory-index="${look.index}" data-inventory-field="finish">
+                  ${optionMarkup(categoryOptions, look.finish)}
+                </select>
+              </label>
+              <label>Stock/status
+                <select data-inventory-index="${look.index}" data-inventory-field="stock">
+                  ${optionMarkup(stockOptions, look.stock || "Available")}
+                </select>
+              </label>
+              <label>SKU
+                <input data-inventory-index="${look.index}" data-inventory-field="sku" value="${escapeAttribute(look.sku)}" placeholder="Optional" />
+              </label>
+              <label>Badge
+                <input data-inventory-index="${look.index}" data-inventory-field="tag" value="${escapeAttribute(look.tag)}" placeholder="New from Chey" />
+              </label>
+            </div>
+          </section>
+          <section class="admin-inventory-section">
+            <div class="admin-inventory-section-head">
+              <h3>Descriptions and notes</h3>
+              <p>Keep customer copy polished and internal notes private.</p>
+            </div>
+            <div class="admin-inventory-field-grid admin-inventory-copy-grid">
+              <label class="wide">Customer description
+                <textarea data-inventory-index="${look.index}" data-inventory-field="copy" placeholder="Describe the style, length, finish, charms, and vibe.">${escapeTextarea(look.copy)}</textarea>
+              </label>
+              <label class="wide">Private notes
+                <textarea data-inventory-index="${look.index}" data-inventory-field="notes" placeholder="Colors, sizing, supplies, customer notes, timing...">${escapeTextarea(look.notes)}</textarea>
+              </label>
+            </div>
+          </section>
+          <div class="admin-inventory-card-footer">
+            <small class="admin-inventory-card-status" data-inventory-status>${look.published ? "Customers can see this product." : "Private draft. Customers cannot see it yet."}</small>
+            <div class="admin-inventory-card-actions">
+              <button class="button primary" type="button" data-inventory-publish="${look.index}">${look.published ? "Update Store Product" : "Publish To Store"}</button>
+              ${look.published ? `<button class="button secondary" type="button" data-inventory-view-shop="${look.index}">Done - View In Shop</button>` : ""}
+              ${look.published ? `<button class="button ghost" type="button" data-inventory-withdraw="${look.productIndex}">Withdraw From Store</button>` : ""}
+              <button class="button danger" type="button" data-inventory-delete="${look.index}">Delete From Inventory</button>
+            </div>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join("");
+  bindAdminInventoryPanel();
+}
+
+function syncInventoryLookToPublishedProduct(index) {
+  const look = readLookData(index);
+  if (!look.published || look.productIndex < 0) return;
+  const existingProduct = adminState.customProducts[look.productIndex] || {};
+  const product = productFromLook(look);
+  product.publishedAt = existingProduct.publishedAt || adminState.lookDetails[index]?.publishedAt || product.publishedAt;
+  adminState.customProducts[look.productIndex] = {
+    ...existingProduct,
+    ...product
+  };
+}
+
+function updateInventoryField(field) {
+  const index = Number(field.dataset.inventoryIndex);
+  const key = field.dataset.inventoryField;
+  if (!Number.isInteger(index) || !key) return;
+  adminState.lookDetails[index] = adminState.lookDetails[index] || {};
+  const value = key === "price" || key === "salePrice" ? normalizeMoneyValue(field.value) : field.value.trim();
+  adminState.lookDetails[index][key] = value;
+  applyAutomaticDiscount(adminState.lookDetails[index], key);
+  if (key === "price" || key === "discount") {
+    const card = field.closest("[data-inventory-card]");
+    const saleInput = card?.querySelector('[data-inventory-field="salePrice"]');
+    if (saleInput) saleInput.value = adminState.lookDetails[index].salePrice || "";
+  }
+  syncInventoryLookToPublishedProduct(index);
+  localSaveAdminState();
+  scheduleRemoteAdminStateSave({
+    statusTarget: adminInventoryStatus || adminEditStatus,
+    savingMessage: "Saving inventory changes to the live website...",
+    showSuccess: true,
+    successMessage: "Inventory changes saved to the live website."
+  });
+  renderLooks();
+  renderCustomProducts();
+  updateLookCount();
+  updateProductCount();
+}
+
+function bindAdminInventoryPanel() {
+  if (!adminInventoryList) return;
+  adminInventoryList.querySelectorAll("[data-inventory-field]").forEach((field) => {
+    field.addEventListener("input", () => updateInventoryField(field));
+    field.addEventListener("change", () => updateInventoryField(field));
+  });
+  adminInventoryList.querySelectorAll("[data-inventory-photo-button]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ensureAdminInventoryPhotoInput();
+      adminInventoryPhotoInput.dataset.inventoryPhotoIndex = button.dataset.inventoryPhotoButton;
+      adminInventoryPhotoInput.value = "";
+      adminInventoryPhotoInput.click();
+    });
+  });
+  adminInventoryList.querySelectorAll("[data-inventory-publish]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const index = Number(button.dataset.inventoryPublish);
+      const wasPublished = readLookData(index).published;
+      const published = await publishLookToShop(index);
+      renderAdminInventoryPanel();
+      if (published && !wasPublished) showPublishedProductInShop(index);
+    });
+  });
+  adminInventoryList.querySelectorAll("[data-inventory-view-shop]").forEach((button) => {
+    button.addEventListener("click", () => showPublishedProductInShop(Number(button.dataset.inventoryViewShop)));
+  });
+  adminInventoryList.querySelectorAll("[data-inventory-withdraw]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await removePublishedProduct(Number(button.dataset.inventoryWithdraw));
+      renderAdminInventoryPanel();
+    });
+  });
+  adminInventoryList.querySelectorAll("[data-inventory-delete]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await deleteInventoryProduct(Number(button.dataset.inventoryDelete));
+      renderAdminInventoryPanel();
+    });
+  });
+}
+
+function showPublishedProductInShop(index) {
+  const look = readLookData(index);
+  closeAdminInventoryPanel();
+  showSitePage("shop", { updateHash: true, behavior: "smooth" });
+  setInlineEditStatus(`${look.name || "Product"} is live. You are viewing it in the Shop.`);
+}
+
+async function handleAdminInventoryPhotoUpload() {
+  const index = Number(adminInventoryPhotoInput?.dataset.inventoryPhotoIndex);
+  const file = adminInventoryPhotoInput?.files && adminInventoryPhotoInput.files[0];
+  if (!Number.isInteger(index) || !file) return;
+  await updateLookPhotoFromFile(index, file, adminInventoryPhotoInput);
+  renderAdminInventoryPanel();
+}
+
+async function createInventoryDraft() {
+  if (!isAdminSignedIn()) {
+    openAccount("Please sign in to add products.");
+    return;
+  }
+  ensureAdminInventoryPanel();
+  if (adminInventoryPanel.hidden) openAdminInventoryShelf();
+  const index = nextProductLibrarySlotIndex();
+  const existing = readLookData(index);
+  if (existing.active || existing.published) {
+    setAdminMessage(adminInventoryStatus, "Inventory is full. Delete an old draft before adding another product.");
+    return -1;
+  }
+  const nextNumber = inventoryLooks().length + 1;
+  adminState.lookDetails[index] = {
+    name: `New Product ${nextNumber}`,
+    price: "",
+    salePrice: "",
+    discount: "",
+    stock: "Available",
+    sku: "",
+    finish: "custom",
+    copy: "Describe this set for customers before publishing it.",
+    notes: "",
+    tag: "New from Chey"
+  };
+  delete adminState.lookPhotos[index];
+  delete adminState.lookPhotoFits[index];
+  delete adminState.lookPhotoPositions[index];
+  delete adminState.lookPhotoZooms[index];
+  delete adminState.lookPhotoTransforms[index];
+  visibleLookSlotCount = Math.max(visibleLookSlotCount, index + 1);
+  renderAdminInventoryPanel();
+  renderAdminLookPhotos();
+  renderLooks();
+  updateLookCount();
+  setAdminMessage(adminInventoryStatus, "New private product draft added. Add details now, then publish when it is ready.");
+  const result = await saveAdminState({
+    statusTarget: adminInventoryStatus || adminEditStatus,
+    savingMessage: "Adding product draft to inventory...",
+    successMessage: "Product draft saved in inventory. Customers cannot see it yet."
+  });
+  if (!result.ok) return index;
+  requestAnimationFrame(() => {
+    adminInventoryList?.querySelector(`[data-inventory-card="${index}"] [data-inventory-field="name"]`)?.focus();
+  });
+  return index;
+}
+
+function renderAdminEditToolbar() {
+  ensureAdminEditToolbar();
+  const signedIn = isAdminSignedIn();
+  adminEditToolbar.hidden = !signedIn;
+  body.classList.toggle("admin-signed-in", signedIn);
+  if (!signedIn) {
+    syncAdminViewportChrome();
+    return;
+  }
+  adminEditToolbar.classList.toggle("is-editing", textEditMode);
+  adminEditToggle.classList.toggle("active", textEditMode);
+  adminEditToggle.textContent = textEditMode ? "Stop Editing" : "Click To Edit Site";
+  if (adminEditStatus && !inlineEditSaveTimer) {
+    adminEditStatus.textContent = textEditMode
+      ? "Click text to type, use x buttons to delete writing, or add products, sections, and pages."
+      : "Press Click To Edit Site, then edit the page right where customers see it.";
+  }
+  syncAdminViewportChrome();
+}
+
+function setInlineEditStatus(message) {
+  if (adminEditStatus) adminEditStatus.textContent = message;
+  if (adminContentStatus) adminContentStatus.textContent = message;
+}
+
+async function addCustomPageFromToolbar() {
+  if (!isAdminSignedIn()) return;
+  if (!textEditMode) {
+    textEditMode = true;
+    syncInlineEditMode();
+  }
+  const label = window.prompt("Name this new page", "New Page");
+  if (!label || !label.trim()) {
+    setInlineEditStatus("Add page cancelled.");
+    return;
+  }
+  const key = uniquePageKey(label);
+  const page = {
+    key,
+    label: label.trim(),
+    title: label.trim(),
+    eyebrow: "New page",
+    body: "Click here to write what customers should know."
+  };
+  adminState.customPages = adminState.customPages || [];
+  adminState.customPages.push(page);
+  adminState.layoutOrder = adminState.layoutOrder || defaultLayoutOrder();
+  adminState.layoutOrder.push(key);
+  if (adminState.hiddenSections) delete adminState.hiddenSections[key];
+  adminState.texts[customPageTextKey(key, "title")] = page.title;
+  adminState.texts[customPageTextKey(key, "eyebrow")] = page.eyebrow;
+  adminState.texts[customPageTextKey(key, "body")] = page.body;
+  renderCustomPages();
+  renderCustomBlocks();
+  ensureLayoutState();
+  applyLayoutState();
+  markEditableText();
+  syncInlineEditMode();
+  showSitePage(key, { updateHash: true, behavior: "smooth" });
+  const result = await saveAdminState({
+    statusTarget: adminEditStatus || adminContentStatus,
+    savingMessage: "Adding the new page to the live website...",
+    successMessage: "New page added to the live website."
+  });
+  setInlineEditStatus(result.ok ? "New page added. Click the page text to edit it." : liveSaveFailureMessage(result.error));
+}
+
+async function addCustomSectionToCurrentPage() {
+  if (!isAdminSignedIn()) return;
+  if (!textEditMode) {
+    textEditMode = true;
+    syncInlineEditMode();
+  }
+  const pageKey = currentPageKey || firstVisiblePageKey();
+  const id = `block-${Date.now().toString(36)}`;
+  const block = {
+    id,
+    pageKey,
+    title: "New section",
+    body: "Click here to add details, announcements, policies, FAQs, or anything else this page needs."
+  };
+  adminState.customBlocks = adminState.customBlocks || [];
+  adminState.customBlocks.push(block);
+  adminState.texts[customBlockTextKey(id, "title")] = block.title;
+  adminState.texts[customBlockTextKey(id, "body")] = block.body;
+  renderCustomBlocks();
+  markEditableText();
+  syncInlineEditMode();
+  const result = await saveAdminState({
+    statusTarget: adminEditStatus || adminContentStatus,
+    savingMessage: "Adding the new section to the live website...",
+    successMessage: "New section added to the live website."
+  });
+  setInlineEditStatus(result.ok ? "New section added. Click its text to edit it." : liveSaveFailureMessage(result.error));
+}
+
+function queueInlineAdminSave(message = "Saving your edit...") {
+  clearTimeout(inlineEditSaveTimer);
+  setInlineEditStatus(message);
+  inlineEditSaveTimer = window.setTimeout(async () => {
+    inlineEditSaveTimer = null;
+    const result = await saveAdminState();
+    renderAdminContentFields();
+    renderAdminProducts();
+    renderAdminLookPhotos();
+    renderAdminInventoryPanel();
+    updateLookCount();
+    setInlineEditStatus(result.ok ? "Saved to the live website. Keep clicking anything else you want to change." : liveSaveFailureMessage(result.error));
+  }, 450);
+}
+
+function productInlineElements() {
+  return Array.from(document.querySelectorAll("[data-admin-product-field]"));
+}
+
+function markInlineImageTargets() {
+  imageTargets.forEach((target) => {
+    const el = document.querySelector(target.selector);
+    if (!el) return;
+    el.dataset.adminImageKey = target.key;
+    el.dataset.adminImageLabel = target.label;
+  });
+}
+
+function syncInlineEditMode() {
+  const active = textEditMode && isAdminSignedIn();
+  markInlineImageTargets();
+  body.classList.toggle("admin-inline-editing", active);
+  editableElements().forEach((el) => {
+    el.contentEditable = active ? "true" : "false";
+    el.spellcheck = active;
+  });
+  productInlineElements().forEach((el) => {
+    el.contentEditable = active ? "true" : "false";
+    el.spellcheck = active;
+  });
+  document.querySelectorAll("[data-admin-image-key], [data-admin-product-image-index]").forEach((el) => {
+    el.classList.toggle("admin-clickable-image", active);
+  });
+  toggleEditTextButton.textContent = active ? "Stop Editing Site" : "Click To Edit Site";
+  toggleEditTextButton.classList.toggle("active", active);
+  renderAdminEditToolbar();
+  scheduleRemoveBubbleControls();
+}
+
+function clearRemoveBubbleControls() {
+  document.querySelectorAll(".admin-remove-bubble").forEach((button) => button.remove());
+}
+
+function refreshTextBubbleControlsSoon() {
+  clearRemoveBubbleControls();
+  scheduleRemoveBubbleControls();
+}
+
+function isCompactAdminTextControl(el) {
+  if (!el) return false;
+  if (el.classList?.contains("eyebrow")) return true;
+  const rect = el.getBoundingClientRect();
+  return rect.height <= 42 && rect.width <= 220;
+}
+
+function textBubbleControlsPaused() {
+  const active = document.activeElement;
+  const activeEditable = active?.closest?.("[contenteditable='true']");
+  return Boolean(
+    textDragState ||
+    (active && active.closest?.("input, textarea, select")) ||
+    (activeEditable && !isCompactAdminTextControl(activeEditable)) ||
+    (adminInventoryPanel && !adminInventoryPanel.hidden)
+  );
+}
+
+function isEditableTextControlCandidate(el) {
+  if (!el || !el.dataset.adminText) return false;
+  if (el.hidden || adminState.hiddenText?.[el.dataset.adminText]) return false;
+  if (el.closest(".admin-edit-toolbar, .admin-inventory-panel, .account-panel, .cart-drawer, .admin-page")) return false;
+  const panel = el.closest("[data-page-panel]");
+  if (panel && panel.dataset.pagePanel !== currentPageKey) return false;
+  const rect = el.getBoundingClientRect();
+  if (rect.width < 10 || rect.height < 10) return false;
+  if (rect.bottom < navOffset() || rect.top > window.innerHeight - 8) return false;
+  return true;
+}
+
+function renderRemoveBubbleControls() {
+  clearRemoveBubbleControls();
+  if (!textEditMode || !isAdminSignedIn() || textBubbleControlsPaused()) return;
+  document.querySelectorAll("[data-admin-text]").forEach((el) => {
+    const key = el.dataset.adminText;
+    if (!key || !isEditableTextControlCandidate(el)) return;
+    const rect = el.getBoundingClientRect();
+    const compact = isCompactAdminTextControl(el);
+    const controlTop = compact
+      ? Math.min(window.innerHeight - 36, Math.max(navOffset(), rect.bottom + 8))
+      : Math.min(window.innerHeight - 30, Math.max(navOffset(), rect.top - 12));
+    const moveLeft = compact
+      ? Math.min(window.innerWidth - 64, Math.max(6, rect.left))
+      : Math.min(window.innerWidth - 64, Math.max(6, rect.left - 12));
+    const deleteLeft = compact
+      ? Math.min(window.innerWidth - 30, Math.max(42, rect.right - 24))
+      : Math.min(window.innerWidth - 30, Math.max(36, rect.right - 8));
+    const moveButton = document.createElement("button");
+    moveButton.type = "button";
+    moveButton.className = "admin-remove-bubble move";
+    moveButton.dataset.dragTextKey = key;
+    moveButton.setAttribute("aria-label", "Drag this writing");
+    moveButton.textContent = "move";
+    moveButton.style.left = `${moveLeft}px`;
+    moveButton.style.top = `${controlTop}px`;
+    document.body.appendChild(moveButton);
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "admin-remove-bubble delete";
+    deleteButton.dataset.removeTextKey = key;
+    deleteButton.setAttribute("aria-label", "Delete this text from the page");
+    deleteButton.textContent = "x";
+    deleteButton.style.left = `${deleteLeft}px`;
+    deleteButton.style.top = `${controlTop}px`;
+    document.body.appendChild(deleteButton);
+  });
+}
+
+function scheduleRemoveBubbleControls() {
+  if (removeBubbleFrame) return;
+  removeBubbleFrame = window.requestAnimationFrame(() => {
+    removeBubbleFrame = 0;
+    renderRemoveBubbleControls();
+  });
+}
+
+async function removeTextBubble(key) {
+  if (!key || !isAdminSignedIn()) return;
+  adminState.hiddenText = adminState.hiddenText || {};
+  adminState.hiddenText[key] = true;
+  applyHiddenTextState();
+  saveTextEdits();
+  const result = await saveAdminState({
+    statusTarget: adminEditStatus || adminContentStatus,
+    savingMessage: "Deleting that text from the live website...",
+    successMessage: "Text deleted from the live website."
+  });
+  setInlineEditStatus(result.ok ? "Text deleted from the live website." : liveSaveFailureMessage(result.error));
+}
+
+function startTextBubbleDrag(event) {
+  if (!textEditMode || !isAdminSignedIn()) return;
+  const button = event.target.closest("[data-drag-text-key]");
+  if (!button) return;
+  const key = button.dataset.dragTextKey;
+  const element = Array.from(document.querySelectorAll("[data-admin-text]")).find((item) => item.dataset.adminText === key);
+  if (!key || !element) return;
+  const startOffset = sanitizeTextOffset(adminState.textOffsets?.[key]);
+  textDragState = {
+    key,
+    element,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    startOffset,
+    moved: false
+  };
+  button.setPointerCapture?.(event.pointerId);
+  body.classList.add("admin-dragging-text");
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function moveTextBubbleDrag(event) {
+  if (!textDragState) return;
+  const deltaX = event.clientX - textDragState.startX;
+  const deltaY = event.clientY - textDragState.startY;
+  if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) textDragState.moved = true;
+  const next = sanitizeTextOffset({
+    x: textDragState.startOffset.x + deltaX,
+    y: textDragState.startOffset.y + deltaY
+  });
+  adminState.textOffsets = adminState.textOffsets || {};
+  adminState.textOffsets[textDragState.key] = next;
+  applyTextOffset(textDragState.element, textDragState.key);
+  scheduleRemoveBubbleControls();
+  event.preventDefault();
+}
+
+async function stopTextBubbleDrag(event) {
+  if (!textDragState) return;
+  const key = textDragState.key;
+  const moved = textDragState.moved;
+  textDragState = null;
+  body.classList.remove("admin-dragging-text");
+  scheduleRemoveBubbleControls();
+  if (!moved) {
+    setInlineEditStatus("Drag the move button to reposition that text.");
+    return;
+  }
+  const result = await saveAdminState({
+    statusTarget: adminEditStatus || adminContentStatus,
+    savingMessage: "Saving bubble position to the live website...",
+    successMessage: "Bubble position saved to the live website."
+  });
+  setInlineEditStatus(result.ok ? "Bubble position saved." : liveSaveFailureMessage(result.error));
+}
+
+function updateInlineTextElement(el) {
+  const key = el.dataset.adminText;
+  if (!key) return;
+  adminState.texts[key] = el.textContent.trim();
+  queueInlineAdminSave("Saving text...");
+}
+
+function updateInlineProductElement(el) {
+  const index = Number(el.dataset.adminProductIndex);
+  const field = el.dataset.adminProductField;
+  const product = adminState.customProducts[index];
+  if (!product || !field) return;
+  const value = field === "price" ? el.textContent.replace("$", "").trim() : el.textContent.trim();
+  product[field] = value;
+  syncPublishedProductBackToLook(product, { [field]: value });
+  const adminField = adminProductList?.querySelector(`[data-custom-product="${index}"][data-field="${field}"]`);
+  if (adminField) adminField.value = value;
+  const card = el.closest(".product");
+  const addButton = card?.querySelector("[data-name]");
+  if (addButton) {
+    addButton.dataset.name = product.name || "";
+    addButton.dataset.price = product.price || "";
+  }
+  queueInlineAdminSave("Saving product...");
+}
+
+function handleInlineEditableInput(event) {
+  if (!textEditMode || !isAdminSignedIn()) return;
+  clearRemoveBubbleControls();
+  const productTarget = event.target.closest("[data-admin-product-field]");
+  if (productTarget) {
+    updateInlineProductElement(productTarget);
+    return;
+  }
+  const textTarget = event.target.closest("[data-admin-text]");
+  if (textTarget) updateInlineTextElement(textTarget);
+}
+
+function handleInlineEditableBlur(event) {
+  if (!textEditMode || !isAdminSignedIn()) return;
+  const editableTarget = event.target.closest("[data-admin-text], [data-admin-product-field]");
+  if (!editableTarget) return;
+  refreshTextBubbleControlsSoon();
+  queueInlineAdminSave("Saving final edit to the live website...");
+}
+
+function ensureInlineImageInput() {
+  if (adminInlineImageInput) return;
+  adminInlineImageInput = document.createElement("input");
+  adminInlineImageInput.type = "file";
+  adminInlineImageInput.accept = "image/*";
+  adminInlineImageInput.setAttribute("capture", "environment");
+  adminInlineImageInput.className = "hidden-file-input";
+  document.body.appendChild(adminInlineImageInput);
+  adminInlineImageInput.addEventListener("change", handleInlineImageUpload);
+}
+
+function ensureInlineProductInput() {
+  if (adminInlineProductInput) return;
+  adminInlineProductInput = document.createElement("input");
+  adminInlineProductInput.type = "file";
+  adminInlineProductInput.accept = "image/*";
+  adminInlineProductInput.setAttribute("capture", "environment");
+  adminInlineProductInput.className = "hidden-file-input";
+  document.body.appendChild(adminInlineProductInput);
+  adminInlineProductInput.addEventListener("change", handleInlineProductAddPhoto);
+}
+
+async function startInlineProductAdd() {
+  if (!isAdminSignedIn()) {
+    openAccount("Please sign in to add products.");
+    return;
+  }
+  await createInventoryDraft();
+}
+
+async function createInlineProductDraft() {
+  await createInventoryDraft();
+}
+
+async function handleInlineProductAddPhoto() {
+  const file = adminInlineProductInput.files && adminInlineProductInput.files[0];
+  if (!file) return;
+  adminInlineProductInput.value = "";
+  const index = await createInventoryDraft();
+  if (Number.isInteger(index) && index >= 0) await updateLookPhotoFromFile(index, file, adminInlineProductInput);
+  renderAdminInventoryPanel();
+}
+
+async function openInlineImagePicker(target) {
+  ensureInlineImageInput();
+  inlineImageEditTarget = {
+    imageKey: target.dataset.adminImageKey || "",
+    productIndex: target.dataset.adminProductImageIndex || "",
+    element: target
+  };
+  const currentSrc = target.currentSrc || target.getAttribute("src") || "";
+  const isPlaceholder = currentSrc.startsWith("data:image/svg+xml");
+  if (!currentSrc || isPlaceholder) {
+    adminInlineImageInput.value = "";
+    adminInlineImageInput.click();
+    return;
+  }
+  await openInlinePhotoStudio(currentSrc, false);
+}
+
+function handleInlineImageClick(event) {
+  if (!textEditMode || !isAdminSignedIn()) return;
+  const imageTarget = event.target.closest("[data-admin-image-key], [data-admin-product-image-index]");
+  if (!imageTarget) return;
+  event.preventDefault();
+  event.stopPropagation();
+  openInlineImagePicker(imageTarget);
+}
+
+function handleInlineEditableClick(event) {
+  if (!textEditMode || !isAdminSignedIn()) return;
+  const editableTarget = event.target.closest("[contenteditable='true']");
+  if (!editableTarget) return;
+  if (editableTarget.closest("a, button")) {
+    event.preventDefault();
+  }
+  event.stopPropagation();
+}
+
+async function handleInlineImageUpload() {
+  const file = adminInlineImageInput.files && adminInlineImageInput.files[0];
+  if (!file || !inlineImageEditTarget) return;
+  setInlineEditStatus("Opening Photo Studio...");
+  const dataUrl = await fileToCompressedDataUrl(file);
+  adminInlineImageInput.value = "";
+  await openInlinePhotoStudio(dataUrl, true);
+}
+
+async function openInlinePhotoStudio(dataUrl, sourceChanged = false) {
+  if (!inlineImageEditTarget) return;
+  const productIndex = Number(inlineImageEditTarget.productIndex);
+  if (inlineImageEditTarget.productIndex !== "" && adminState.customProducts[productIndex]) {
+    const product = adminState.customProducts[productIndex];
+    const studio = await openPhotoStudio({
+      dataUrl,
+      title: `Adjust ${product.name || "product photo"}`,
+      fit: product.imageFit,
+      position: product.imagePosition,
+      zoom: product.imageZoom,
+      transform: product.imageTransform,
+      sourceChanged
+    });
+    if (!studio) {
+      setInlineEditStatus("Photo upload cancelled.");
+      return;
+    }
+    setInlineEditStatus("Uploading photo to the live website...");
+    const upload = await uploadAdminPhoto(studio.dataUrl, `product-inline-${productIndex}`);
+    const imageUrl = upload.ok ? upload.url : studio.dataUrl;
+    product.image = imageUrl;
+    product.imageFit = studio.fit;
+    product.imagePosition = studio.position;
+    product.imageZoom = studio.zoom;
+    product.imageTransform = studio.transform;
+    syncPublishedProductBackToLook(product, {
+      image: imageUrl,
+      imageFit: studio.fit,
+      imagePosition: studio.position,
+      imageZoom: studio.zoom,
+      imageTransform: studio.transform
+    });
+    if (inlineImageEditTarget.element?.tagName === "IMG") {
+      inlineImageEditTarget.element.src = imageUrl;
+      applyPhotoFitToImage(inlineImageEditTarget.element, studio.fit, studio.position, studio.zoom, studio.transform);
+    }
+    if (!upload.ok) {
+      localSaveAdminState();
+      setInlineEditStatus(liveSaveFailureMessage(upload.error));
+      return;
+    }
+    const result = await saveAdminState();
+    renderCustomProducts();
+    renderAdminProducts();
+    renderAdminLookPhotos();
+    renderAdminInventoryPanel();
+    if (result.ok) {
+      triggerPhotoBounce(inlineImageEditTarget.element);
+      showAdminUploadCelebration("Product photo is live.");
+    }
+    setInlineEditStatus(result.ok ? "Product photo saved to the live website." : liveSaveFailureMessage(result.error));
+    return;
+  }
+  if (inlineImageEditTarget.imageKey) {
+    const imageKey = inlineImageEditTarget.imageKey;
+    const studio = await openPhotoStudio({
+      dataUrl,
+      title: "Adjust site photo",
+      fit: adminState.imageFits[imageKey],
+      position: adminState.imagePositions[imageKey],
+      zoom: adminState.imageZooms[imageKey],
+      transform: adminState.imageTransforms[imageKey],
+      sourceChanged
+    });
+    if (!studio) {
+      setInlineEditStatus("Photo upload cancelled.");
+      return;
+    }
+    setInlineEditStatus("Uploading photo to the live website...");
+    adminState.imageFits[imageKey] = studio.fit;
+    adminState.imagePositions[imageKey] = studio.position;
+    adminState.imageZooms[imageKey] = studio.zoom;
+    adminState.imageTransforms[imageKey] = studio.transform;
+    const upload = await uploadAdminPhoto(studio.dataUrl, `site-inline-${imageKey}`);
+    const imageUrl = upload.ok ? upload.url : studio.dataUrl;
+    adminState.images[imageKey] = imageUrl;
+    applyImageValue(imageKey, imageUrl);
+    if (!upload.ok) {
+      localSaveAdminState();
+      setInlineEditStatus(liveSaveFailureMessage(upload.error));
+      return;
+    }
+    const result = await saveAdminState();
+    renderAdminImages();
+    renderAdminInventoryPanel();
+    if (result.ok) {
+      triggerPhotoBounce(inlineImageEditTarget.element);
+      showAdminUploadCelebration("Site photo is live.");
+    }
+    setInlineEditStatus(result.ok ? "Site photo saved to the live website." : liveSaveFailureMessage(result.error));
+  }
+}
+
+function handleInlineEditKeydown(event) {
+  if (!textEditMode || !event.target.closest("[contenteditable='true']")) return;
+  if (event.key === "Escape") {
+    event.target.blur();
+    event.preventDefault();
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const removeButton = event.target.closest("[data-remove-text-key]");
+  if (removeButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    removeTextBubble(removeButton.dataset.removeTextKey);
+    return;
+  }
+
+  const link = event.target.closest("[data-page-link]");
+  if (!link) return;
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const pageKey = link.dataset.pageLink;
+  if (!pageKey) return;
+  event.preventDefault();
+  showSitePage(pageKey, { updateHash: true, behavior: "smooth" });
+});
+document.addEventListener("focusin", (event) => {
+  if (!textEditMode || !isAdminSignedIn()) return;
+  if (event.target.closest("[contenteditable='true'], input, textarea, select")) {
+    clearRemoveBubbleControls();
+  }
+});
+document.addEventListener("focusout", () => {
+  if (!textEditMode || !isAdminSignedIn()) return;
+  refreshTextBubbleControlsSoon();
+});
+document.addEventListener("pointerdown", startTextBubbleDrag);
+window.addEventListener("pointermove", moveTextBubbleDrag);
+window.addEventListener("pointerup", stopTextBubbleDrag);
+window.addEventListener("pointercancel", stopTextBubbleDrag);
+
+window.addEventListener("hashchange", () => {
+  if (window.location.hash === "#adminPage") {
+    showAdminPage();
+    return;
+  }
+  const productIndex = productIndexFromHash();
+  if (productIndex >= 0) {
+    openProductDetail(productIndex, { updateHash: false, behavior: "smooth" });
+    return;
+  }
+  showSitePage(pageKeyFromHash(), { updateHash: false, behavior: "smooth" });
+});
+
+window.addEventListener("scroll", () => {
+  schedulePageStateFromScroll();
+  scheduleScrollChrome();
+  if (textEditMode && isAdminSignedIn()) scheduleRemoveBubbleControls();
+}, { passive: true });
+window.addEventListener("resize", () => {
+  schedulePageStateFromScroll();
+  scheduleScrollChrome();
+  if (textEditMode && isAdminSignedIn()) scheduleRemoveBubbleControls();
+  syncAdminViewportChrome();
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
+  if (adminInventoryPanel && !adminInventoryPanel.hidden) {
+    closeAdminInventoryPanel();
+    event.preventDefault();
+    return;
+  }
   closeCartDrawer();
   closeAccountPanel();
+  refreshTextBubbleControlsSoon();
 });
 
 function escapeHTML(value) {
@@ -391,41 +2908,192 @@ function escapeHTML(value) {
   });
 }
 
+function orderItemMeta(item = {}) {
+  return [
+    item.customOrder ? "Custom order request" : "",
+    item.requestTitle || "",
+    cartItemQuantity(item) > 1 ? `Quantity ${cartItemQuantity(item)}` : "",
+    item.shape || "",
+    item.shade || "",
+    item.note ? "Design notes included" : "",
+    item.image ? "Reference photo attached" : ""
+  ]
+    .filter(Boolean)
+    .map(escapeHTML)
+    .join(" · ");
+}
+
+function cartItemQuantity(item = {}) {
+  const quantity = Math.floor(Number(item.quantity) || 1);
+  return Math.min(Math.max(quantity, 1), 10);
+}
+
+function cartItemTotal(item = {}) {
+  return (Number(item.price) || 0) * cartItemQuantity(item);
+}
+
+function cartTotalValue() {
+  return cart.reduce((sum, item) => sum + cartItemTotal(item), 0);
+}
+
+function orderItemPriceLabel(item = {}) {
+  if (item.customOrder) return "Quote after review";
+  const quantity = cartItemQuantity(item);
+  const total = cartItemTotal(item);
+  return quantity > 1 ? `$${Number(item.price) || 0} each - $${total} total` : `$${total}`;
+}
+
+function orderItemSummary(item = {}) {
+  const parts = [item.name || "Custom order"];
+  if (cartItemQuantity(item) > 1) parts.push(`quantity ${cartItemQuantity(item)}`);
+  if (item.customOrder) parts.push("custom request");
+  if (item.image) parts.push("photo attached");
+  return parts.join(" - ");
+}
+
+function orderRequestNotesMarkup(order = {}) {
+  const notes = (order.items || [])
+    .filter((item) => item.note)
+    .map((item) => `${item.name}: ${item.note}${item.image ? " (photo attached)" : ""}`);
+  return notes.length
+    ? notes.map((note) => `<p class="order-request-note">${escapeHTML(note)}</p>`).join("")
+    : "";
+}
+
+function handleCustomOrderPhotoUpload() {
+  if (!customOrderPhoto || !customOrderPreviewImage || !customOrderPhotoName || !customOrderPreview) return;
+  const file = customOrderPhoto.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    customOrderPhotoDataUrl = String(reader.result || "");
+    customOrderPreviewImage.src = customOrderPhotoDataUrl;
+    customOrderPhotoName.textContent = file.name;
+    customOrderPreview.hidden = false;
+    if (customOrderStatus) customOrderStatus.textContent = "";
+  });
+  reader.readAsDataURL(file);
+}
+
+function clearCustomOrderPhoto() {
+  if (!customOrderPhoto || !customOrderPreviewImage || !customOrderPhotoName || !customOrderPreview) return;
+  customOrderPhotoDataUrl = "";
+  customOrderPhoto.value = "";
+  customOrderPreviewImage.removeAttribute("src");
+  customOrderPhotoName.textContent = "Reference photo uploaded";
+  customOrderPreview.hidden = true;
+}
+
+function submitCustomOrderRequest() {
+  if (!customOrderDescription || !customOrderStatus) return;
+  const requestTitle = customOrderName?.value.trim() || "";
+  const description = customOrderDescription.value.trim();
+  if (!description) {
+    customOrderStatus.textContent = "Add the custom order description first.";
+    customOrderDescription.focus();
+    return;
+  }
+  if (!customOrderPhotoDataUrl) {
+    customOrderStatus.textContent = "Upload a reference photo before sending the custom order request.";
+    customOrderPhoto?.focus();
+    return;
+  }
+  addToCart(requestTitle ? `Custom Order - ${requestTitle}` : "Custom Order Request", 0, {
+    customOrder: true,
+    requestTitle,
+    note: description,
+    image: customOrderPhotoDataUrl
+  });
+  customOrderStatus.textContent = "Custom order request added to your bag. Submit checkout so Chey can review it.";
+  if (customOrderName) customOrderName.value = "";
+  customOrderDescription.value = "";
+  clearCustomOrderPhoto();
+}
+
 function renderCart() {
   cartItems.innerHTML = "";
   cart.forEach((item, index) => {
     const row = document.createElement("div");
-    row.className = `cart-item${item.image ? " has-image" : ""}`;
-    const meta = [item.shape, item.shade, item.note ? "Design notes included" : "", item.image ? "Inspiration photo included" : ""]
+    row.className = `cart-item${item.image ? " has-image" : ""}${item.customOrder ? " is-custom-order" : ""}`;
+    row.style.setProperty("--cart-index", String(index));
+    const meta = orderItemMeta(item) || [item.shape, item.shade, item.note ? "Design notes included" : "", item.image ? "Inspiration photo included" : ""]
       .filter(Boolean)
       .map(escapeHTML)
       .join(" · ");
+    const price = Number(item.price) || 0;
     row.innerHTML = `
-      ${item.image ? `<img class="cart-thumb" src="${item.image}" alt="Inspiration for ${escapeHTML(item.name)}" />` : ""}
-      <div>
+      <div class="cart-thumb-wrap">
+        ${item.image ? `<img class="cart-thumb" src="${item.image}" alt="Inspiration for ${escapeHTML(item.name)}" />` : `<span class="cart-thumb-fallback" aria-hidden="true"></span>`}
+      </div>
+      <div class="cart-item-copy">
+        <span class="cart-item-number">Set ${index + 1}</span>
         <strong>${escapeHTML(item.name)}</strong>
         ${meta ? `<p class="cart-meta">${meta}</p>` : ""}
         ${item.note ? `<p class="cart-note">${escapeHTML(item.note)}</p>` : ""}
-        <div>$${item.price}</div>
+        <div class="cart-item-price">${orderItemPriceLabel(item)}</div>
       </div>
-      <button type="button" aria-label="Remove ${escapeHTML(item.name)}" data-index="${index}">Remove</button>
+      <button class="cart-remove" type="button" aria-label="Remove ${escapeHTML(item.name)}" data-index="${index}">x</button>
     `;
     cartItems.appendChild(row);
   });
 
-  const total = cart.reduce((sum, item) => sum + item.price, 0);
-  cartCount.textContent = cart.length;
+  const total = cartTotalValue();
+  cartCount.textContent = cart.reduce((sum, item) => sum + cartItemQuantity(item), 0);
   cartTotal.textContent = `$${total}`;
   cartEmpty.textContent = cartEmptyMessage;
   cartEmpty.classList.toggle("show", cart.length === 0);
+  cartItems.classList.toggle("has-items", cart.length > 0);
+  body.classList.toggle("cart-has-items", cart.length > 0);
   guestCheckout.hidden = cart.length === 0;
 }
 
 function addToCart(name, price, details = {}) {
   cartEmptyMessage = "Your bag is ready for something glossy.";
-  cart.push({ name, price: Number(price), ...details });
+  cart.push({ name, price: Number(price), ...details, quantity: cartItemQuantity(details) });
   renderCart();
+  cartButton.classList.remove("bag-pop");
+  void cartButton.offsetWidth;
+  cartButton.classList.add("bag-pop");
   openCart();
+}
+
+function blankHandSizes() {
+  return Object.fromEntries(sizeFingerKeys.map((finger) => [finger, ""]));
+}
+
+function normalizeCustomerSizes(sizes = {}) {
+  const source = sizes && typeof sizes === "object" ? sizes : {};
+  const legacySizes = Object.fromEntries(
+    sizeFingerKeys.map((finger) => [finger, typeof source[finger] === "string" ? source[finger] : ""])
+  );
+  const normalized = Object.fromEntries(sizeHandKeys.map((hand) => [hand, blankHandSizes()]));
+
+  sizeHandKeys.forEach((hand) => {
+    const handSource = source[hand] && typeof source[hand] === "object" ? source[hand] : legacySizes;
+    sizeFingerKeys.forEach((finger) => {
+      normalized[hand][finger] = typeof handSource[finger] === "string" ? handSource[finger] : "";
+    });
+  });
+
+  return normalized;
+}
+
+function hasSavedHandSizes(sizes = {}) {
+  const normalized = normalizeCustomerSizes(sizes);
+  return sizeHandKeys.some((hand) => sizeFingerKeys.some((finger) => Boolean(normalized[hand][finger])));
+}
+
+function handSizeSummary(label, sizes = {}) {
+  const values = sizeFingerKeys
+    .map((finger) => `${finger} ${sizes[finger] || "-"}`)
+    .join(", ");
+  return `${label}: ${values}`;
+}
+
+function customerSizesSummary(user) {
+  const sizes = normalizeCustomerSizes(user.sizes);
+  if (!hasSavedHandSizes(sizes)) return "Sizes not saved";
+  return `Sizes - ${handSizeSummary("Left", sizes.left)}; ${handSizeSummary("Right", sizes.right)}`;
 }
 
 function loadCustomerState() {
@@ -437,7 +3105,7 @@ function loadCustomerState() {
             name: user.name || "",
             email: user.email || "",
             password: user.password || "",
-            sizes: user.sizes || {},
+            sizes: normalizeCustomerSizes(user.sizes),
             savedProducts: Array.isArray(user.savedProducts) ? user.savedProducts : [],
             orders: Array.isArray(user.orders) ? user.orders : [],
             createdAt: user.createdAt || "",
@@ -481,17 +3149,33 @@ function currentCustomer() {
 }
 
 function renderAccount() {
+  const adminSignedIn = isAdminSignedIn();
   const user = currentCustomer();
-  accountAuth.hidden = Boolean(user);
-  accountDashboard.hidden = !user;
-  if (!user) {
+  accountAuth.classList.toggle("admin-session-active", adminSignedIn);
+  if (adminSessionCard) adminSessionCard.hidden = !adminSignedIn;
+  accountStatus.hidden = adminSignedIn;
+  accountAuth.hidden = adminSignedIn ? false : Boolean(user);
+  accountDashboard.hidden = adminSignedIn || !user;
+  if (adminSignedIn) {
+    accountStatus.textContent = "";
     savedProductsList.innerHTML = "";
     orderHistoryList.innerHTML = "";
     return;
   }
+  if (!user) {
+    accountStatus.hidden = false;
+    savedProductsList.innerHTML = "";
+    orderHistoryList.innerHTML = "";
+    return;
+  }
+  accountStatus.hidden = false;
   accountName.textContent = `Welcome back, ${user.name}`;
-  Object.entries(sizeInputs).forEach(([key, input]) => {
-    input.value = user.sizes?.[key] || "";
+  user.sizes = normalizeCustomerSizes(user.sizes);
+  sizeHandKeys.forEach((hand) => {
+    sizeFingerKeys.forEach((finger) => {
+      const input = sizeInputs[hand]?.[finger];
+      if (input) input.value = user.sizes[hand]?.[finger] || "";
+    });
   });
   renderSavedProducts(user);
   renderOrderHistory(user);
@@ -511,7 +3195,12 @@ function renderSavedProducts(user) {
           `
         )
         .join("")
-    : `<div class="account-list-item"><p>No saved products yet.</p></div>`;
+    : `
+      <div class="account-list-item account-empty-card">
+        <strong>No favorites yet</strong>
+        <p>Tap Save on any set in the shop and it will show up here for a faster reorder.</p>
+      </div>
+    `;
 }
 
 function renderOrderHistory(user) {
@@ -523,12 +3212,18 @@ function renderOrderHistory(user) {
             <div class="account-list-item">
               <strong>${escapeHTML(order.id)}</strong>
               <p>${escapeHTML(order.date)} · $${order.total}</p>
-              <p>${escapeHTML(order.items.map((item) => item.name).join(", "))}</p>
+              <p>${escapeHTML(order.items.map(orderItemSummary).join(", "))}</p>
+              ${orderRequestNotesMarkup(order)}
             </div>
           `
         )
         .join("")
-    : `<div class="account-list-item"><p>No orders yet.</p></div>`;
+    : `
+      <div class="account-list-item account-empty-card">
+        <strong>No orders yet</strong>
+        <p>After checkout, your set details and custom request notes will live here.</p>
+      </div>
+    `;
 }
 
 function registerCustomer() {
@@ -547,13 +3242,14 @@ function registerCustomer() {
     name,
     email,
     password,
-    sizes: {},
+    sizes: normalizeCustomerSizes(),
     savedProducts: [],
     orders: [],
     createdAt: new Date().toLocaleString(),
     lastLogin: new Date().toLocaleString()
   });
   customerState.currentEmail = email;
+  exitAdminModeForCustomer();
   saveCustomerState();
   accountStatus.textContent = "";
   registerName.value = "";
@@ -567,7 +3263,7 @@ function loginCustomer() {
   const email = loginEmail.value.trim().toLowerCase();
   const password = loginPassword.value;
   if (isAdminLogin(email, password)) {
-    localStorage.setItem(ADMIN_SESSION_KEY, "true");
+    startAdminSession();
     customerState.currentEmail = "";
     saveCustomerState();
     accountStatus.textContent = "";
@@ -576,8 +3272,11 @@ function loginCustomer() {
     renderAccount();
     renderAdminVisibility();
     closeAccountPanel();
-    window.location.hash = "adminPage";
-    showAdminPage();
+    textEditMode = false;
+    showSitePage("home", { updateHash: true, force: true });
+    renderCustomProducts();
+    syncInlineEditMode();
+    setInlineEditStatus("Admin is signed in. Press Click To Edit Site to change the page.");
     return;
   }
   const user = customerState.users.find((item) => item.email === email && item.password === password);
@@ -585,12 +3284,95 @@ function loginCustomer() {
     accountStatus.textContent = "No account found with that email and password.";
     return;
   }
+  exitAdminModeForCustomer();
   user.lastLogin = new Date().toLocaleString();
   customerState.currentEmail = email;
   saveCustomerState();
   accountStatus.textContent = "";
   loginEmail.value = "";
   loginPassword.value = "";
+  renderAccount();
+}
+
+function showPasswordReset(show = true) {
+  passwordResetCard.hidden = !show;
+  if (show) {
+    resetEmail.value = loginEmail.value.trim().toLowerCase();
+    resetCodeStep.hidden = true;
+    resetCode.value = "";
+    resetNewPassword.value = "";
+    accountStatus.textContent = "Enter your account email to request a reset passcode.";
+    resetEmail.focus();
+  } else {
+    passwordResetRequest = null;
+    accountStatus.textContent = "";
+  }
+}
+
+function createResetCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function requestPasswordReset() {
+  const email = resetEmail.value.trim().toLowerCase();
+  const user = customerState.users.find((item) => item.email === email);
+  if (!email) {
+    accountStatus.textContent = "Enter the email on the customer account.";
+    return;
+  }
+  if (!user) {
+    accountStatus.textContent = "If that email has an account, a reset passcode will be sent.";
+    resetCodeStep.hidden = true;
+    return;
+  }
+  const code = createResetCode();
+  passwordResetRequest = {
+    email,
+    code,
+    expiresAt: Date.now() + 10 * 60 * 1000
+  };
+  resetCodeStep.hidden = false;
+  resetCode.value = "";
+  resetNewPassword.value = "";
+  resetCode.focus();
+  accountStatus.textContent = `Email passcode created for ${email}. Demo passcode: ${code}. Connect an email provider before saving real card/payment details.`;
+}
+
+function verifyPasswordReset() {
+  const code = resetCode.value.trim();
+  const newPassword = resetNewPassword.value;
+  if (!passwordResetRequest) {
+    accountStatus.textContent = "Request a fresh passcode first.";
+    return;
+  }
+  if (Date.now() > passwordResetRequest.expiresAt) {
+    passwordResetRequest = null;
+    accountStatus.textContent = "That passcode expired. Request a new one.";
+    return;
+  }
+  if (code !== passwordResetRequest.code) {
+    accountStatus.textContent = "That passcode does not match.";
+    return;
+  }
+  if (newPassword.length < 8) {
+    accountStatus.textContent = "Use at least 8 characters for the new password.";
+    return;
+  }
+  const user = customerState.users.find((item) => item.email === passwordResetRequest.email);
+  if (!user) {
+    accountStatus.textContent = "Account not found. Request a new code.";
+    return;
+  }
+  user.password = newPassword;
+  user.lastLogin = new Date().toLocaleString();
+  customerState.currentEmail = user.email;
+  saveCustomerState();
+  passwordResetRequest = null;
+  resetCodeStep.hidden = true;
+  passwordResetCard.hidden = true;
+  loginEmail.value = "";
+  loginPassword.value = "";
+  accountStatus.textContent = "Password updated. You are signed in.";
   renderAccount();
 }
 
@@ -607,34 +3389,48 @@ function saveCustomerSizes() {
     return;
   }
   user.sizes = Object.fromEntries(
-    Object.entries(sizeInputs).map(([key, input]) => [key, input.value.trim()])
+    sizeHandKeys.map((hand) => [
+      hand,
+      Object.fromEntries(
+        sizeFingerKeys.map((finger) => [finger, sizeInputs[hand]?.[finger]?.value.trim() || ""])
+      )
+    ])
   );
   saveCustomerState();
   renderAdminUsers();
-  accountStatus.textContent = "Sizes saved.";
+  accountStatus.textContent = "Left and right hand sizes saved.";
+}
+
+function productPriceFromCard(product) {
+  const buttonPrice = Number(product.querySelector("[data-name]")?.dataset.price);
+  if (Number.isFinite(buttonPrice)) return buttonPrice;
+  const visiblePrice = product.querySelector(".sale-price, .product-bottom strong")?.textContent.replace("$", "").trim() || "0";
+  return Number(visiblePrice) || 0;
 }
 
 function productDataFromCard(product) {
   const name = product.querySelector("h3").textContent.trim();
   const copy = product.querySelector(".product-copy > p:not(.product-tag)").textContent.trim();
-  const price = product.querySelector(".product-bottom strong").textContent.replace("$", "").trim();
   const image = product.querySelector(".photo-preview img")?.getAttribute("src") || "";
   return {
     name,
     copy,
-    price: Number(price),
+    price: productPriceFromCard(product),
     image,
     shape: detectProductShape(`${name} ${copy}`) || ""
   };
 }
 
 function saveProductForCustomer(product) {
+  saveProductDataForCustomer(productDataFromCard(product));
+}
+
+function saveProductDataForCustomer(item) {
   const user = currentCustomer();
   if (!user) {
     openAccount("Sign in or create an account to save products.");
     return;
   }
-  const item = productDataFromCard(product);
   user.savedProducts = user.savedProducts || [];
   if (!user.savedProducts.some((saved) => saved.name === item.name)) {
     user.savedProducts.push(item);
@@ -645,21 +3441,147 @@ function saveProductForCustomer(product) {
   openAccount("Product saved.");
 }
 
+function selectedDetailProduct() {
+  return adminState.customProducts[selectedProductIndex] || null;
+}
+
+function productDetailCustomerData(product, index) {
+  return {
+    name: product.name || "Handmade nail set",
+    copy: product.description || "Handmade by Chey.",
+    price: productCheckoutPrice({ ...product, index }),
+    image: product.image || "",
+    shape: detectProductShape(`${product.name || ""} ${product.description || ""}`) || ""
+  };
+}
+
+function updateProductDetailQuantity(nextQuantity) {
+  productDetailQuantity = Math.min(Math.max(Math.floor(Number(nextQuantity) || 1), 1), 10);
+  const value = productDetailContent?.querySelector("[data-product-detail-quantity]");
+  const decrease = productDetailContent?.querySelector("[data-product-detail-decrease]");
+  const increase = productDetailContent?.querySelector("[data-product-detail-increase]");
+  if (value) value.textContent = String(productDetailQuantity);
+  if (decrease) decrease.disabled = productDetailQuantity <= 1;
+  if (increase) increase.disabled = productDetailQuantity >= 10;
+}
+
+function renderProductDetail() {
+  if (!productDetailContent) return false;
+  const product = selectedDetailProduct();
+  if (!product) {
+    productDetailContent.innerHTML = `
+      <div class="product-detail-empty">
+        <p class="eyebrow">Product unavailable</p>
+        <h2>This set is no longer in the Shop.</h2>
+        <button class="button primary" type="button" data-product-detail-back>Back To Shop</button>
+      </div>
+    `;
+    productDetailContent.querySelector("[data-product-detail-back]")?.addEventListener("click", () => showSitePage("shop", { updateHash: true, behavior: "smooth" }));
+    return false;
+  }
+
+  const productForDisplay = { ...product, index: selectedProductIndex };
+  const checkoutPrice = productCheckoutPrice(productForDisplay);
+  const soldOut = /sold\s*out|unavailable/i.test(product.stock || "");
+  const missingPrice = checkoutPrice <= 0;
+  const discountLabel = productDiscountLabel(productForDisplay);
+  const categoryLabel = optionLabel(categoryOptions, product.category, "Custom / handmade");
+  const stockLabel = optionLabel(stockOptions, product.stock || "Available", product.stock || "Available");
+  const skuMarkup = product.sku ? `<span><small>Product code</small><strong>${escapeHTML(product.sku)}</strong></span>` : "";
+
+  productDetailContent.innerHTML = `
+    <button class="product-detail-back" type="button" data-product-detail-back aria-label="Back to Shop">&larr; Back To Shop</button>
+    <div class="product-detail-layout">
+      <div class="product-detail-gallery">
+        <div class="product-detail-photo photo-preview">
+          ${productImageMarkup(product, selectedProductIndex)}
+          ${discountLabel ? `<span class="product-sale-badge">${escapeHTML(discountLabel)}</span>` : ""}
+        </div>
+        <p>Tap the photo for a closer look.</p>
+      </div>
+      <div class="product-detail-info">
+        <div class="product-detail-heading">
+          <p class="product-tag">${escapeHTML(product.tag || "Handmade by Chey")}</p>
+          <h1>${escapeHTML(product.name || "Handmade nail set")}</h1>
+          <div class="product-detail-price">${productPriceMarkup(productForDisplay)}</div>
+        </div>
+        <p class="product-detail-description">${escapeHTML(product.description || "A handmade Pressed by Chey set, created and finished with care.")}</p>
+        <div class="product-detail-facts" aria-label="Product details">
+          <span><small>Availability</small><strong>${escapeHTML(stockLabel)}</strong></span>
+          <span><small>Style</small><strong>${escapeHTML(categoryLabel)}</strong></span>
+          ${skuMarkup}
+        </div>
+        <div class="product-detail-confidence">
+          <strong>Made for a better fit</strong>
+          <p>Save your sizing in your account and include any fit or application notes during checkout.</p>
+        </div>
+        <div class="product-detail-purchase">
+          <div class="product-detail-quantity" aria-label="Quantity selector">
+            <span>Quantity</span>
+            <div>
+              <button type="button" data-product-detail-decrease aria-label="Decrease quantity">&minus;</button>
+              <strong data-product-detail-quantity aria-live="polite">${productDetailQuantity}</strong>
+              <button type="button" data-product-detail-increase aria-label="Increase quantity">&plus;</button>
+            </div>
+          </div>
+          <button class="button primary product-detail-add" type="button" data-product-detail-add${soldOut || missingPrice ? " disabled" : ""}>
+            ${soldOut ? "Sold Out" : missingPrice ? "Price Coming Soon" : `Add To Bag - $${escapeHTML(checkoutPrice)}`}
+          </button>
+          <button class="button secondary product-detail-save" type="button" data-product-detail-save>Save This Set</button>
+        </div>
+        <p class="product-detail-status" data-product-detail-status role="status"></p>
+      </div>
+    </div>
+  `;
+
+  productDetailContent.querySelector("[data-product-detail-back]")?.addEventListener("click", () => showSitePage("shop", { updateHash: true, behavior: "smooth" }));
+  productDetailContent.querySelector("[data-product-detail-decrease]")?.addEventListener("click", () => updateProductDetailQuantity(productDetailQuantity - 1));
+  productDetailContent.querySelector("[data-product-detail-increase]")?.addEventListener("click", () => updateProductDetailQuantity(productDetailQuantity + 1));
+  productDetailContent.querySelector("[data-product-detail-add]")?.addEventListener("click", () => {
+    const item = productDetailCustomerData(product, selectedProductIndex);
+    addToCart(item.name, item.price, {
+      image: item.image,
+      shape: item.shape,
+      category: product.category || "",
+      quantity: productDetailQuantity,
+      sourceProductIndex: selectedProductIndex
+    });
+  });
+  productDetailContent.querySelector("[data-product-detail-save]")?.addEventListener("click", () => {
+    saveProductDataForCustomer(productDetailCustomerData(product, selectedProductIndex));
+  });
+  updateProductDetailQuantity(productDetailQuantity);
+  return true;
+}
+
+function openProductDetail(index, options = {}) {
+  const nextIndex = Number(index);
+  if (!Number.isInteger(nextIndex) || !adminState.customProducts[nextIndex]) {
+    showSitePage("shop", { updateHash: true, force: Boolean(options.force) });
+    return false;
+  }
+  selectedProductIndex = nextIndex;
+  productDetailQuantity = 1;
+  renderProductDetail();
+  if (options.updateHash !== false) history.replaceState(null, "", `#product-${nextIndex}`);
+  showSitePage("product", { updateHash: false, force: Boolean(options.force), behavior: options.behavior || "smooth" });
+  return true;
+}
+
 function checkoutCart() {
   if (!cart.length) return;
   const user = currentCustomer();
   if (!user) {
-    guestCheckout.open = true;
-    guestCheckoutStatus.textContent = "Sign in for account checkout or use guest checkout below.";
+    openGuestCheckout("Sign in for account checkout, or place this order as a guest.");
     return;
   }
-  const total = cart.reduce((sum, item) => sum + item.price, 0);
+  const total = cartTotalValue();
   user.orders = user.orders || [];
   user.orders.unshift({
     id: `Order ${String(user.orders.length + 1).padStart(3, "0")}`,
     date: new Date().toLocaleDateString(),
     total,
-    items: cart.map((item) => ({ ...item, image: item.image ? "Inspiration photo attached" : "" }))
+    items: cart.map((item) => ({ ...item, image: item.image ? "Reference photo attached" : "" }))
   });
   cart.splice(0, cart.length);
   cartEmptyMessage = "Order saved to your account.";
@@ -669,6 +3591,17 @@ function checkoutCart() {
   renderAdminUsers();
   closeCartDrawer();
   openAccount("Order saved to your account.");
+}
+
+function openGuestCheckout(message = "Guest checkout is ready. Add your contact info and place the order.") {
+  if (!cart.length) return;
+  guestCheckout.hidden = false;
+  guestCheckout.open = true;
+  guestCheckoutStatus.textContent = message;
+  requestAnimationFrame(() => {
+    guestName.focus();
+    guestCheckout.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
 }
 
 function checkoutGuest() {
@@ -681,7 +3614,11 @@ function checkoutGuest() {
     guestCheckoutStatus.textContent = "Add a name and email for guest checkout.";
     return;
   }
-  const total = cart.reduce((sum, item) => sum + item.price, 0);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    guestCheckoutStatus.textContent = "Enter a valid email so Chey can send order updates.";
+    return;
+  }
+  const total = cartTotalValue();
   guestOrders.unshift({
     id: `Guest ${String(guestOrders.length + 1).padStart(3, "0")}`,
     date: new Date().toLocaleString(),
@@ -690,17 +3627,19 @@ function checkoutGuest() {
     phone,
     notes,
     total,
-    items: cart.map((item) => ({ ...item, image: item.image ? "Inspiration photo attached" : "" }))
+    items: cart.map((item) => ({ ...item, image: item.image ? "Reference photo attached" : "" }))
   });
   cart.splice(0, cart.length);
-  cartEmptyMessage = "Guest order saved. Chey can view it in Admin.";
+  cartEmptyMessage = "Your guest order has been saved.";
   [guestName, guestEmail, guestPhone, guestNotes].forEach((input) => {
     input.value = "";
   });
   saveGuestOrders();
   renderCart();
   renderAdminGuestOrders();
-  guestCheckoutStatus.textContent = "Guest order saved. Chey can view it in Admin.";
+  guestCheckout.open = false;
+  guestCheckoutStatus.textContent = "";
+  openCart();
 }
 
 function renderAdminUsers() {
@@ -708,9 +3647,7 @@ function renderAdminUsers() {
   adminUserList.innerHTML = customerState.users.length
     ? customerState.users
         .map((user) => {
-          const sizes = user.sizes && Object.values(user.sizes).some(Boolean)
-            ? `Sizes: ${Object.entries(user.sizes).map(([key, value]) => `${key} ${value || "-"}`).join(", ")}`
-            : "Sizes not saved";
+          const sizes = customerSizesSummary(user);
           return `
             <div class="admin-user-card">
               <strong>${escapeHTML(user.name)} · ${escapeHTML(user.email)}</strong>
@@ -719,6 +3656,7 @@ function renderAdminUsers() {
               <p>${escapeHTML(sizes)}</p>
               <p>${(user.savedProducts || []).length} saved products · ${(user.orders || []).length} orders</p>
               <p>${escapeHTML((user.orders || []).map((order) => order.id).join(", ") || "No order history")}</p>
+              ${(user.orders || []).slice(0, 2).map(orderRequestNotesMarkup).join("")}
             </div>
           `;
         })
@@ -735,7 +3673,8 @@ function renderAdminGuestOrders() {
             <strong>${escapeHTML(order.id)} - ${escapeHTML(order.name)}</strong>
             <p>${escapeHTML(order.date)} - $${order.total}</p>
             <p>${escapeHTML(order.email)}${order.phone ? ` - ${escapeHTML(order.phone)}` : ""}</p>
-            <p>${escapeHTML((order.items || []).map((item) => item.name).join(", "))}</p>
+            <p>${escapeHTML((order.items || []).map(orderItemSummary).join(", "))}</p>
+            ${orderRequestNotesMarkup(order)}
             ${order.notes ? `<p>${escapeHTML(order.notes)}</p>` : ""}
           </div>
         `)
@@ -752,8 +3691,20 @@ closeAccount.addEventListener("click", closeAccountPanel);
 customerRegister.addEventListener("click", registerCustomer);
 customerLogin.addEventListener("click", loginCustomer);
 customerLogout.addEventListener("click", logoutCustomer);
+adminContinueEditing?.addEventListener("click", closeAccountPanel);
+adminExitMode?.addEventListener("click", logoutAdmin);
+customOrderPhoto?.addEventListener("change", handleCustomOrderPhotoUpload);
+customOrderPhotoRemove?.addEventListener("click", clearCustomOrderPhoto);
+customOrderSubmit?.addEventListener("click", submitCustomOrderRequest);
+customOrderName?.addEventListener("input", () => {
+  if (customOrderStatus) customOrderStatus.textContent = "";
+});
+customOrderDescription?.addEventListener("input", () => {
+  if (customOrderStatus) customOrderStatus.textContent = "";
+});
 saveSizesButton.addEventListener("click", saveCustomerSizes);
 checkoutButton.addEventListener("click", checkoutCart);
+guestCheckoutOpen.addEventListener("click", () => openGuestCheckout());
 guestCheckoutButton.addEventListener("click", checkoutGuest);
 
 savedProductsList.addEventListener("click", (event) => {
@@ -780,20 +3731,27 @@ scrim.addEventListener("click", closeCartDrawer);
 scrim.addEventListener("click", closeAccountPanel);
 scrim.addEventListener("click", closeAdmin);
 
+function applyProductFilter(filter) {
+  document.querySelectorAll(".product").forEach((product) => {
+    if (product.dataset.inlineEditorCard === "true") {
+      product.classList.remove("hidden");
+      return;
+    }
+    const isMatch = filter === "all" || product.dataset.category === filter;
+    product.classList.toggle("hidden", !isMatch);
+  });
+}
+
 document.querySelectorAll(".filter").forEach((button) => {
   button.addEventListener("click", () => {
     document.querySelectorAll(".filter").forEach((filter) => filter.classList.remove("active"));
     button.classList.add("active");
-
-    const filter = button.dataset.filter;
-    document.querySelectorAll(".product").forEach((product) => {
-      const isMatch = filter === "all" || product.dataset.category === filter;
-      product.classList.toggle("hidden", !isMatch);
-    });
+    applyProductFilter(button.dataset.filter);
   });
 });
 
 function updateBuilder() {
+  if (!builderPreview || !shade || !shape || !accent || !finishCard || !customAdd || !customDetails) return;
   builderPreview.dataset.shade = shade.value;
   builderPreview.dataset.shape = shape.value;
   applyNailShape(shape.value);
@@ -811,7 +3769,7 @@ function updateBuilder() {
       ? "Custom Inspiration"
       : finishNotes[shade.value].title;
     finishCard.querySelector("span").textContent = customInspirationSrc
-      ? "Your uploaded reference will be sent with the order so Chey can recreate the design."
+      ? "Your uploaded reference will be sent with your order so the design can be recreated for you."
       : finishNotes[shade.value].copy;
     customAdd.textContent = customInspirationSrc || customDetails.value.trim()
       ? "Add Custom Request - $65"
@@ -823,6 +3781,7 @@ function updateBuilder() {
 }
 
 function applyNailShape(shapeName) {
+  if (!builderPreview) return;
   const paths = shapePathLibrary[shapeName] || shapePathLibrary.almond;
   paths.forEach((path, index) => {
     builderPreview.querySelectorAll(`[data-nail-path="${index}"]`).forEach((nailPath) => {
@@ -833,22 +3792,25 @@ function applyNailShape(shapeName) {
   });
 }
 
-shade.addEventListener("input", () => {
-  selectedLook = null;
-  document.querySelectorAll(".look-option").forEach((button) => button.classList.remove("active"));
-  updateBuilder();
-});
-shape.addEventListener("input", updateBuilder);
-accent.addEventListener("input", updateBuilder);
-customDetails.addEventListener("input", () => {
-  const requestedShape = detectProductShape(customDetails.value);
-  if (requestedShape) shape.value = requestedShape;
-  updateBuilder();
-});
-inspirationPhoto.addEventListener("change", handleInspirationUpload);
-removeInspiration.addEventListener("click", clearInspirationUpload);
+if (builderPreview && shade && shape && accent && customDetails && inspirationPhoto && removeInspiration) {
+  shade.addEventListener("input", () => {
+    selectedLook = null;
+    document.querySelectorAll(".look-option").forEach((button) => button.classList.remove("active"));
+    updateBuilder();
+  });
+  shape.addEventListener("input", updateBuilder);
+  accent.addEventListener("input", updateBuilder);
+  customDetails.addEventListener("input", () => {
+    const requestedShape = detectProductShape(customDetails.value);
+    if (requestedShape) shape.value = requestedShape;
+    updateBuilder();
+  });
+  inspirationPhoto.addEventListener("change", handleInspirationUpload);
+  removeInspiration.addEventListener("click", clearInspirationUpload);
+}
 
 function applyLook(look) {
+  if (!builderPreview || !finishCard || !customAdd) return;
   selectedLook = look;
   builderPreview.dataset.customLook = "true";
   builderPreview.dataset.finish = look.finish;
@@ -866,24 +3828,67 @@ function applyLook(look) {
 }
 
 function readLookData(index) {
-  const [name, base, accentColor, finish, copy] = lookLibrary[index];
+  const defaults = lookLibrary[index];
   const detail = (adminState.lookDetails && adminState.lookDetails[index]) || {};
   const photo = (adminState.lookPhotos && adminState.lookPhotos[index]) || "";
+  const photoFit = sanitizePhotoFit((adminState.lookPhotoFits && adminState.lookPhotoFits[index]) || detail.photoFit);
+  const photoPosition = sanitizePhotoPosition((adminState.lookPhotoPositions && adminState.lookPhotoPositions[index]) || detail.photoPosition);
+  const photoZoom = sanitizePhotoZoom((adminState.lookPhotoZooms && adminState.lookPhotoZooms[index]) || detail.photoZoom);
+  const photoTransform = sanitizePhotoTransform((adminState.lookPhotoTransforms && adminState.lookPhotoTransforms[index]) || detail.photoTransform);
+  const customName = detail.name && detail.name.trim() ? detail.name.trim() : "";
+  const customCopy = detail.copy && detail.copy.trim() ? detail.copy.trim() : "";
+  const productIndex = adminState.customProducts.findIndex((product) => Number(product.sourceLookIndex) === index);
   return {
     index,
-    name: detail.name && detail.name.trim() ? detail.name.trim() : name,
-    base,
-    accent: accentColor,
-    finish: detail.finish && detail.finish.trim() ? detail.finish.trim() : finish,
-    copy: detail.copy && detail.copy.trim() ? detail.copy.trim() : copy,
-    photo
+    slotLabel: `Design Slot ${index + 1}`,
+    name: customName || `Custom Design ${index + 1}`,
+    base: defaults.base,
+    accent: defaults.accent,
+    finish: detail.finish && detail.finish.trim() ? detail.finish.trim() : defaults.finish,
+    copy: customCopy || "Custom inspiration selected for your set.",
+    price: detail.price && detail.price.trim() ? detail.price.trim() : "",
+    salePrice: detail.salePrice && detail.salePrice.trim() ? detail.salePrice.trim() : "",
+    discount: detail.discount && detail.discount.trim() ? detail.discount.trim() : "",
+    stock: detail.stock && detail.stock.trim() ? detail.stock.trim() : "",
+    sku: detail.sku && detail.sku.trim() ? detail.sku.trim() : "",
+    tag: detail.tag && detail.tag.trim() ? detail.tag.trim() : "New from Chey",
+    notes: detail.notes && detail.notes.trim() ? detail.notes.trim() : "",
+    photo,
+    photoFit,
+    photoPosition,
+    photoZoom,
+    photoTransform,
+    active: Boolean(photo || customName || customCopy || detail.price || detail.notes || detail.tag || detail.stock),
+    published: productIndex >= 0,
+    productIndex
   };
 }
 
+function updateLookCount() {
+  if (!lookCountBadge) return;
+  const count = lookLibrary.filter((_, index) => readLookData(index).active).length;
+  lookCountBadge.textContent = `${count} saved design${count === 1 ? "" : "s"}`;
+}
+
 function renderLooks() {
+  if (!lookGrid) {
+    updateLookCount();
+    return;
+  }
   lookGrid.innerHTML = "";
-  lookLibrary.forEach((_, index) => {
-    const look = readLookData(index);
+  const activeLooks = lookLibrary.map((_, index) => readLookData(index)).filter((look) => look.active);
+  if (!activeLooks.length) {
+    const emptyState = document.createElement("article");
+    emptyState.className = "look-empty-state";
+    emptyState.innerHTML = `
+      <strong>Design gallery coming soon.</strong>
+      <p>Chey's uploaded custom designs will appear here as soon as they are added.</p>
+    `;
+    lookGrid.appendChild(emptyState);
+    updateLookCount();
+    return;
+  }
+  activeLooks.forEach((look) => {
     const button = document.createElement("button");
     button.className = `look-option${look.photo ? " has-photo" : ""}`;
     button.type = "button";
@@ -891,8 +3896,10 @@ function renderLooks() {
     button.style.setProperty("--look-base", look.base);
     button.style.setProperty("--look-accent", look.accent);
     if (look.photo) button.style.setProperty("--look-photo", `url("${look.photo}")`);
+    applyLookFitProperties(button, look.photoFit, look.photoPosition, look.photoZoom);
     button.innerHTML = `
       <span class="look-photo" aria-hidden="true">
+        ${look.photo ? `<img src="${escapeAttribute(look.photo)}" alt="" data-photo-fit="${escapeAttribute(look.photoFit)}" data-photo-position="${escapeAttribute(look.photoPosition)}" style="${photoTransformStyle(look.photoTransform, look.photoZoom)}" />` : ""}
         <span class="look-dot"></span>
       </span>
       <span class="look-copy">
@@ -900,16 +3907,19 @@ function renderLooks() {
         <span>${escapeHTML(look.finish)}</span>
       </span>
     `;
-    button.addEventListener("click", () => applyLook(readLookData(index)));
+    button.addEventListener("click", () => applyLook(look));
     lookGrid.appendChild(button);
   });
+  updateLookCount();
 }
 
 function nailArtImages() {
+  if (!builderPreview) return [];
   return Array.from(builderPreview.querySelectorAll(".nail-art"));
 }
 
 function setNailTexture(src) {
+  if (!builderPreview) return;
   builderPreview.dataset.texture = src ? "true" : "false";
   nailArtImages().forEach((image) => {
     if (src) {
@@ -927,6 +3937,7 @@ function setNailTexture(src) {
 }
 
 function handleInspirationUpload() {
+  if (!inspirationPhoto || !inspirationPreviewImage || !inspirationName || !inspirationPreview) return;
   const file = inspirationPhoto.files?.[0];
   if (!file) return;
   const reader = new FileReader();
@@ -943,15 +3954,17 @@ function handleInspirationUpload() {
 }
 
 function clearInspirationUpload() {
+  if (!inspirationPhoto || !inspirationPreviewImage || !inspirationName || !inspirationPreview) return;
   customInspirationSrc = "";
   inspirationPhoto.value = "";
   inspirationPreviewImage.removeAttribute("src");
-  inspirationName.textContent = "Inspiration uploaded";
+  inspirationName.textContent = "Inspiration photo uploaded";
   inspirationPreview.hidden = true;
   updateBuilder();
 }
 
 function setPreviewDetail() {
+  if (!accent || !builderPreview) return;
   const detail = Number(accent.value) / 100;
   builderPreview.style.setProperty("--detail-opacity", (0.34 + detail * 0.56).toFixed(2));
   builderPreview.style.setProperty("--paint-opacity", (0.62 + detail * 0.3).toFixed(2));
@@ -970,14 +3983,6 @@ function setupProductTryOns() {
       bottom.appendChild(actions);
     }
     if (!actions.contains(addButton)) actions.appendChild(addButton);
-    if (!product.querySelector(".try-on")) {
-      const button = document.createElement("button");
-      button.className = "try-on";
-      button.type = "button";
-      button.textContent = "Try On";
-      button.addEventListener("click", () => previewProductOnHand(product));
-      actions.insertBefore(button, addButton);
-    }
     if (!product.querySelector(".save-product")) {
       const saveButton = document.createElement("button");
       saveButton.className = "save-product";
@@ -990,16 +3995,17 @@ function setupProductTryOns() {
 }
 
 function productElementsForTryOn() {
-  return Array.from(document.querySelectorAll(".product"));
+  return Array.from(document.querySelectorAll(".product")).filter((product) => product.dataset.inlineEditorCard !== "true");
 }
 
 function previewProductOnHand(product) {
+  if (!builderPreview || !shape) return;
   const swatches = Array.from(product.querySelectorAll(".swatch-row span")).map((item) =>
     item.style.getPropertyValue("--swatch").trim()
   );
   const name = product.querySelector("h3").textContent.trim();
   const description = product.querySelector(".product-copy > p:not(.product-tag)").textContent.trim();
-  const price = product.querySelector(".product-bottom strong").textContent.replace("$", "").trim();
+  const price = productPriceFromCard(product);
   const image = product.querySelector(".photo-preview img")?.getAttribute("src") || "";
   selectedLook = {
     name,
@@ -1008,13 +4014,12 @@ function previewProductOnHand(product) {
     finish: product.dataset.category || "gloss",
     copy: description,
     photo: image,
-    price
+    price: String(price)
   };
   const productShape = detectProductShape(`${name} ${description}`);
   if (productShape) shape.value = productShape;
   applyLook(selectedLook);
   document.querySelectorAll(".product").forEach((item) => item.classList.toggle("previewing", item === product));
-  document.querySelector("#custom").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function detectProductShape(text) {
@@ -1025,26 +4030,28 @@ function detectProductShape(text) {
   return "";
 }
 
-customAdd.addEventListener("click", () => {
-  const note = customDetails.value.trim();
-  const hasCustomRequest = Boolean(note || customInspirationSrc);
-  if (selectedLook?.price && !hasCustomRequest) {
-    addToCart(selectedLook.name, selectedLook.price);
-    return;
-  }
-  const baseName = selectedLook ? selectedLook.name : shade.options[shade.selectedIndex].text;
-  const shapeLabel = shape.options[shape.selectedIndex].text;
-  const shadeLabel = shade.options[shade.selectedIndex].text;
-  const label = hasCustomRequest
-    ? `Custom Request - ${shapeLabel}`
-    : `${baseName} ${shapeLabel} Custom`;
-  addToCart(label, hasCustomRequest ? 65 : 55, {
-    shade: shadeLabel,
-    shape: shapeLabel,
-    note,
-    image: customInspirationSrc
+if (customAdd && customDetails && shade && shape) {
+  customAdd.addEventListener("click", () => {
+    const note = customDetails.value.trim();
+    const hasCustomRequest = Boolean(note || customInspirationSrc);
+    if (selectedLook?.price && !hasCustomRequest) {
+      addToCart(selectedLook.name, selectedLook.price);
+      return;
+    }
+    const baseName = selectedLook ? selectedLook.name : shade.options[shade.selectedIndex].text;
+    const shapeLabel = shape.options[shape.selectedIndex].text;
+    const shadeLabel = shade.options[shade.selectedIndex].text;
+    const label = hasCustomRequest
+      ? `Custom Request - ${shapeLabel}`
+      : `${baseName} ${shapeLabel} Custom`;
+    addToCart(label, hasCustomRequest ? 65 : 55, {
+      shade: shadeLabel,
+      shape: shapeLabel,
+      note,
+      image: customInspirationSrc
+    });
   });
-});
+}
 
 setupNailSizeDropdowns();
 loadCustomerState();
@@ -1085,12 +4092,14 @@ function setupPhotoZoom() {
   const lightbox = document.createElement("div");
   lightbox.className = "photo-lightbox";
   lightbox.hidden = true;
-  lightbox.innerHTML = `<button type="button" aria-label="Close enlarged photo">x</button><img alt="Enlarged nail photo" />`;
+  lightbox.innerHTML = `<button type="button" aria-label="Close enlarged photo">×</button><img alt="Enlarged nail photo" />`;
   document.body.append(lightbox);
   const image = lightbox.querySelector("img");
   const closeButton = lightbox.querySelector("button");
   const close = () => {
     lightbox.hidden = true;
+    body.classList.remove("photo-lightbox-open");
+    lightbox.style.removeProperty("background-image");
     image.removeAttribute("src");
   };
   closeButton.addEventListener("click", close);
@@ -1101,11 +4110,17 @@ function setupPhotoZoom() {
     if (event.key === "Escape" && !lightbox.hidden) close();
   });
   document.addEventListener("click", (event) => {
-    const zoomTarget = event.target.closest(".look-photo, .photo-preview img, .photo-proof-grid img, .inspiration-preview img, .idea-image, .admin-control img");
+    const zoomTarget = event.target.closest(".look-photo, .photo-preview img, .photo-proof-grid img, .inspiration-preview img, .custom-order-preview img, .idea-image, .admin-control img");
     if (!zoomTarget) return;
     const src = zoomTarget.tagName === "IMG" ? zoomTarget.getAttribute("src") : imageUrlFromStyle(zoomTarget.closest(".look-option, .admin-look-preview") || zoomTarget);
     if (!src) return;
+    image.onload = () => {
+      const ratio = (image.naturalWidth || 1) / Math.max(image.naturalHeight || 1, 1);
+      image.style.setProperty("--lightbox-ratio", String(ratio));
+    };
+    lightbox.style.backgroundImage = `linear-gradient(rgba(18, 8, 13, 0.82), rgba(18, 8, 13, 0.9)), url(${JSON.stringify(src)})`;
     image.src = src;
+    body.classList.add("photo-lightbox-open");
     lightbox.hidden = false;
   });
 }
@@ -1117,18 +4132,48 @@ function imageUrlFromStyle(element) {
   return match ? match[1] : "";
 }
 
-function setupAdmin() {
+async function setupAdmin() {
+  bindAdminRemoteSyncEvents();
   loadAdminState();
   loadGuestOrders();
+  migrateLegacyAdminTextKeys();
+  repairCorruptedQuickFieldCopy();
   markEditableText();
+  migrateLegacyAdminCopy();
   applyAdminState();
   renderAdminVisibility();
+  renderAdminContentFields();
+  renderAdminLayoutControls();
   renderAdminImages();
   renderAdminProducts();
   renderAdminLookPhotos();
   renderAdminUsers();
   renderAdminGuestOrders();
   renderIdeas();
+
+  const hadPendingRemoteState = Boolean(loadPendingRemoteAdminStateRecord());
+  const flushedPendingState = hadPendingRemoteState
+    ? await flushPendingRemoteAdminState({ statusTarget: adminContentStatus, showSuccess: true })
+    : { ok: true, skipped: true };
+  const shouldHydrateRemoteState = !hadPendingRemoteState || flushedPendingState.ok;
+  const loadedRemoteState = shouldHydrateRemoteState ? await hydrateAdminStateFromRemote() : false;
+  if (loadedRemoteState) {
+    migrateLegacyAdminTextKeys();
+    repairCorruptedQuickFieldCopy();
+    markEditableText();
+    migrateLegacyAdminCopy();
+    applyAdminState();
+    renderAdminImages();
+    renderAdminProducts();
+    renderAdminLookPhotos();
+    renderIdeas();
+  } else if (hadPendingRemoteState) {
+    setAdminSaveMessage(adminContentStatus, ADMIN_LIVE_SAVE_FAILURE_MESSAGE);
+    schedulePendingRemoteAdminStateFlush({
+      statusTarget: adminContentStatus,
+      showSuccess: true
+    });
+  }
 
   adminNav.addEventListener("click", (event) => {
     event.preventDefault();
@@ -1139,13 +4184,33 @@ function setupAdmin() {
   adminViewButtons.forEach((button) => {
     button.addEventListener("click", () => switchAdminView(button.dataset.adminView));
   });
-  window.addEventListener("hashchange", () => {
-    if (window.location.hash === "#adminPage") showAdminPage();
-  });
-  if (window.location.hash === "#adminPage") showAdminPage();
+  if (window.location.hash === "#adminPage") {
+    showSitePage("home", { updateHash: true, force: true });
+  } else {
+    const productIndex = productIndexFromHash();
+    if (productIndex >= 0) {
+      openProductDetail(productIndex, { updateHash: false, force: true });
+    } else {
+      showSitePage(pageKeyFromHash(), { updateHash: false, force: true });
+    }
+  }
   [loginEmail, loginPassword].forEach((input) => {
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") loginCustomer();
+    });
+  });
+  forgotPasswordButton.addEventListener("click", () => showPasswordReset(true));
+  cancelResetPassword.addEventListener("click", () => showPasswordReset(false));
+  sendResetCode.addEventListener("click", requestPasswordReset);
+  verifyResetCode.addEventListener("click", verifyPasswordReset);
+  [resetEmail, resetCode, resetNewPassword].forEach((input) => {
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      if (resetCodeStep.hidden) {
+        requestPasswordReset();
+      } else {
+        verifyPasswordReset();
+      }
     });
   });
   [registerName, registerEmail, registerPassword].forEach((input) => {
@@ -1158,14 +4223,18 @@ function setupAdmin() {
   exportEditsButton.addEventListener("click", exportAdminEdits);
   importEditsInput.addEventListener("change", importAdminEdits);
   resetEditsButton.addEventListener("click", resetAdminEdits);
-  addProductButton.addEventListener("click", addCustomProductFromAdmin);
-  saveProductChangesButton.addEventListener("click", saveProductChangesFromSection);
-  newProductPhoto.addEventListener("change", previewNewProductPhoto);
+  resetLayoutButton.addEventListener("click", resetLayoutState);
+  if (saveProductChangesButton) saveProductChangesButton.addEventListener("click", saveProductChangesFromSection);
   setupDrawingPad();
   ideaPhoto.addEventListener("change", previewIdeaPhoto);
   saveIdeaButton.addEventListener("click", addDesignIdea);
   ideaList.addEventListener("click", handleIdeaListClick);
   ideaList.addEventListener("input", updateIdeaFromCard);
+  document.addEventListener("click", handleInlineImageClick, true);
+  document.addEventListener("click", handleInlineEditableClick, true);
+  document.addEventListener("input", handleInlineEditableInput);
+  document.addEventListener("blur", handleInlineEditableBlur, true);
+  document.addEventListener("keydown", handleInlineEditKeydown, true);
   document.addEventListener("input", (event) => {
     if (event.target.matches("textarea")) autoGrowTextarea(event.target);
   });
@@ -1193,27 +4262,256 @@ function autoGrowTextareas(root = document) {
   });
 }
 
+function customPageTextKey(pageKey, field) {
+  return `customPage:${pageKey}:${field}`;
+}
+
+function customBlockTextKey(blockId, field) {
+  return `customBlock:${blockId}:${field}`;
+}
+
+function renderCustomPages() {
+  if (!pageBook) return;
+  document.querySelectorAll(".custom-site-page").forEach((page) => page.remove());
+  document.querySelectorAll("[data-custom-page-link]").forEach((link) => link.remove());
+
+  const adminLink = document.querySelector("#adminNav");
+  const navLinks = adminLink?.parentElement;
+  const status = document.querySelector("#bookStatus");
+
+  (adminState.customPages || []).forEach((page) => {
+    const key = safeSlug(page.key, "page");
+    if (!key) return;
+
+    if (navLinks && !navLinks.querySelector(`[data-page-link="${key}"]`)) {
+      const link = document.createElement("a");
+      link.href = `#${key}`;
+      link.dataset.pageLink = key;
+      link.dataset.customPageLink = "true";
+      link.textContent = page.label || page.title || "New Page";
+      navLinks.insertBefore(link, adminLink || null);
+    }
+
+    const section = document.createElement("section");
+    section.className = "site-page custom-site-page";
+    section.dataset.pagePanel = key;
+    section.hidden = true;
+    section.setAttribute("aria-label", `${page.label || page.title || "Custom"} page`);
+    section.innerHTML = `
+      <div class="page-surface">
+        <section class="section custom-page-section" aria-labelledby="${escapeAttribute(key)}-title">
+          <div class="section-heading custom-page-heading" data-reveal>
+            <p class="eyebrow" data-admin-text="${escapeAttribute(customPageTextKey(key, "eyebrow"))}">${escapeHTML(adminState.texts[customPageTextKey(key, "eyebrow")] || page.eyebrow || "Custom page")}</p>
+            <h2 id="${escapeAttribute(key)}-title" data-admin-text="${escapeAttribute(customPageTextKey(key, "title"))}">${escapeHTML(adminState.texts[customPageTextKey(key, "title")] || page.title || page.label || "New Page")}</h2>
+            <p class="custom-page-intro" data-admin-text="${escapeAttribute(customPageTextKey(key, "body"))}">${escapeHTML(adminState.texts[customPageTextKey(key, "body")] || page.body || "Click here to write this page.")}</p>
+          </div>
+          <div class="custom-block-list" data-custom-block-list="${escapeAttribute(key)}"></div>
+        </section>
+      </div>
+    `;
+    pageBook.insertBefore(section, status || null);
+  });
+}
+
+function renderCustomBlocks() {
+  document.querySelectorAll(".custom-site-block").forEach((block) => block.remove());
+  (adminState.customBlocks || []).forEach((block) => {
+    const pageKey = safeSlug(block.pageKey, "home");
+    let list = document.querySelector(`[data-custom-block-list="${pageKey}"]`);
+    if (!list) {
+      const page = pageElement(pageKey);
+      const surface = page?.querySelector(".page-surface");
+      if (!surface) return;
+      list = document.createElement("div");
+      list.className = "custom-block-list generated";
+      list.dataset.customBlockList = pageKey;
+      surface.appendChild(list);
+    }
+    const card = document.createElement("article");
+    card.className = "custom-site-block";
+    card.dataset.customBlock = block.id;
+    const titleKey = customBlockTextKey(block.id, "title");
+    const bodyKey = customBlockTextKey(block.id, "body");
+    card.innerHTML = `
+      <span class="custom-block-kicker">Added section</span>
+      <h3 data-admin-text="${escapeAttribute(titleKey)}">${escapeHTML(adminState.texts[titleKey] || block.title || "New section")}</h3>
+      <p data-admin-text="${escapeAttribute(bodyKey)}">${escapeHTML(adminState.texts[bodyKey] || block.body || "Click here to add details.")}</p>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function defaultLayoutOrder() {
+  return allLayoutSections().map((section) => section.key);
+}
+
+function ensureLayoutState() {
+  const validKeys = defaultLayoutOrder();
+  const savedOrder = Array.isArray(adminState.layoutOrder) ? adminState.layoutOrder.filter((key) => validKeys.includes(key)) : [];
+  adminState.layoutOrder = [...savedOrder, ...validKeys.filter((key) => !savedOrder.includes(key))];
+  adminState.hiddenSections = adminState.hiddenSections && typeof adminState.hiddenSections === "object"
+    ? adminState.hiddenSections
+    : {};
+}
+
+function setAdminMessage(target, message) {
+  if (!target) return;
+  target.textContent = message;
+}
+
+function textElementValue(selector) {
+  return document.querySelector(selector)?.textContent?.trim() || "";
+}
+
+function renderAdminContentFields() {
+  if (!adminContentList) return;
+  adminContentList.innerHTML = "";
+  quickContentFields.forEach((field, index) => {
+    const card = document.createElement("label");
+    card.className = "admin-control admin-copy-card";
+    const fieldId = `adminCopyField-${index}`;
+    const inputMarkup = field.multiline
+      ? `<textarea id="${fieldId}" data-copy-field="${index}">${escapeTextarea(textElementValue(field.selector))}</textarea>`
+      : `<input id="${fieldId}" data-copy-field="${index}" value="${escapeAttribute(textElementValue(field.selector))}" />`;
+    card.innerHTML = `
+      <span>${field.label}</span>
+      ${inputMarkup}
+    `;
+    adminContentList.appendChild(card);
+  });
+  adminContentList.querySelectorAll("[data-copy-field]").forEach((fieldInput) => {
+    fieldInput.addEventListener("input", () => {
+      const field = quickContentFields[Number(fieldInput.dataset.copyField)];
+      const target = document.querySelector(field.selector);
+      if (!field || !target) return;
+      target.textContent = fieldInput.value;
+      saveTextEdits();
+      localSaveAdminState();
+      scheduleRemoteAdminStateSave({
+        statusTarget: adminContentStatus,
+        savingMessage: "Saving page content to the live website...",
+        showSuccess: true,
+        successMessage: "Page content saved to the live website."
+      });
+    });
+  });
+  autoGrowTextareas(adminContentList);
+}
+
+function layoutElementFor(key) {
+  const config = allLayoutSections().find((item) => item.key === key);
+  return config ? document.querySelector(config.selector) : null;
+}
+
+function applyLayoutState() {
+  ensureLayoutState();
+  if (!pageBook) return;
+  const fragment = document.createDocumentFragment();
+  let visibleIndex = 0;
+  adminState.layoutOrder.forEach((key) => {
+    const element = layoutElementFor(key);
+    if (!element) return;
+    const isHidden = Boolean(adminState.hiddenSections[key]);
+    element.hidden = isHidden;
+    if (!isHidden) {
+      visibleIndex += 1;
+      const meta = allLayoutSections().find((section) => section.key === key);
+      element.dataset.pageNumber = String(visibleIndex);
+      element.dataset.pageLabel = meta?.label || key;
+    }
+    fragment.appendChild(element);
+  });
+  pageBook.appendChild(fragment);
+  updatePageLinkVisibility();
+  const requestedKey = adminState.hiddenSections[pageKeyFromHash()] ? firstVisiblePageKey() : pageKeyFromHash();
+  currentPageKey = adminState.hiddenSections[currentPageKey] ? requestedKey : currentPageKey;
+  showSitePage(currentPageKey || requestedKey, { updateHash: false, force: true });
+  schedulePageStateFromScroll();
+  scheduleScrollChrome();
+}
+
+function renderAdminLayoutControls() {
+  if (!adminLayoutList) return;
+  ensureLayoutState();
+  adminLayoutList.innerHTML = "";
+  adminState.layoutOrder.forEach((key, index) => {
+    const config = allLayoutSections().find((item) => item.key === key);
+    if (!config) return;
+    const card = document.createElement("div");
+    card.className = "admin-control admin-layout-card";
+    card.innerHTML = `
+      <div class="admin-layout-copy">
+        <strong>${config.label}</strong>
+        <p>${config.note}</p>
+      </div>
+      <label class="admin-layout-visibility">
+        <input type="checkbox" data-layout-visible="${key}" ${adminState.hiddenSections[key] ? "" : "checked"} />
+        <span>Visible</span>
+      </label>
+      <div class="admin-layout-buttons">
+        <button type="button" data-layout-move="${key}" data-direction="-1" ${index === 0 ? "disabled" : ""}>Up</button>
+        <button type="button" data-layout-move="${key}" data-direction="1" ${index === adminState.layoutOrder.length - 1 ? "disabled" : ""}>Down</button>
+      </div>
+    `;
+    adminLayoutList.appendChild(card);
+  });
+  adminLayoutList.querySelectorAll("[data-layout-visible]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      adminState.hiddenSections[input.dataset.layoutVisible] = !input.checked;
+      const result = await saveAdminState({
+        statusTarget: adminLayoutStatus,
+        savingMessage: "Saving layout to the live website...",
+        successMessage: "Homepage layout saved to the live website."
+      });
+      applyLayoutState();
+      renderAdminLayoutControls();
+      if (!result.ok) return;
+      setAdminMessage(adminLayoutStatus, "Homepage layout saved to the live website.");
+    });
+  });
+  adminLayoutList.querySelectorAll("[data-layout-move]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const key = button.dataset.layoutMove;
+      const direction = Number(button.dataset.direction);
+      const currentIndex = adminState.layoutOrder.indexOf(key);
+      const targetIndex = currentIndex + direction;
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= adminState.layoutOrder.length) return;
+      [adminState.layoutOrder[currentIndex], adminState.layoutOrder[targetIndex]] = [adminState.layoutOrder[targetIndex], adminState.layoutOrder[currentIndex]];
+      const result = await saveAdminState({
+        statusTarget: adminLayoutStatus,
+        savingMessage: "Saving layout to the live website...",
+        successMessage: "Homepage layout saved to the live website."
+      });
+      applyLayoutState();
+      renderAdminLayoutControls();
+      if (!result.ok) return;
+      setAdminMessage(adminLayoutStatus, "Homepage layout saved to the live website.");
+    });
+  });
+}
+
+async function resetLayoutState() {
+  adminState.layoutOrder = defaultLayoutOrder();
+  adminState.hiddenSections = {};
+  const result = await saveAdminState({
+    statusTarget: adminLayoutStatus,
+    savingMessage: "Saving layout reset to the live website...",
+    successMessage: "Homepage layout reset on the live website."
+  });
+  applyLayoutState();
+  renderAdminLayoutControls();
+  if (!result.ok) return;
+  setAdminMessage(adminLayoutStatus, "Homepage layout reset on the live website.");
+}
+
 function loadAdminState() {
   try {
     const saved = JSON.parse(localStorage.getItem(ADMIN_STORAGE_KEY) || "{}");
-    const savedImages = saved.images || {};
-    delete savedImages["try-on"];
-  adminState = {
-      texts: saved.texts || {},
-      images: savedImages,
-      products: saved.products || {},
-      customProducts: saved.customProducts || [],
-      lookPhotos: saved.lookPhotos || {},
-      lookDetails: saved.lookDetails || {},
-      ideas: Array.isArray(saved.ideas) ? saved.ideas : []
-    };
+    adminState = normalizeAdminState(saved);
   } catch {
-    adminState = { texts: {}, images: {}, products: {}, customProducts: [], lookPhotos: {}, lookDetails: {}, ideas: [] };
+    adminState = defaultAdminState();
   }
-}
-
-function saveAdminState() {
-  localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
+  ensureLayoutState();
 }
 
 function editableElements() {
@@ -1224,116 +4522,364 @@ function editableElements() {
         ".hero .eyebrow",
         "#hero-title",
         ".hero-text",
+        ".hero-actions .button.primary",
+        ".hero-actions .button.secondary",
         ".floating-tag",
         ".hero-stats span",
         ".trend-strip span",
         "#intro-title",
         ".feature h3",
         ".feature p",
+        "#shop .eyebrow",
         "#shop-title",
         ".product-tag",
         ".product h3",
         ".product-copy > p:not(.product-tag)",
         ".product-bottom strong",
-        "#custom-title",
-        ".custom-panel > div > p:not(.eyebrow)",
-        ".look-library h2",
+        "#fit .eyebrow",
         "#fit-title",
         ".fit-grid h3",
         ".fit-grid p",
+        "#reviews .eyebrow",
         "#reviews-title",
         "blockquote",
         "figcaption",
         ".footer strong",
-        ".footer p"
+        ".footer p",
+        "[data-admin-text]"
       ].join(",")
     )
   );
 }
 
-function markEditableText() {
+function migrateLegacyAdminTextKeys() {
+  let changed = false;
+  const quickTargetByElement = new Map(
+    quickContentFields
+      .map((field) => [document.querySelector(field.selector), field])
+      .filter(([element]) => element)
+  );
+
   editableElements().forEach((el, index) => {
-    el.dataset.adminText = `text-${index}`;
+    const legacyKey = `text-${index}`;
+    if (!Object.prototype.hasOwnProperty.call(adminState.texts, legacyKey)) return;
+    const field = quickTargetByElement.get(el);
+    const legacyValue = adminState.texts[legacyKey];
+
+    if (!field) {
+      const nextKey = stableMiscFieldKey(index);
+      if (!Object.prototype.hasOwnProperty.call(adminState.texts, nextKey)) {
+        adminState.texts[nextKey] = legacyValue;
+        changed = true;
+      }
+    }
+    delete adminState.texts[legacyKey];
+    changed = true;
   });
+
+  if (changed) {
+    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
+  }
+  return changed;
+}
+
+function repairCorruptedQuickFieldCopy() {
+  let changed = false;
+  corruptedQuickCopyRules.forEach(({ key, matches }) => {
+    const stableKey = stableQuickFieldKey({ key });
+    const savedValue = adminState.texts[stableKey];
+    if (!savedValue || !matches(savedValue)) return;
+    delete adminState.texts[stableKey];
+    changed = true;
+  });
+
+  if (changed) {
+    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
+  }
+  return changed;
+}
+
+function markEditableText() {
+  const elements = editableElements();
+  elements.forEach((el) => {
+    if (el.dataset.adminProductField) return;
+    if (el.dataset.adminText && (el.dataset.adminText.startsWith("customPage:") || el.dataset.adminText.startsWith("customBlock:"))) return;
+    delete el.dataset.adminText;
+  });
+
+  const quickTargets = new Set();
+  quickContentFields.forEach((field) => {
+    const el = document.querySelector(field.selector);
+    if (!el) return;
+    el.dataset.adminText = stableQuickFieldKey(field);
+    quickTargets.add(el);
+  });
+
+  elements.forEach((el, index) => {
+    if (el.dataset.adminProductField) return;
+    if (quickTargets.has(el) || el.dataset.adminText) return;
+    el.dataset.adminText = stableMiscFieldKey(index);
+  });
+  applyHiddenTextState();
+}
+
+function applyHiddenTextState() {
+  document.querySelectorAll("[data-admin-text]").forEach((el) => {
+    const key = el.dataset.adminText;
+    const hidden = Boolean(key && adminState.hiddenText?.[key]);
+    el.hidden = hidden;
+    el.classList.toggle("admin-text-hidden", hidden);
+    applyTextOffset(el, key);
+  });
+  scheduleRemoveBubbleControls();
+}
+
+function sanitizeTextOffset(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const clamp = (number) => {
+    const parsed = Number(number);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.min(900, Math.max(-900, parsed));
+  };
+  return {
+    x: clamp(source.x),
+    y: clamp(source.y)
+  };
+}
+
+function applyTextOffset(el, key = el?.dataset?.adminText) {
+  if (!el || !key) return;
+  const offset = sanitizeTextOffset(adminState.textOffsets?.[key]);
+  const hasOffset = Math.abs(offset.x) > 0.5 || Math.abs(offset.y) > 0.5;
+  el.classList.toggle("admin-text-positioned", hasOffset);
+  el.style.setProperty("--admin-text-x", `${offset.x.toFixed(1)}px`);
+  el.style.setProperty("--admin-text-y", `${offset.y.toFixed(1)}px`);
+}
+
+function migrateLegacyAdminCopy() {
+  let changed = false;
+  legacyCopyMigrations.forEach(({ selector, from, to }) => {
+    const fieldKey = document.querySelector(selector)?.dataset.adminText;
+    if (!fieldKey) return;
+    const savedValue = adminState.texts[fieldKey];
+    if (normalizeCopyValue(savedValue) !== normalizeCopyValue(from)) return;
+    adminState.texts[fieldKey] = to;
+    changed = true;
+  });
+  if (changed) {
+    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
+  }
+  return changed;
 }
 
 function applyAdminState() {
+  ensureLayoutState();
+  renderCustomPages();
+  renderCustomBlocks();
+  markEditableText();
   Object.entries(adminState.texts).forEach(([key, value]) => {
     const el = document.querySelector(`[data-admin-text="${key}"]`);
     if (el) el.textContent = value;
   });
+  applyHiddenTextState();
   Object.entries(adminState.images).forEach(([key, value]) => {
     applyImageValue(key, value);
   });
-  Object.entries(adminState.products).forEach(([key, product]) => {
-    applyProductValue(Number(key), product);
+  Object.keys(adminState.imageFits || {}).forEach((key) => {
+    applyImageFit(key);
   });
+  applyLayoutState();
   renderLooks();
   renderCustomProducts();
+  markEditableText();
+  applyHiddenTextState();
+  markInlineImageTargets();
+  syncInlineEditMode();
   renderIdeas();
+  renderAdminContentFields();
+  renderAdminLayoutControls();
 }
 
 function toggleTextEditMode() {
   textEditMode = !textEditMode;
-  editableElements().forEach((el) => {
-    el.contentEditable = String(textEditMode);
-  });
-  toggleEditTextButton.textContent = textEditMode ? "Stop Text Edit" : "Edit Text";
+  renderCustomProducts();
+  syncInlineEditMode();
+  setInlineEditStatus(
+    textEditMode
+      ? "Click text to type, click photos to place them, or use the pink plus cards in Shop to add products."
+      : "Click-to-edit is off."
+  );
 }
 
 function saveTextEdits() {
   editableElements().forEach((el) => {
+    if (!el.dataset.adminText) return;
     adminState.texts[el.dataset.adminText] = el.textContent.trim();
   });
 }
 
-function saveAllAdminEdits() {
+async function saveAllAdminEdits(options = {}) {
   saveTextEdits();
   saveProductEdits();
-  saveAdminState();
+  const statusTarget = options.statusTarget || adminEditStatus || adminContentStatus;
+  const result = await saveAdminState({
+    statusTarget,
+    successMessage: options.successMessage || "Page content saved to the live website.",
+    savingMessage: options.savingMessage || "Saving page content to the live website..."
+  });
   applyAdminState();
   renderAdminProducts();
   renderAdminLookPhotos();
+  if (result.ok && statusTarget !== addProductStatus) {
+    setAdminMessage(statusTarget, options.successMessage || "Page content saved to the live website.");
+  }
+  return result;
 }
 
-function saveProductChangesFromSection() {
-  saveAllAdminEdits();
-  addProductStatus.textContent = "Product edits saved.";
+async function saveProductChangesFromSection() {
+  await saveAllAdminEdits({
+    statusTarget: addProductStatus,
+    savingMessage: "Saving product edits to the live website...",
+    successMessage: "Product edits saved to the live website."
+  });
 }
 
 const imageTargets = [
   { key: "hero", label: "Hero product image", type: "img", selector: ".hero-visual img" },
-  { key: "product-0", label: "Rose Mirror Muse photo", type: "img", selector: ".product:nth-child(1) .photo-preview img" },
-  { key: "product-1", label: "Berry Aura Glaze photo", type: "img", selector: ".product:nth-child(2) .photo-preview img" },
-  { key: "product-2", label: "Ribbon Crush photo", type: "img", selector: ".product:nth-child(3) .photo-preview img" },
-  { key: "product-3", label: "Pink Cat-Eye Flash photo", type: "img", selector: ".product:nth-child(4) .photo-preview img" },
-  { key: "custom-bg", label: "Custom section background", type: "bg", selector: ".custom-panel" },
   { key: "fit-0", label: "Fit guide photo 1", type: "img", selector: ".photo-proof-grid img:nth-child(1)" },
   { key: "fit-1", label: "Fit guide photo 2", type: "img", selector: ".photo-proof-grid img:nth-child(2)" }
 ];
+
+async function updateSitePhotoFromFile(target, file, preview, input) {
+  if (!file) return;
+  setAdminMessage(adminContentStatus, "Opening Photo Studio...");
+  const studio = await preparePhotoInStudio(file, {
+    title: `Adjust ${target.label}`,
+    fit: adminState.imageFits[target.key],
+    position: adminState.imagePositions[target.key],
+    zoom: adminState.imageZooms[target.key],
+    transform: adminState.imageTransforms[target.key]
+  });
+  if (input) input.value = "";
+  if (!studio) {
+    setAdminMessage(adminContentStatus, "Photo upload cancelled.");
+    return;
+  }
+
+  adminState.imageFits[target.key] = studio.fit;
+  adminState.imagePositions[target.key] = studio.position;
+  adminState.imageZooms[target.key] = studio.zoom;
+  adminState.imageTransforms[target.key] = studio.transform;
+  if (preview) {
+    preview.src = studio.dataUrl;
+    applyPhotoFitToImage(preview, studio.fit, studio.position, studio.zoom, studio.transform);
+  }
+
+  setAdminMessage(adminContentStatus, "Uploading site photo to the live website...");
+  const upload = await uploadAdminPhoto(studio.dataUrl, `site-${target.key}`);
+  const imageUrl = upload.ok ? upload.url : studio.dataUrl;
+  adminState.images[target.key] = imageUrl;
+  applyImageValue(target.key, imageUrl);
+  if (preview) {
+    preview.src = imageUrl;
+    applyPhotoFitToImage(preview, studio.fit, studio.position, studio.zoom, studio.transform);
+  }
+  if (!upload.ok) {
+    localSaveAdminState();
+    setAdminMessage(adminContentStatus, liveSaveFailureMessage(upload.error));
+    return;
+  }
+  const result = await saveAdminState({
+    statusTarget: adminContentStatus,
+    savingMessage: "Saving site photo to the live website...",
+    successMessage: "Site photo saved to the live website."
+  });
+  if (!result.ok) return;
+  triggerPhotoBounce(preview);
+  showAdminUploadCelebration("Site photo is live.");
+  setAdminMessage(adminContentStatus, "Site photo saved to the live website.");
+}
 
 function renderAdminImages() {
   adminImageList.innerHTML = "";
   imageTargets.forEach((target) => {
     const card = document.createElement("div");
-    card.className = "admin-control";
+    card.className = "admin-control admin-photo-control";
+    card.dataset.photoUploadDrop = target.key;
     const preview = document.createElement("img");
     preview.src = adminState.images[target.key] || currentImageValue(target) || "";
+    applyPhotoFitToImage(preview, adminState.imageFits[target.key], adminState.imagePositions[target.key], adminState.imageZooms[target.key], adminState.imageTransforms[target.key]);
     const label = document.createElement("strong");
     label.textContent = target.label;
     const input = document.createElement("input");
+    const inputId = `sitePhoto-${target.key}`;
+    input.id = inputId;
+    input.className = "hidden-file-input";
     input.type = "file";
     input.accept = "image/*";
+    input.setAttribute("capture", "environment");
+    const uploadLabel = document.createElement("label");
+    uploadLabel.className = "professional-upload-zone";
+    uploadLabel.htmlFor = inputId;
+    uploadLabel.innerHTML = `
+      <span>${preview.src ? "Replace Photo" : "Upload Photo"}</span>
+      <small>Drop a photo here, or click to choose one.</small>
+    `;
+    const controls = document.createElement("div");
+    controls.className = "photo-adjust-grid";
+    controls.innerHTML = `
+      <label class="photo-fit-control">
+        Photo fit
+        <select data-site-photo-fit="${escapeAttribute(target.key)}">
+          ${photoFitOptionsMarkup(adminState.imageFits[target.key])}
+        </select>
+      </label>
+      <label class="photo-fit-control">
+        Focus
+        <select data-site-photo-position="${escapeAttribute(target.key)}">
+          ${photoPositionOptionsMarkup(adminState.imagePositions[target.key])}
+        </select>
+      </label>
+      <label class="photo-fit-control photo-zoom-control">
+        Zoom <span data-zoom-label="${escapeAttribute(target.key)}">${photoZoomPercent(adminState.imageZooms[target.key])}%</span>
+        <input type="range" min="1" max="1.55" step="0.01" value="${sanitizePhotoZoom(adminState.imageZooms[target.key]).toFixed(2)}" data-site-photo-zoom="${escapeAttribute(target.key)}" />
+      </label>
+    `;
     input.addEventListener("change", async () => {
       const file = input.files && input.files[0];
-      if (!file) return;
-      const dataUrl = await fileToCompressedDataUrl(file);
-      adminState.images[target.key] = dataUrl;
-      applyImageValue(target.key, dataUrl);
-      preview.src = dataUrl;
-      saveAdminState();
+      await updateSitePhotoFromFile(target, file, preview, input);
     });
-    card.append(label, preview, input);
+    bindPhotoDropZone(card, (file) => updateSitePhotoFromFile(target, file, preview, input));
+
+    const fitSelect = controls.querySelector("[data-site-photo-fit]");
+    const positionSelect = controls.querySelector("[data-site-photo-position]");
+    const zoomInput = controls.querySelector("[data-site-photo-zoom]");
+    const zoomLabel = controls.querySelector("[data-zoom-label]");
+    const applySitePhotoControls = () => {
+      adminState.imageFits[target.key] = sanitizePhotoFit(fitSelect.value);
+      adminState.imagePositions[target.key] = sanitizePhotoPosition(positionSelect.value);
+      adminState.imageZooms[target.key] = sanitizePhotoZoom(zoomInput.value);
+      applyImageFit(target.key);
+      applyPhotoFitToImage(preview, adminState.imageFits[target.key], adminState.imagePositions[target.key], adminState.imageZooms[target.key], adminState.imageTransforms[target.key]);
+      if (zoomLabel) zoomLabel.textContent = `${photoZoomPercent(adminState.imageZooms[target.key])}%`;
+    };
+    const saveSitePhotoControls = async () => {
+      applySitePhotoControls();
+      triggerPhotoBounce(preview);
+      const result = await saveAdminState({
+        statusTarget: adminContentStatus,
+        savingMessage: "Saving photo adjustments to the live website...",
+        successMessage: "Photo adjustments saved to the live website."
+      });
+      if (!result.ok) return;
+      showAdminUploadCelebration("Photo adjustment is live.");
+      setAdminMessage(adminContentStatus, "Photo adjustments saved to the live website.");
+    };
+    fitSelect.addEventListener("change", saveSitePhotoControls);
+    positionSelect.addEventListener("change", saveSitePhotoControls);
+    zoomInput.addEventListener("input", applySitePhotoControls);
+    zoomInput.addEventListener("change", saveSitePhotoControls);
+    card.append(label, preview, uploadLabel, controls, input);
     adminImageList.appendChild(card);
   });
 }
@@ -1355,6 +4901,7 @@ function applyImageValue(key, value) {
   if (!el) return;
   if (target.type === "img") {
     el.src = value;
+    applyPhotoFitToImage(el, adminState.imageFits?.[key], adminState.imagePositions?.[key], adminState.imageZooms?.[key], adminState.imageTransforms?.[key]);
     return;
   }
   if (key === "custom-bg") {
@@ -1525,50 +5072,548 @@ async function extractNailTextureFromPhoto(src) {
   return texture.toDataURL("image/jpeg", 0.82);
 }
 
+function setLookStatus(index, message) {
+  const status = adminLookList?.querySelector(`[data-look-card="${index}"] [data-look-status]`);
+  if (status) status.textContent = message;
+  const inventoryStatus = adminInventoryPanel?.querySelector(`[data-inventory-card="${index}"] [data-inventory-status]`);
+  if (inventoryStatus) inventoryStatus.textContent = message;
+  if (adminInventoryStatus && !adminInventoryPanel?.hidden) adminInventoryStatus.textContent = message;
+}
+
+function productFromLook(look) {
+  return {
+    name: look.name,
+    tag: look.tag || "New from Chey",
+    description: look.copy,
+    notes: look.notes || `Published from ${look.slotLabel}.`,
+    price: look.price,
+    salePrice: look.salePrice || "",
+    discount: look.discount || "",
+    stock: look.stock || "",
+    sku: look.sku || "",
+    category: look.finish || "custom",
+    image: look.photo,
+    imageFit: look.photoFit,
+    imagePosition: look.photoPosition,
+    imageZoom: look.photoZoom,
+    imageTransform: look.photoTransform,
+    sourceLookIndex: look.index,
+    publishedAt: new Date().toLocaleString()
+  };
+}
+
+const productToLookFieldMap = {
+  name: "name",
+  price: "price",
+  salePrice: "salePrice",
+  discount: "discount",
+  stock: "stock",
+  sku: "sku",
+  category: "finish",
+  description: "copy",
+  notes: "notes",
+  tag: "tag",
+  imageFit: "photoFit",
+  imagePosition: "photoPosition",
+  imageZoom: "photoZoom",
+  imageTransform: "photoTransform"
+};
+
+function syncPublishedProductBackToLook(product, updates = {}) {
+  const sourceIndex = Number(product?.sourceLookIndex);
+  if (!Number.isInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= lookLibrary.length) return;
+
+  adminState.lookDetails[sourceIndex] = adminState.lookDetails[sourceIndex] || {};
+  Object.entries(updates).forEach(([field, value]) => {
+    const lookField = productToLookFieldMap[field];
+    if (lookField) adminState.lookDetails[sourceIndex][lookField] = value;
+  });
+
+  if (Object.prototype.hasOwnProperty.call(updates, "image")) {
+    adminState.lookPhotos[sourceIndex] = updates.image;
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, "imageFit")) {
+    adminState.lookPhotoFits[sourceIndex] = sanitizePhotoFit(updates.imageFit);
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, "imagePosition")) {
+    adminState.lookPhotoPositions[sourceIndex] = sanitizePhotoPosition(updates.imagePosition);
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, "imageZoom")) {
+    adminState.lookPhotoZooms[sourceIndex] = sanitizePhotoZoom(updates.imageZoom);
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, "imageTransform")) {
+    adminState.lookPhotoTransforms[sourceIndex] = sanitizePhotoTransform(updates.imageTransform);
+  }
+}
+
+function applyImageFit(key) {
+  if (key === "try-on") return;
+  const target = imageTargets.find((item) => item.key === key);
+  if (!target) return;
+  const el = document.querySelector(target.selector);
+  if (!el || target.type !== "img") return;
+  applyPhotoFitToImage(el, adminState.imageFits?.[key], adminState.imagePositions?.[key], adminState.imageZooms?.[key], adminState.imageTransforms?.[key]);
+}
+
+async function publishLookToShop(index) {
+  const look = readLookData(index);
+  if (!look.price) {
+    setLookStatus(index, "Add a price before publishing this design.");
+    return false;
+  }
+
+  const product = productFromLook(look);
+  const existingIndex = adminState.customProducts.findIndex((item) => Number(item.sourceLookIndex) === index);
+  if (existingIndex >= 0) {
+    adminState.customProducts[existingIndex] = {
+      ...adminState.customProducts[existingIndex],
+      ...product
+    };
+  } else {
+    adminState.customProducts.unshift(product);
+  }
+
+  adminState.lookDetails[index] = {
+    ...(adminState.lookDetails[index] || {}),
+    publishedAt: product.publishedAt
+  };
+  setLookStatus(index, "Publishing this product to the live website...");
+  const result = await saveAdminState({
+    statusTarget: adminInventoryStatus || addProductStatus,
+    savingMessage: "Publishing product to the live website...",
+    successMessage: `${look.name} is published on the live website.`
+  });
+  renderCustomProducts();
+  renderAdminProducts();
+  renderAdminLookPhotos();
+  renderAdminInventoryPanel();
+  updateProductCount();
+  if (!result.ok) {
+    setLookStatus(index, liveSaveFailureMessage(result.error));
+    return false;
+  }
+  setLookStatus(index, "Published to the Shop. Customers can buy this design now.");
+  setAdminMessage(adminInventoryStatus, `${look.name} is published on the live website.`);
+  setAdminMessage(addProductStatus, `${look.name} is published on the live website.`);
+  return true;
+}
+
+async function removePublishedProduct(productIndex) {
+  const index = Number(productIndex);
+  const product = adminState.customProducts[index];
+  if (!product) {
+    setInlineEditStatus("That product is already withdrawn from the Shop.");
+    return false;
+  }
+
+  const productName = product.name || "Product";
+  const sourceIndex = ensureProductInventory(product);
+  adminState.customProducts.splice(index, 1);
+  if (Number.isInteger(sourceIndex) && adminState.lookDetails[sourceIndex]) {
+    delete adminState.lookDetails[sourceIndex].publishedAt;
+  }
+
+  if (Number.isInteger(sourceIndex)) {
+    setLookStatus(sourceIndex, `Withdrawing ${productName} from the Shop...`);
+  }
+  setInlineEditStatus(`Withdrawing ${productName} from the Shop...`);
+  const result = await saveAdminState({
+    statusTarget: adminInventoryStatus || adminEditStatus || addProductStatus,
+    savingMessage: `Withdrawing ${productName} from the Shop...`,
+    successMessage: `${productName} withdrawn from the Shop and kept in inventory.`
+  });
+  renderCustomProducts();
+  renderAdminProducts();
+  renderAdminLookPhotos();
+  renderAdminInventoryPanel();
+  updateProductCount();
+
+  if (!result.ok) {
+    if (Number.isInteger(sourceIndex)) setLookStatus(sourceIndex, liveSaveFailureMessage(result.error));
+    setInlineEditStatus(liveSaveFailureMessage(result.error));
+    return false;
+  }
+
+  if (Number.isInteger(sourceIndex)) {
+    setLookStatus(sourceIndex, "Withdrawn from the Shop. This design is still saved in inventory.");
+  }
+  setAdminMessage(adminInventoryStatus, `${productName} withdrawn from the Shop and kept in inventory.`);
+  setInlineEditStatus(`${productName} withdrawn from the Shop and kept in inventory.`);
+  return true;
+}
+
+async function deleteInventoryProduct(sourceIndex, options = {}) {
+  const index = Number(sourceIndex);
+  if (!Number.isInteger(index) || index < 0 || index >= lookLibrary.length) return false;
+  const look = readLookData(index);
+  if (!look.active && !look.published) {
+    setInlineEditStatus("That inventory item is already deleted.");
+    return false;
+  }
+  if (!options.skipConfirm && !window.confirm(`Delete "${look.name || "this product"}" from inventory? This removes it from admin inventory and the Shop.`)) {
+    setInlineEditStatus("Inventory delete cancelled.");
+    return false;
+  }
+
+  const productIndex = adminState.customProducts.findIndex((product) => Number(product.sourceLookIndex) === index);
+  if (productIndex >= 0) {
+    adminState.customProducts.splice(productIndex, 1);
+  }
+  delete adminState.lookPhotos[index];
+  delete adminState.lookPhotoFits[index];
+  delete adminState.lookPhotoPositions[index];
+  delete adminState.lookPhotoZooms[index];
+  delete adminState.lookPhotoTransforms[index];
+  delete adminState.lookDetails[index];
+
+  if (selectedLook?.index === index) {
+    selectedLook = null;
+    updateBuilder();
+  }
+
+  const result = await saveAdminState({
+    statusTarget: adminInventoryStatus || adminEditStatus || addProductStatus,
+    savingMessage: `Deleting ${look.name || "inventory item"} from inventory...`,
+    successMessage: `${look.name || "Inventory item"} deleted from inventory.`
+  });
+  renderLooks();
+  renderCustomProducts();
+  renderAdminProducts();
+  renderAdminLookPhotos();
+  renderAdminInventoryPanel();
+  updateProductCount();
+  updateLookCount();
+  if (!result.ok) {
+    setInlineEditStatus(liveSaveFailureMessage(result.error));
+    return false;
+  }
+  setAdminMessage(adminInventoryStatus, `${look.name || "Inventory item"} deleted from inventory.`);
+  setInlineEditStatus(`${look.name || "Inventory item"} deleted from inventory.`);
+  return true;
+}
+
+async function deletePublishedProductInventory(productIndex) {
+  const product = adminState.customProducts[Number(productIndex)];
+  if (!product) return false;
+  const productName = product.name || "this product";
+  if (!window.confirm(`Delete "${productName}" from inventory? This removes it from admin inventory and the Shop.`)) {
+    setInlineEditStatus("Inventory delete cancelled.");
+    return false;
+  }
+  const sourceIndex = ensureProductInventory(product, { publishedAt: product.publishedAt });
+  return deleteInventoryProduct(sourceIndex, { skipConfirm: true });
+}
+
+function nextProductLibrarySlotIndex() {
+  const emptyIndex = lookLibrary.findIndex((_, index) => !readLookData(index).active && !readLookData(index).published);
+  if (emptyIndex >= 0) return emptyIndex;
+  return 0;
+}
+
+function writeProductToInventory(product, index, options = {}) {
+  if (!product || !Number.isInteger(index) || index < 0 || index >= lookLibrary.length) return -1;
+  adminState.lookDetails[index] = {
+    ...(adminState.lookDetails[index] || {}),
+    name: product.name || "",
+    price: product.price || "",
+    salePrice: product.salePrice || "",
+    discount: product.discount || "",
+    stock: product.stock || "",
+    sku: product.sku || "",
+    finish: product.category || "custom",
+    copy: product.description || "",
+    notes: product.notes || "",
+    tag: product.tag || "New from Chey"
+  };
+  if (options.publishedAt || product.publishedAt) {
+    adminState.lookDetails[index].publishedAt = options.publishedAt || product.publishedAt;
+  } else {
+    delete adminState.lookDetails[index].publishedAt;
+  }
+  adminState.lookPhotos[index] = product.image || "";
+  adminState.lookPhotoFits[index] = sanitizePhotoFit(product.imageFit);
+  adminState.lookPhotoPositions[index] = sanitizePhotoPosition(product.imagePosition);
+  adminState.lookPhotoZooms[index] = sanitizePhotoZoom(product.imageZoom);
+  adminState.lookPhotoTransforms[index] = sanitizePhotoTransform(product.imageTransform);
+  visibleLookSlotCount = Math.max(visibleLookSlotCount, index + 1);
+  return index;
+}
+
+function ensureProductInventory(product, options = {}) {
+  const existingIndex = Number(product?.sourceLookIndex);
+  if (Number.isInteger(existingIndex) && existingIndex >= 0 && existingIndex < lookLibrary.length) {
+    writeProductToInventory(product, existingIndex, options);
+    return existingIndex;
+  }
+  const index = nextProductLibrarySlotIndex();
+  writeProductToInventory(product, index, options);
+  product.sourceLookIndex = index;
+  return index;
+}
+
+async function copyIdeaToProductLibrary(idea) {
+  const index = nextProductLibrarySlotIndex();
+  adminState.lookDetails[index] = {
+    ...(adminState.lookDetails[index] || {}),
+    name: idea.name || "",
+    price: idea.price || "",
+    finish: [idea.shape, idea.length, idea.status].filter(Boolean).join(", "),
+    copy: [idea.shape, idea.length, idea.art].filter(Boolean).join(" - "),
+    notes: [
+      idea.colors ? `Colors: ${idea.colors}` : "",
+      idea.materials ? `Materials: ${idea.materials}` : "",
+      idea.notes ? `Notes: ${idea.notes}` : ""
+    ].filter(Boolean).join("\n\n"),
+    tag: "New design"
+  };
+  if (idea.image) {
+    if (isPhotoDataUrl(idea.image)) {
+      setAdminMessage(addProductStatus, "Uploading idea photo to the live website...");
+      const upload = await uploadAdminPhoto(idea.image, `look-${index}`);
+      adminState.lookPhotos[index] = upload.ok ? upload.url : idea.image;
+      if (!upload.ok) {
+        localSaveAdminState();
+        setAdminMessage(addProductStatus, liveSaveFailureMessage(upload.error));
+        return;
+      }
+    } else {
+      adminState.lookPhotos[index] = idea.image;
+    }
+  }
+  visibleLookSlotCount = Math.max(visibleLookSlotCount, index + 1);
+  const result = await saveAdminState({
+    statusTarget: addProductStatus,
+    savingMessage: "Moving idea into the Product Library on the live website...",
+    successMessage: "Idea moved into the Product Library on the live website."
+  });
+  renderLooks();
+  renderAdminLookPhotos();
+  updateLookCount();
+  switchAdminView("site");
+  adminLookList?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (!result.ok) {
+    setLookStatus(index, liveSaveFailureMessage(result.error));
+    return;
+  }
+  setLookStatus(index, "Idea copied here. Add or replace the nail photo, check the price, then publish it to the Shop.");
+  setAdminMessage(addProductStatus, "Idea moved into the Product Library on the live website.");
+}
+
+async function updateLookPhotoFromFile(index, file, input) {
+  if (!file) return;
+  const look = readLookData(index);
+  setLookStatus(index, "Opening Photo Studio...");
+  const studio = await preparePhotoInStudio(file, {
+    title: `Adjust ${look.name}`,
+    fit: look.photo ? look.photoFit : "contain",
+    position: look.photoPosition,
+    zoom: look.photoZoom,
+    transform: look.photoTransform,
+    quality: 0.88
+  });
+  if (input) input.value = "";
+  if (!studio) {
+    setLookStatus(index, "Photo upload cancelled.");
+    return;
+  }
+
+  adminState.lookPhotoFits[index] = studio.fit;
+  adminState.lookPhotoPositions[index] = studio.position;
+  adminState.lookPhotoZooms[index] = studio.zoom;
+  adminState.lookPhotoTransforms[index] = studio.transform;
+  setLookStatus(index, "Uploading nail photo to the live website...");
+  const upload = await uploadAdminPhoto(studio.dataUrl, `look-${index}`);
+  const photoUrl = upload.ok ? upload.url : studio.dataUrl;
+  adminState.lookPhotos[index] = photoUrl;
+  const productIndex = adminState.customProducts.findIndex((product) => Number(product.sourceLookIndex) === index);
+  if (productIndex >= 0) {
+    Object.assign(adminState.customProducts[productIndex], {
+      image: photoUrl,
+      imageFit: studio.fit,
+      imagePosition: studio.position,
+      imageZoom: studio.zoom,
+      imageTransform: studio.transform
+    });
+  }
+  if (!upload.ok) {
+    localSaveAdminState();
+    renderLooks();
+    renderCustomProducts();
+    renderAdminProducts();
+    renderAdminLookPhotos();
+    renderAdminInventoryPanel();
+    updateLookCount();
+    setLookStatus(index, liveSaveFailureMessage(upload.error));
+    return;
+  }
+  const result = await saveAdminState({
+    statusTarget: addProductStatus,
+    savingMessage: "Saving product photo to the live website...",
+    successMessage: "Product photo saved to the live website."
+  });
+  renderLooks();
+  renderCustomProducts();
+  renderAdminProducts();
+  renderAdminLookPhotos();
+  renderAdminInventoryPanel();
+  updateLookCount();
+  if (selectedLook?.index === index) applyLook(readLookData(index));
+  if (!result.ok) {
+    setLookStatus(index, liveSaveFailureMessage(result.error));
+    return;
+  }
+  triggerPhotoBounce(adminLookList?.querySelector(`[data-look-card="${index}"] .admin-look-preview`));
+  showAdminUploadCelebration("Product photo is live.");
+  setLookStatus(index, "Photo saved to the live website. Add a price, then publish it to the Shop.");
+}
+
 function renderAdminLookPhotos() {
+  if (!adminLookList) return;
   adminLookList.innerHTML = "";
-  lookLibrary.forEach((_, index) => {
+  const activeIndices = lookLibrary
+    .map((_, index) => index)
+    .filter((index) => readLookData(index).active);
+  const inactiveIndices = lookLibrary
+    .map((_, index) => index)
+    .filter((index) => !readLookData(index).active);
+  const displayIndices = [...activeIndices, ...inactiveIndices.slice(0, Math.max(visibleLookSlotCount - activeIndices.length, 0))]
+    .filter((index, position, list) => list.indexOf(index) === position)
+    .sort((a, b) => a - b);
+  displayIndices.forEach((index) => {
     const look = readLookData(index);
     const card = document.createElement("div");
-    card.className = "admin-control admin-look-card";
+    card.className = `admin-control admin-look-card${look.published ? " is-published" : ""}`;
+    card.dataset.lookCard = String(index);
     card.style.setProperty("--look-base", look.base);
     card.style.setProperty("--look-accent", look.accent);
     if (look.photo) card.style.setProperty("--look-photo", `url("${look.photo}")`);
+    applyLookFitProperties(card, look.photoFit, look.photoPosition, look.photoZoom);
     card.innerHTML = `
       <div class="admin-look-preview${look.photo ? " has-photo" : ""}" aria-hidden="true">
+        ${look.photo ? `<img src="${escapeAttribute(look.photo)}" alt="" data-photo-fit="${escapeAttribute(look.photoFit)}" data-photo-position="${escapeAttribute(look.photoPosition)}" style="${photoTransformStyle(look.photoTransform, look.photoZoom)}" />` : `<span class="professional-upload-hint">Drop nail photo here</span>`}
         <span class="look-dot"></span>
+        ${look.published ? `<span class="published-ribbon">In Shop</span>` : ""}
       </div>
       <div class="admin-look-copy">
-        <label>Name <input value="${escapeAttribute(look.name)}" data-look-detail="${index}" data-look-field="name" /></label>
-        <label>Finish <input value="${escapeAttribute(look.finish)}" data-look-detail="${index}" data-look-field="finish" /></label>
-        <label>Description <textarea data-look-detail="${index}" data-look-field="copy">${escapeTextarea(look.copy)}</textarea></label>
-        <label class="tiny-upload" for="lookPhoto-${index}">Change Photo</label>
-        <small class="look-extract-note" data-look-status>Photo uploads are cleaned into a nail-only texture for the hand preview.</small>
-        <input class="hidden-file-input" id="lookPhoto-${index}" type="file" accept="image/*" data-look-photo="${index}" />
+        <span>${look.slotLabel}${look.published ? " - Published" : ""}</span>
+        <label>Name <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].name) || "")}" placeholder="${escapeAttribute(look.name)}" data-look-detail="${index}" data-look-field="name" /></label>
+        <div class="admin-field-row">
+          <label>Price <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].price) || "")}" inputmode="decimal" placeholder="45" data-look-detail="${index}" data-look-field="price" /></label>
+          <label>Style <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].finish) || "")}" placeholder="chrome, aura, french" data-look-detail="${index}" data-look-field="finish" /></label>
+        </div>
+        <label>Description <textarea data-look-detail="${index}" data-look-field="copy" placeholder="Tell customers about the shape, finish, color, charms, and vibe.">${escapeTextarea((adminState.lookDetails[index] && adminState.lookDetails[index].copy) || "")}</textarea></label>
+        <details class="admin-optional">
+          <summary>Optional product details</summary>
+          <label>Shop tag <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].tag) || "")}" placeholder="New drop" data-look-detail="${index}" data-look-field="tag" /></label>
+          <label>Private maker notes <textarea data-look-detail="${index}" data-look-field="notes" placeholder="Private notes for Chey only.">${escapeTextarea((adminState.lookDetails[index] && adminState.lookDetails[index].notes) || "")}</textarea></label>
+        </details>
+        <div class="look-publish-actions">
+          <label class="tiny-upload" for="lookPhoto-${index}">${look.photo ? "Replace Nail Photo" : "Upload Nail Photo"}</label>
+          <label class="photo-fit-control compact">Photo fit
+            <select data-look-photo-fit="${index}">
+              ${photoFitOptionsMarkup(look.photoFit)}
+            </select>
+          </label>
+          <label class="photo-fit-control compact">Focus
+            <select data-look-photo-position="${index}">
+              ${photoPositionOptionsMarkup(look.photoPosition)}
+            </select>
+          </label>
+          <label class="photo-fit-control compact photo-zoom-control">Zoom <span data-look-zoom-label="${index}">${photoZoomPercent(look.photoZoom)}%</span>
+            <input type="range" min="1" max="1.55" step="0.01" value="${sanitizePhotoZoom(look.photoZoom).toFixed(2)}" data-look-photo-zoom="${index}" />
+          </label>
+          <button class="button primary" type="button" data-publish-look="${index}">${look.published ? "Update Shop Product" : "Publish To Shop"}</button>
+          ${look.published ? `<button class="button danger" type="button" data-unpublish-look="${index}">Withdraw From Shop</button>` : ""}
+          ${look.active ? `<button class="button danger subtle-danger" type="button" data-delete-inventory-look="${index}">Delete From Inventory</button>` : ""}
+        </div>
+        <small class="look-extract-note" data-look-status>${look.photo ? (look.published ? "This design is live in the Shop." : "Photo framed. Add a price, then publish it to the Shop.") : "Take a nail photo, upload it here, then publish it as a product."}</small>
+        <input class="hidden-file-input" id="lookPhoto-${index}" type="file" accept="image/*" capture="environment" data-look-photo="${index}" />
       </div>
     `;
     adminLookList.appendChild(card);
+    bindPhotoDropZone(card.querySelector(".admin-look-preview"), (file) => updateLookPhotoFromFile(index, file, card.querySelector("[data-look-photo]")));
   });
   adminLookList.querySelectorAll("[data-look-photo]").forEach((input) => {
     input.addEventListener("change", async () => {
       const file = input.files && input.files[0];
-      if (!file) return;
-      const index = Number(input.dataset.lookPhoto);
-      const card = input.closest(".admin-look-card");
-      const status = card?.querySelector("[data-look-status]");
-      if (status) status.textContent = "Scanning photo for the nail design...";
-      const dataUrl = await fileToCompressedDataUrl(file, 1600, 0.88);
-      let textureUrl = dataUrl;
-      try {
-        textureUrl = await extractNailTextureFromPhoto(dataUrl);
-      } catch {
-        if (status) status.textContent = "Smart extraction failed, using the uploaded photo.";
-      }
-      adminState.lookPhotos[index] = textureUrl;
-      saveAdminState();
-      renderLooks();
-      renderAdminLookPhotos();
-      if (selectedLook?.index === index) applyLook(readLookData(index));
+      await updateLookPhotoFromFile(Number(input.dataset.lookPhoto), file, input);
+    });
+  });
+  const applyLookPhotoControls = (index, card) => {
+    const fit = sanitizePhotoFit(card?.querySelector("[data-look-photo-fit]")?.value);
+    const position = sanitizePhotoPosition(card?.querySelector("[data-look-photo-position]")?.value);
+    const zoom = sanitizePhotoZoom(card?.querySelector("[data-look-photo-zoom]")?.value);
+    const transform = sanitizePhotoTransform(adminState.lookPhotoTransforms[index]);
+    adminState.lookPhotoFits[index] = fit;
+    adminState.lookPhotoPositions[index] = position;
+    adminState.lookPhotoZooms[index] = zoom;
+    const productIndex = adminState.customProducts.findIndex((product) => Number(product.sourceLookIndex) === index);
+    if (productIndex >= 0) {
+      Object.assign(adminState.customProducts[productIndex], {
+        imageFit: fit,
+        imagePosition: position,
+        imageZoom: zoom,
+        imageTransform: transform
+      });
+    }
+    applyLookFitProperties(card, fit, position, zoom);
+    applyPhotoFitToImage(card?.querySelector(".admin-look-preview img"), fit, position, zoom, transform);
+    const zoomLabel = card?.querySelector("[data-look-zoom-label]");
+    if (zoomLabel) zoomLabel.textContent = `${photoZoomPercent(zoom)}%`;
+    renderLooks();
+    renderCustomProducts();
+    if (selectedLook?.index === index) applyLook(readLookData(index));
+    return { fit, position, zoom };
+  };
+  const saveLookPhotoControls = async (index, control) => {
+    const card = control.closest(".admin-look-card");
+    applyLookPhotoControls(index, card);
+    const preview = card?.querySelector(".admin-look-preview");
+    triggerPhotoBounce(preview);
+    const result = await saveAdminState({
+      statusTarget: addProductStatus,
+      savingMessage: "Saving photo adjustments to the live website...",
+      successMessage: "Photo adjustments saved to the live website."
+    });
+    if (!result.ok) {
+      setLookStatus(index, liveSaveFailureMessage(result.error));
+      return;
+    }
+    showAdminUploadCelebration("Photo adjustment is live.");
+    setLookStatus(index, "Photo adjustments saved. Looking much better.");
+  };
+  adminLookList.querySelectorAll("[data-look-photo-fit]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      await saveLookPhotoControls(Number(select.dataset.lookPhotoFit), select);
+    });
+  });
+  adminLookList.querySelectorAll("[data-look-photo-position]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      await saveLookPhotoControls(Number(select.dataset.lookPhotoPosition), select);
+    });
+  });
+  adminLookList.querySelectorAll("[data-look-photo-zoom]").forEach((input) => {
+    input.addEventListener("input", () => {
+      applyLookPhotoControls(Number(input.dataset.lookPhotoZoom), input.closest(".admin-look-card"));
+    });
+    input.addEventListener("change", async () => {
+      await saveLookPhotoControls(Number(input.dataset.lookPhotoZoom), input);
+    });
+  });
+  adminLookList.querySelectorAll("[data-publish-look]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await publishLookToShop(Number(button.dataset.publishLook));
+    });
+  });
+  adminLookList.querySelectorAll("[data-unpublish-look]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const look = readLookData(Number(button.dataset.unpublishLook));
+      await removePublishedProduct(look.productIndex);
+    });
+  });
+  adminLookList.querySelectorAll("[data-delete-inventory-look]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await deleteInventoryProduct(Number(button.dataset.deleteInventoryLook));
     });
   });
   adminLookList.querySelectorAll("[data-look-detail]").forEach((field) => {
@@ -1577,80 +5622,88 @@ function renderAdminLookPhotos() {
       const key = field.dataset.lookField;
       adminState.lookDetails[index] = adminState.lookDetails[index] || {};
       adminState.lookDetails[index][key] = field.value;
-      saveAdminState();
+      localSaveAdminState();
+      scheduleRemoteAdminStateSave({
+        statusTarget: addProductStatus,
+        savingMessage: "Saving product library changes to the live website...",
+        showSuccess: true,
+        successMessage: "Product library changes saved to the live website."
+      });
       renderLooks();
+      updateLookCount();
     });
   });
-}
-
-function productElements() {
-  return Array.from(document.querySelectorAll(".product:not(.custom-added)"));
-}
-
-function readProduct(index) {
-  const product = productElements()[index];
-  const button = product.querySelector("[data-name]");
-  return {
-    tag: product.querySelector(".product-tag").textContent.trim(),
-    name: product.querySelector("h3").textContent.trim(),
-    description: product.querySelector(".product-copy > p:not(.product-tag)").textContent.trim(),
-    price: product.querySelector(".product-bottom strong").textContent.replace("$", "").trim(),
-    category: product.dataset.category,
-    buttonName: button.dataset.name
-  };
+  if (displayIndices.length < lookLibrary.length) {
+    const moreButton = document.createElement("button");
+    moreButton.type = "button";
+    moreButton.className = "tiny-upload admin-load-more";
+    moreButton.textContent = `Show ${Math.min(LOOK_SLOT_BATCH_SIZE, lookLibrary.length - displayIndices.length)} more design slots`;
+    moreButton.addEventListener("click", () => {
+      visibleLookSlotCount = Math.min(lookLibrary.length, visibleLookSlotCount + LOOK_SLOT_BATCH_SIZE);
+      renderAdminLookPhotos();
+    });
+    adminLookList.appendChild(moreButton);
+  }
 }
 
 function renderAdminProducts() {
+  if (!adminProductList) return;
   adminProductList.innerHTML = "";
-  productElements().forEach((_, index) => {
-    const product = { ...readProduct(index), ...(adminState.products[index] || {}) };
-    const imageTarget = imageTargets.find((target) => target.key === `product-${index}`);
-    const image = adminState.images[`product-${index}`] || currentImageValue(imageTarget) || "";
+  adminState.customProducts.forEach((product, index) => {
     const card = document.createElement("div");
     card.className = "admin-control admin-product-card";
+    card.dataset.customProductCard = String(index);
     card.innerHTML = `
       <div class="admin-product-photo">
-        <img src="${escapeAttribute(image)}" alt="" />
-        <label class="tiny-upload" for="productImage-${index}">Change Photo</label>
-        <input class="hidden-file-input" id="productImage-${index}" type="file" accept="image/*" data-product-image="${index}" />
+        ${productImageMarkup(product, index)}
+        <label class="professional-upload-zone compact-zone" for="customImage-${index}">
+          <span>${product.image ? "Change Photo" : "Add Photo"}</span>
+          <small>Drop here, or click to choose.</small>
+        </label>
+        <label class="photo-fit-control compact">Photo fit
+          <select data-custom-product-fit="${index}">
+            ${photoFitOptionsMarkup(product.imageFit)}
+          </select>
+        </label>
+        <label class="photo-fit-control compact">Focus
+          <select data-custom-product-position="${index}">
+            ${photoPositionOptionsMarkup(product.imagePosition)}
+          </select>
+        </label>
+        <label class="photo-fit-control compact photo-zoom-control">Zoom <span data-product-zoom-label="${index}">${photoZoomPercent(product.imageZoom)}%</span>
+          <input type="range" min="0.25" max="2.5" step="0.01" value="${sanitizePhotoZoom(product.imageZoom).toFixed(2)}" data-custom-product-zoom="${index}" />
+        </label>
+        <input class="hidden-file-input" id="customImage-${index}" type="file" accept="image/*" capture="environment" data-custom-product-image="${index}" />
       </div>
       <div class="admin-product-fields">
         <div class="admin-product-head">
           <strong>Shop Product ${index + 1}</strong>
-        </div>
-        <label>Name <input data-product="${index}" data-field="name" value="${escapeAttribute(product.name)}" /></label>
-        <div class="admin-field-row">
-          <label>Price <input data-product="${index}" data-field="price" value="${escapeAttribute(product.price)}" /></label>
-          <label>Style <input data-product="${index}" data-field="category" value="${escapeAttribute(product.category)}" /></label>
-        </div>
-        <label>Description <textarea data-product="${index}" data-field="description">${escapeTextarea(product.description)}</textarea></label>
-        <label>Maker notes <textarea data-product="${index}" data-field="notes" placeholder="Private notes: polish colors, pigments, charms, sizing, timing, or customer preferences.">${escapeTextarea(product.notes || "")}</textarea></label>
-        <details class="admin-optional">
-          <summary>Optional tag</summary>
-          <label>Tag <input data-product="${index}" data-field="tag" value="${escapeAttribute(product.tag)}" /></label>
-        </details>
-      </div>
-    `;
-    adminProductList.appendChild(card);
-  });
-  adminState.customProducts.forEach((product, index) => {
-    const card = document.createElement("div");
-    card.className = "admin-control admin-product-card";
-    card.innerHTML = `
-      <div class="admin-product-photo">
-        <img src="${escapeAttribute(product.image)}" alt="" />
-        <label class="tiny-upload" for="customImage-${index}">Change Photo</label>
-        <input class="hidden-file-input" id="customImage-${index}" type="file" accept="image/*" data-custom-product-image="${index}" />
-      </div>
-      <div class="admin-product-fields">
-        <div class="admin-product-head">
-          <strong>Added Product ${index + 1}</strong>
-          <button class="delete-product" type="button" data-delete-custom-product="${index}">Remove</button>
+          <button class="delete-product" type="button" data-delete-custom-product="${index}">Withdraw</button>
         </div>
         <label>Name <input data-custom-product="${index}" data-field="name" value="${escapeAttribute(product.name)}" /></label>
         <div class="admin-field-row">
           <label>Price <input data-custom-product="${index}" data-field="price" value="${escapeAttribute(product.price)}" /></label>
-          <label>Style <input data-custom-product="${index}" data-field="category" value="${escapeAttribute(product.category)}" /></label>
+          <label>Sale price <input data-custom-product="${index}" data-field="salePrice" value="${escapeAttribute(product.salePrice || "")}" /></label>
+        </div>
+        <div class="admin-field-row">
+          <label>Discount
+            <select data-custom-product="${index}" data-field="discount">
+              ${optionMarkup(discountOptions, product.discount)}
+            </select>
+          </label>
+          <label>Stock/status
+            <select data-custom-product="${index}" data-field="stock">
+              ${optionMarkup(stockOptions, product.stock)}
+            </select>
+          </label>
+        </div>
+        <div class="admin-field-row">
+          <label>Style
+            <select data-custom-product="${index}" data-field="category">
+              ${optionMarkup(categoryOptions, product.category)}
+            </select>
+          </label>
+          <label>SKU <input data-custom-product="${index}" data-field="sku" value="${escapeAttribute(product.sku || "")}" /></label>
         </div>
         <label>Description <textarea data-custom-product="${index}" data-field="description">${escapeTextarea(product.description)}</textarea></label>
         <label>Maker notes <textarea data-custom-product="${index}" data-field="notes" placeholder="Private notes: polish colors, pigments, charms, sizing, timing, or customer preferences.">${escapeTextarea(product.notes || "")}</textarea></label>
@@ -1661,15 +5714,21 @@ function renderAdminProducts() {
       </div>
     `;
     adminProductList.appendChild(card);
+    bindPhotoDropZone(card.querySelector(".admin-product-photo"), (file) => updatePublishedProductPhotoFromFile(index, file, card.querySelector("[data-custom-product-image]")));
   });
+  if (!adminState.customProducts.length) {
+    const emptyState = document.createElement("div");
+    emptyState.className = "admin-control";
+    emptyState.innerHTML = "<p>No published shop products yet. Publish finished designs from the Product Library above.</p>";
+    adminProductList.appendChild(emptyState);
+  }
   updateProductCount();
   bindProductPhotoEditors();
+  bindProductFitEditors();
+  bindProductFieldEditors();
   adminProductList.querySelectorAll("[data-delete-custom-product]").forEach((button) => {
-    button.addEventListener("click", () => {
-      adminState.customProducts.splice(Number(button.dataset.deleteCustomProduct), 1);
-      saveAdminState();
-      renderCustomProducts();
-      renderAdminProducts();
+    button.addEventListener("click", async () => {
+      await removePublishedProduct(Number(button.dataset.deleteCustomProduct));
     });
   });
 }
@@ -1692,68 +5751,193 @@ function escapeHTML(value) {
 
 function updateProductCount() {
   if (!productCountBadge) return;
-  const count = productElements().length + adminState.customProducts.length;
-  productCountBadge.textContent = `${count} product${count === 1 ? "" : "s"}`;
+  const count = adminState.customProducts.length;
+  productCountBadge.textContent = `${count} live product${count === 1 ? "" : "s"}`;
+}
+
+async function updatePublishedProductPhotoFromFile(index, file, input) {
+  const product = adminState.customProducts[index];
+  if (!product || !file) return;
+  setAdminMessage(addProductStatus, "Opening Photo Studio...");
+  const studio = await preparePhotoInStudio(file, {
+    title: `Adjust ${product.name || "shop product"}`,
+    fit: product.imageFit,
+    position: product.imagePosition,
+    zoom: product.imageZoom,
+    transform: product.imageTransform
+  });
+  if (input) input.value = "";
+  if (!studio) {
+    setAdminMessage(addProductStatus, "Photo upload cancelled.");
+    return;
+  }
+
+  Object.assign(product, {
+    imageFit: studio.fit,
+    imagePosition: studio.position,
+    imageZoom: studio.zoom,
+    imageTransform: studio.transform
+  });
+  setAdminMessage(addProductStatus, "Uploading product photo to the live website...");
+  const upload = await uploadAdminPhoto(studio.dataUrl, `product-${index}`);
+  const imageUrl = upload.ok ? upload.url : studio.dataUrl;
+  product.image = imageUrl;
+  syncPublishedProductBackToLook(product, {
+    image: imageUrl,
+    imageFit: studio.fit,
+    imagePosition: studio.position,
+    imageZoom: studio.zoom,
+    imageTransform: studio.transform
+  });
+  if (!upload.ok) {
+    localSaveAdminState();
+    renderCustomProducts();
+    renderAdminLookPhotos();
+    renderAdminProducts();
+    renderAdminInventoryPanel();
+    setAdminMessage(addProductStatus, liveSaveFailureMessage(upload.error));
+    return;
+  }
+  const result = await saveAdminState({
+    statusTarget: addProductStatus,
+    savingMessage: "Saving product photo to the live website...",
+    successMessage: "Product photo saved to the live website."
+  });
+  renderCustomProducts();
+  renderAdminLookPhotos();
+  renderAdminProducts();
+  renderAdminInventoryPanel();
+  if (!result.ok) return;
+  triggerPhotoBounce(adminProductList?.querySelector(`[data-custom-product-card="${index}"] .admin-product-photo img`));
+  showAdminUploadCelebration("Product photo is live.");
+  setAdminMessage(addProductStatus, "Product photo saved to the live website.");
 }
 
 function bindProductPhotoEditors() {
-  adminProductList.querySelectorAll("[data-product-image]").forEach((input) => {
-    input.addEventListener("change", async () => {
-      const file = input.files && input.files[0];
-      if (!file) return;
-      const index = Number(input.dataset.productImage);
-      const dataUrl = await fileToCompressedDataUrl(file);
-      adminState.images[`product-${index}`] = dataUrl;
-      applyImageValue(`product-${index}`, dataUrl);
-      input.closest(".admin-product-card").querySelector("img").src = dataUrl;
-      saveAdminState();
-    });
-  });
   adminProductList.querySelectorAll("[data-custom-product-image]").forEach((input) => {
     input.addEventListener("change", async () => {
       const file = input.files && input.files[0];
-      if (!file) return;
       const index = Number(input.dataset.customProductImage);
-      const dataUrl = await fileToCompressedDataUrl(file);
-      adminState.customProducts[index].image = dataUrl;
-      input.closest(".admin-product-card").querySelector("img").src = dataUrl;
-      saveAdminState();
-      renderCustomProducts();
+      await updatePublishedProductPhotoFromFile(index, file, input);
     });
+  });
+}
+
+function bindProductFitEditors() {
+  const applyProductPhotoControls = (index, card) => {
+    const product = adminState.customProducts[index];
+    if (!product) return null;
+    const fit = sanitizePhotoFit(card?.querySelector("[data-custom-product-fit]")?.value);
+    const position = sanitizePhotoPosition(card?.querySelector("[data-custom-product-position]")?.value);
+    const zoom = sanitizePhotoZoom(card?.querySelector("[data-custom-product-zoom]")?.value);
+    const transform = sanitizePhotoTransform(product.imageTransform);
+    Object.assign(product, {
+      imageFit: fit,
+      imagePosition: position,
+      imageZoom: zoom,
+      imageTransform: transform
+    });
+    syncPublishedProductBackToLook(product, {
+      imageFit: fit,
+      imagePosition: position,
+      imageZoom: zoom,
+      imageTransform: transform
+    });
+    const preview = card?.querySelector(".admin-product-photo img");
+    applyPhotoFitToImage(preview, fit, position, zoom, transform);
+    const zoomLabel = card?.querySelector("[data-product-zoom-label]");
+    if (zoomLabel) zoomLabel.textContent = `${photoZoomPercent(zoom)}%`;
+    renderCustomProducts();
+    renderLooks();
+    return { preview, fit, position, zoom };
+  };
+  const saveProductPhotoControls = async (index, control) => {
+    const card = control.closest(".admin-product-card");
+    const current = applyProductPhotoControls(index, card);
+    if (!current) return;
+    triggerPhotoBounce(current.preview);
+    const result = await saveAdminState({
+      statusTarget: addProductStatus,
+      savingMessage: "Saving product photo adjustments to the live website...",
+      successMessage: "Product photo adjustments saved to the live website."
+    });
+    if (!result.ok) return;
+    showAdminUploadCelebration("Product photo adjustment is live.");
+    setAdminMessage(addProductStatus, "Product photo adjustments saved to the live website.");
+  };
+  adminProductList.querySelectorAll("[data-custom-product-fit]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      await saveProductPhotoControls(Number(select.dataset.customProductFit), select);
+    });
+  });
+  adminProductList.querySelectorAll("[data-custom-product-position]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      await saveProductPhotoControls(Number(select.dataset.customProductPosition), select);
+    });
+  });
+  adminProductList.querySelectorAll("[data-custom-product-zoom]").forEach((input) => {
+    input.addEventListener("input", () => {
+      applyProductPhotoControls(Number(input.dataset.customProductZoom), input.closest(".admin-product-card"));
+    });
+    input.addEventListener("change", async () => {
+      await saveProductPhotoControls(Number(input.dataset.customProductZoom), input);
+    });
+  });
+}
+
+function bindProductFieldEditors() {
+  adminProductList.querySelectorAll("[data-custom-product]").forEach((input) => {
+    const updateProductField = () => {
+      const index = Number(input.dataset.customProduct);
+      const field = input.dataset.field;
+      if (!adminState.customProducts[index] || !field) return;
+      const value = field === "price" || field === "salePrice" ? normalizeMoneyValue(input.value) : input.value;
+      adminState.customProducts[index][field] = value;
+      applyAutomaticDiscount(adminState.customProducts[index], field);
+      if (field === "price" || field === "discount") {
+        const card = input.closest(".admin-product-card");
+        const saleInput = card?.querySelector('[data-field="salePrice"]');
+        if (saleInput) saleInput.value = adminState.customProducts[index].salePrice || "";
+      }
+      syncPublishedProductBackToLook(adminState.customProducts[index], { [field]: value });
+      if (field === "price" || field === "discount") {
+        syncPublishedProductBackToLook(adminState.customProducts[index], { salePrice: adminState.customProducts[index].salePrice || "" });
+      }
+      localSaveAdminState();
+      scheduleRemoteAdminStateSave({
+        statusTarget: addProductStatus,
+        savingMessage: "Saving product changes to the live website...",
+        showSuccess: true,
+        successMessage: "Product changes saved to the live website."
+      });
+      renderCustomProducts();
+      renderAdminLookPhotos();
+      updateLookCount();
+    };
+    input.addEventListener("input", updateProductField);
+    input.addEventListener("change", updateProductField);
   });
 }
 
 function saveProductEdits() {
-  adminProductList.querySelectorAll("[data-product]").forEach((input) => {
-    const index = input.dataset.product;
-    const field = input.dataset.field;
-    adminState.products[index] ||= {};
-    adminState.products[index][field] = input.value.trim();
-  });
   adminProductList.querySelectorAll("[data-custom-product]").forEach((input) => {
     const index = Number(input.dataset.customProduct);
     const field = input.dataset.field;
-    adminState.customProducts[index][field] = input.value.trim();
+    if (!adminState.customProducts[index] || !field) return;
+    const value = field === "price" || field === "salePrice" ? normalizeMoneyValue(input.value) : input.value;
+    adminState.customProducts[index][field] = value;
+    applyAutomaticDiscount(adminState.customProducts[index], field);
+    syncPublishedProductBackToLook(adminState.customProducts[index], { [field]: value });
+    if (field === "price" || field === "discount") {
+      syncPublishedProductBackToLook(adminState.customProducts[index], { salePrice: adminState.customProducts[index].salePrice || "" });
+    }
   });
 }
 
-function applyProductValue(index, product) {
-  const el = productElements()[index];
-  if (!el) return;
-  if (product.category) el.dataset.category = product.category;
-  if (product.tag) el.querySelector(".product-tag").textContent = product.tag;
-  if (product.name) el.querySelector("h3").textContent = product.name;
-  if (product.description) el.querySelector(".product-copy > p:not(.product-tag)").textContent = product.description;
-  if (product.price) el.querySelector(".product-bottom strong").textContent = `$${product.price}`;
-  const button = el.querySelector("[data-name]");
-  if (button) {
-    if (product.name) button.dataset.name = product.name;
-    if (product.price) button.dataset.price = product.price;
-  }
-}
-
 function exportAdminEdits() {
-  saveAllAdminEdits();
+  saveTextEdits();
+  saveProductEdits();
+  localSaveAdminState();
   const blob = new Blob([JSON.stringify(adminState, null, 2)], { type: "application/json" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -1766,23 +5950,21 @@ function importAdminEdits(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     const imported = JSON.parse(reader.result);
-    adminState = {
-      texts: imported.texts || {},
-      images: imported.images || {},
-      products: imported.products || {},
-      customProducts: imported.customProducts || [],
-      lookPhotos: imported.lookPhotos || {},
-      lookDetails: imported.lookDetails || {},
-      ideas: Array.isArray(imported.ideas) ? imported.ideas : []
-    };
-    saveAdminState();
+    adminState = normalizeAdminState(imported);
+    ensureLayoutState();
+    const result = await saveAdminState({
+      statusTarget: adminContentStatus,
+      savingMessage: "Importing edits to the live website...",
+      successMessage: "Imported edits saved to the live website."
+    });
     applyAdminState();
     renderAdminImages();
     renderAdminProducts();
     renderAdminLookPhotos();
     renderIdeas();
+    if (!result.ok) return;
   };
   reader.readAsText(file);
 }
@@ -1790,50 +5972,6 @@ function importAdminEdits(event) {
 function resetAdminEdits() {
   localStorage.removeItem(ADMIN_STORAGE_KEY);
   window.location.reload();
-}
-
-async function addCustomProductFromAdmin() {
-  const name = document.querySelector("#newProductName").value.trim();
-  const tag = document.querySelector("#newProductTag").value.trim() || "New set";
-  const description = document.querySelector("#newProductDescription").value.trim();
-  const notes = document.querySelector("#newProductNotes").value.trim();
-  const price = document.querySelector("#newProductPrice").value.trim();
-  const category = document.querySelector("#newProductCategory").value.trim() || "custom";
-  const file = newProductPhoto.files[0];
-  if (!name || !description || !price || !file) {
-    addProductStatus.textContent = "Add a name, description, price, and product photo.";
-    return;
-  }
-  addProductButton.disabled = true;
-  addProductStatus.textContent = "Adding product...";
-  const image = await fileToCompressedDataUrl(file);
-  adminState.customProducts.push({ name, tag, description, notes, price, category, image });
-  saveAdminState();
-  renderCustomProducts();
-  renderAdminProducts();
-  autoGrowTextareas();
-  document.querySelector(".add-product-form").querySelectorAll("input, textarea").forEach((input) => {
-    input.value = "";
-  });
-  clearNewProductPreview();
-  addProductButton.disabled = false;
-  addProductStatus.textContent = "Product added to the shop.";
-}
-
-async function previewNewProductPhoto() {
-  const file = newProductPhoto.files && newProductPhoto.files[0];
-  if (!file) {
-    clearNewProductPreview();
-    return;
-  }
-  newProductPreview.src = await fileToCompressedDataUrl(file);
-  newProductPreview.hidden = false;
-  addProductStatus.textContent = "Photo ready.";
-}
-
-function clearNewProductPreview() {
-  newProductPreview.removeAttribute("src");
-  newProductPreview.hidden = true;
 }
 
 function drawingContext() {
@@ -2598,6 +6736,16 @@ async function addDesignIdea() {
   if (ideaPhoto.files && ideaPhoto.files[0] && !image) {
     image = await fileToCompressedDataUrl(ideaPhoto.files[0], 1000, 0.84);
   }
+  if (image) {
+    ideaStatusMessage.textContent = "Uploading idea photo to the live website...";
+    const upload = await uploadAdminPhoto(image, "idea");
+    if (!upload.ok) {
+      localSaveAdminState();
+      ideaStatusMessage.textContent = liveSaveFailureMessage(upload.error);
+      return;
+    }
+    image = upload.url;
+  }
   adminState.ideas.unshift({
     id: `idea-${Date.now()}`,
     createdAt: new Date().toLocaleString(),
@@ -2612,14 +6760,19 @@ async function addDesignIdea() {
     price: ideaPrice.value.trim(),
     image
   });
-  saveAdminState();
+  const result = await saveAdminState({
+    statusTarget: ideaStatusMessage,
+    savingMessage: "Saving idea to the live website...",
+    successMessage: "Idea saved to the live website."
+  });
   renderIdeas();
+  if (!result.ok) return;
   [ideaName, ideaShape, ideaLength, ideaColors, ideaArt, ideaMaterials, ideaNotes, ideaPrice].forEach((input) => {
     input.value = "";
   });
   ideaStatus.value = "Idea";
   clearIdeaPhotoPreview();
-  ideaStatusMessage.textContent = "Idea saved to the design studio.";
+  ideaStatusMessage.textContent = "Idea saved to the live website.";
   autoGrowTextareas();
 }
 
@@ -2655,7 +6808,7 @@ function renderIdeas() {
                 </label>
                 <label>Target price <input data-idea="${index}" data-field="price" value="${escapeAttribute(idea.price || "")}" /></label>
               </div>
-              <button class="button secondary wide" type="button" data-idea-to-product="${index}">Use In Product Form</button>
+              <button class="button secondary wide" type="button" data-idea-to-product="${index}">Send To Product Library</button>
             </div>
           </article>
         `)
@@ -2671,72 +6824,271 @@ function updateIdeaFromCard(event) {
   const key = field.dataset.field;
   if (!adminState.ideas[index] || !key) return;
   adminState.ideas[index][key] = field.value;
-  saveAdminState();
+  localSaveAdminState();
+  scheduleRemoteAdminStateSave({
+    statusTarget: ideaStatusMessage,
+    savingMessage: "Saving idea changes to the live website...",
+    showSuccess: true,
+    successMessage: "Idea changes saved to the live website."
+  });
   if (key === "name") {
     const title = field.closest(".idea-card")?.querySelector(".admin-product-head strong");
     if (title) title.textContent = field.value || "Untitled idea";
   }
 }
 
-function handleIdeaListClick(event) {
+async function handleIdeaListClick(event) {
   const deleteButton = event.target.closest("[data-delete-idea]");
   if (deleteButton) {
     adminState.ideas.splice(Number(deleteButton.dataset.deleteIdea), 1);
-    saveAdminState();
+    const result = await saveAdminState({
+      statusTarget: ideaStatusMessage,
+      savingMessage: "Removing idea from the live website...",
+      successMessage: "Idea removed from the live website."
+    });
     renderIdeas();
+    if (!result.ok) return;
     return;
   }
   const productButton = event.target.closest("[data-idea-to-product]");
   if (productButton) {
     const idea = adminState.ideas[Number(productButton.dataset.ideaToProduct)];
     if (!idea) return;
-    document.querySelector("#newProductName").value = idea.name || "";
-    document.querySelector("#newProductPrice").value = idea.price || "";
-    document.querySelector("#newProductCategory").value = [idea.shape, idea.length, idea.status].filter(Boolean).join(", ");
-    document.querySelector("#newProductDescription").value = [idea.shape, idea.length, idea.art].filter(Boolean).join(" - ");
-    document.querySelector("#newProductNotes").value = [
-      idea.colors ? `Colors: ${idea.colors}` : "",
-      idea.materials ? `Materials: ${idea.materials}` : "",
-      idea.notes ? `Notes: ${idea.notes}` : ""
-    ].filter(Boolean).join("\n\n");
-    switchAdminView("site");
-    document.querySelector("#newProductName").focus();
-    addProductStatus.textContent = "Idea copied into the product form.";
-    autoGrowTextareas();
+    await copyIdeaToProductLibrary(idea);
   }
 }
 
+function adminInlineEditingActive() {
+  return textEditMode && isAdminSignedIn();
+}
+
+function inlineProductAddCardMarkup() {
+  return `
+    <article class="product inline-editor-card is-visible" data-inline-editor-card="true">
+      <div class="inline-editor-card-inner">
+        <span class="inline-plus-orb" aria-hidden="true">+</span>
+        <span class="inline-editor-kicker">Admin only</span>
+        <strong>Add product draft</strong>
+        <p>Add private product drafts here first. Publish only when a product is ready for customers.</p>
+        <button class="button primary" type="button" data-inline-add-product>Add Draft In Inventory</button>
+      </div>
+    </article>
+  `;
+}
+
+function inlineInventoryCardMarkup(look) {
+  return `
+    <article class="product inline-editor-card inline-inventory-card is-visible" data-inline-editor-card="true" data-inline-inventory="${look.index}">
+      <div class="nail-preview photo-preview" aria-hidden="true">
+        ${look.photo ? `<img src="${escapeAttribute(look.photo)}" alt="" data-photo-fit="${escapeAttribute(look.photoFit)}" data-photo-position="${escapeAttribute(look.photoPosition)}" style="${photoTransformStyle(look.photoTransform, look.photoZoom)}" />` : ""}
+      </div>
+      <div class="inline-editor-card-inner">
+        <span class="inline-editor-kicker">Inventory</span>
+        <strong>${escapeHTML(look.name)}</strong>
+        <p>${escapeHTML(look.copy || "Saved in inventory, not currently visible in the Shop.")}</p>
+        <div class="inline-product-actions always-visible">
+          <button class="button primary" type="button" data-inline-publish-inventory="${look.index}">Publish To Shop</button>
+          <button class="button danger" type="button" data-inline-delete-inventory="${look.index}">Delete Inventory</button>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function bindInlineShopEditorControls() {
+  productGrid?.querySelectorAll("[data-inline-add-product]").forEach((button) => {
+    button.addEventListener("click", startInlineProductAdd);
+  });
+  productGrid?.querySelectorAll("[data-inline-product-input]").forEach((input) => {
+    input.addEventListener("input", updateInlineProductFormField);
+    input.addEventListener("change", updateInlineProductFormField);
+  });
+  productGrid?.querySelectorAll("[data-inline-edit-product-photo]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await openProductPhotoPicker(Number(button.dataset.inlineEditProductPhoto));
+    });
+  });
+  productGrid?.querySelectorAll("[data-inline-withdraw-product]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await removePublishedProduct(Number(button.dataset.inlineWithdrawProduct));
+    });
+  });
+  productGrid?.querySelectorAll("[data-inline-delete-product-inventory]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await deletePublishedProductInventory(Number(button.dataset.inlineDeleteProductInventory));
+    });
+  });
+  productGrid?.querySelectorAll("[data-inline-publish-inventory]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await publishLookToShop(Number(button.dataset.inlinePublishInventory));
+    });
+  });
+  productGrid?.querySelectorAll("[data-inline-delete-inventory]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await deleteInventoryProduct(Number(button.dataset.inlineDeleteInventory));
+    });
+  });
+}
+
+async function openProductPhotoPicker(index) {
+  const product = adminState.customProducts[index];
+  if (!product) return;
+  const image = productGrid?.querySelector(`[data-admin-product-image-index="${index}"]`);
+  if (image) {
+    await openInlineImagePicker(image);
+    return;
+  }
+  ensureInlineImageInput();
+  inlineImageEditTarget = {
+    imageKey: "",
+    productIndex: String(index),
+    element: productGrid?.querySelector(`[data-admin-product-placeholder-index="${index}"]`) || null
+  };
+  adminInlineImageInput.value = "";
+  adminInlineImageInput.click();
+}
+
+function updateInlineProductFormField(event) {
+  if (!textEditMode || !isAdminSignedIn()) return;
+  const input = event.target.closest("[data-inline-product-input]");
+  if (!input) return;
+  const index = Number(input.dataset.inlineProductIndex);
+  const field = input.dataset.inlineProductInput;
+  const product = adminState.customProducts[index];
+  if (!product || !field) return;
+  const value = field === "price" || field === "salePrice" ? normalizeMoneyValue(input.value) : input.value.trim();
+  product[field] = value;
+  applyAutomaticDiscount(product, field);
+  if (field === "price" || field === "discount") {
+    const saleInput = input.closest(".inline-product-store-fields")?.querySelector('[data-inline-product-input="salePrice"]');
+    if (saleInput) saleInput.value = product.salePrice || "";
+  }
+  syncPublishedProductBackToLook(product, { [field]: value });
+  if (field === "price" || field === "discount") {
+    syncPublishedProductBackToLook(product, { salePrice: product.salePrice || "" });
+  }
+  if (event.type === "change") renderCustomProducts();
+  queueInlineAdminSave("Saving product details...");
+}
+
 function renderCustomProducts() {
-  document.querySelectorAll(".product.custom-added").forEach((product) => product.remove());
-  adminState.customProducts.forEach((product) => {
+  productGrid.innerHTML = "";
+  const canInlineEdit = adminInlineEditingActive();
+  if (canInlineEdit) {
+    productGrid.insertAdjacentHTML("beforeend", inlineProductAddCardMarkup());
+  }
+  if (!adminState.customProducts.length) {
+    if (filterRow) filterRow.hidden = true;
+    if (!canInlineEdit) {
+      const emptyState = document.createElement("article");
+      emptyState.className = "store-empty-state";
+      emptyState.innerHTML = `
+        <strong>New sets are being uploaded.</strong>
+        <p>Check back soon for fresh product photos.</p>
+      `;
+      productGrid.appendChild(emptyState);
+      return;
+    }
+  }
+  if (filterRow) filterRow.hidden = !adminState.customProducts.length;
+  adminState.customProducts.forEach((product, index) => {
+    const productForDisplay = { ...product, index };
+    const discountLabel = productDiscountLabel(productForDisplay);
+    const checkoutPrice = productCheckoutPrice(productForDisplay);
+    const soldOut = /sold\s*out|unavailable/i.test(product.stock || "");
+    const missingPrice = checkoutPrice <= 0;
     const article = document.createElement("article");
     article.className = "product custom-added is-visible";
     article.dataset.category = product.category;
+    article.dataset.adminProductIndex = String(index);
+    article.tabIndex = 0;
+    article.setAttribute("role", "link");
+    article.setAttribute("aria-label", `View details for ${product.name || "this product"}`);
     article.innerHTML = `
       <div class="nail-preview photo-preview" aria-hidden="true">
-        <img src="${escapeAttribute(product.image)}" alt="" />
+        ${productImageMarkup(product, index)}
+        ${discountLabel ? `<span class="product-sale-badge">${escapeHTML(discountLabel)}</span>` : ""}
+        ${canInlineEdit ? `<div class="inline-product-actions photo-actions"><button type="button" data-inline-edit-product-photo="${index}">${product.image ? "Edit Photo" : "Add Photo"}</button></div>` : ""}
       </div>
       <div class="product-copy">
-        <p class="product-tag">${escapeHTML(product.tag)}</p>
-        <h3>${escapeHTML(product.name)}</h3>
+        <p class="product-tag" data-admin-product-index="${index}" data-admin-product-field="tag">${escapeHTML(product.tag)}</p>
+        <h3 data-admin-product-index="${index}" data-admin-product-field="name">${escapeHTML(product.name)}</h3>
         <div class="swatch-row" aria-label="Color palette">
           <span style="--swatch: #ffe0eb"></span>
           <span style="--swatch: #f3659e"></span>
           <span style="--swatch: #fff7fb"></span>
         </div>
-        <p>${escapeHTML(product.description)}</p>
+        <p data-admin-product-index="${index}" data-admin-product-field="description">${escapeHTML(product.description)}</p>
+        ${product.stock ? `<p class="product-stock">${escapeHTML(product.stock)}</p>` : ""}
         <div class="product-bottom">
-          <strong>$${escapeHTML(product.price)}</strong>
-          <button type="button" data-name="${escapeAttribute(product.name)}" data-price="${escapeAttribute(product.price)}">Add</button>
+          ${productPriceMarkup(productForDisplay)}
+          <button type="button" data-name="${escapeAttribute(product.name)}" data-price="${escapeAttribute(checkoutPrice)}"${soldOut || missingPrice ? " disabled" : ""}>${soldOut ? "Sold Out" : missingPrice ? "Set Price" : "Add"}</button>
         </div>
+        ${canInlineEdit ? `
+          <div class="inline-product-store-fields" aria-label="Admin product details">
+            <strong>Store details</strong>
+            <label>Regular price
+              <input data-inline-product-index="${index}" data-inline-product-input="price" value="${escapeAttribute(product.price || "")}" inputmode="decimal" placeholder="45" />
+            </label>
+            <label>Sale price
+              <input data-inline-product-index="${index}" data-inline-product-input="salePrice" value="${escapeAttribute(product.salePrice || "")}" inputmode="decimal" placeholder="Auto or custom" />
+            </label>
+            <label>Discount
+              <select data-inline-product-index="${index}" data-inline-product-input="discount">
+                ${optionMarkup(discountOptions, product.discount)}
+              </select>
+            </label>
+            <label>Stock/status
+              <select data-inline-product-index="${index}" data-inline-product-input="stock">
+                ${optionMarkup(stockOptions, product.stock)}
+              </select>
+            </label>
+            <label>Style/category
+              <select data-inline-product-index="${index}" data-inline-product-input="category">
+                ${optionMarkup(categoryOptions, product.category)}
+              </select>
+            </label>
+            <label>Private notes
+              <textarea data-inline-product-index="${index}" data-inline-product-input="notes" placeholder="Polish colors, charms, sizing notes, timing...">${escapeTextarea(product.notes || "")}</textarea>
+            </label>
+          </div>
+          <div class="inline-product-actions">
+            <button type="button" data-inline-withdraw-product="${index}">Withdraw From Shop</button>
+            <button class="danger" type="button" data-inline-delete-product-inventory="${index}">Delete Forever</button>
+          </div>
+        ` : ""}
       </div>
     `;
     article.querySelector("[data-name]").addEventListener("click", (event) => {
       addToCart(event.currentTarget.dataset.name, event.currentTarget.dataset.price);
     });
+    article.addEventListener("click", (event) => {
+      if (event.target.closest("button, a, input, select, textarea, label, [contenteditable='true']")) return;
+      if (adminInlineEditingActive()) return;
+      openProductDetail(index);
+    });
+    article.addEventListener("keydown", (event) => {
+      if (event.target !== article || !["Enter", " "].includes(event.key) || adminInlineEditingActive()) return;
+      event.preventDefault();
+      openProductDetail(index);
+    });
     productGrid.appendChild(article);
   });
+  if (canInlineEdit) {
+    lookLibrary
+      .map((_, index) => readLookData(index))
+      .filter((look) => look.active && !look.published)
+      .forEach((look) => {
+        productGrid.insertAdjacentHTML("beforeend", inlineInventoryCardMarkup(look));
+      });
+  }
+  const activeFilter = document.querySelector(".filter.active")?.dataset.filter || "all";
+  applyProductFilter(activeFilter);
+  bindInlineShopEditorControls();
   setupProductTryOns();
+  markEditableText();
+  syncInlineEditMode();
+  if (currentPageKey === "product" && selectedProductIndex >= 0) renderProductDetail();
 }
 
 setupAdmin();
