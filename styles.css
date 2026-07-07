@@ -3522,11 +3522,13 @@ figcaption {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
 .admin-section-actions {
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .admin-section-title p,
@@ -3546,6 +3548,15 @@ figcaption {
   color: var(--berry);
   font-size: 0.78rem;
   font-weight: 800;
+}
+
+.product-library-section .admin-section-title {
+  align-items: start;
+}
+
+.product-library-section .admin-section-actions {
+  justify-content: flex-end;
+  max-width: 100%;
 }
 
 .admin-section-actions button {
@@ -4125,15 +4136,18 @@ body.photo-lightbox-open {
 }
 
 .admin-look-preview {
+  position: relative;
   min-height: 220px;
+  overflow: hidden;
   border-radius: 16px;
 }
 
 .published-ribbon {
   position: absolute;
   top: 0.65rem;
-  right: 0.65rem;
+  left: 0.65rem;
   z-index: 2;
+  max-width: calc(100% - 1.3rem);
   border-radius: 999px;
   padding: 0.38rem 0.6rem;
   background: rgba(237, 244, 236, 0.94);
@@ -4149,6 +4163,7 @@ body.photo-lightbox-open {
   align-content: center;
   gap: 0.5rem;
   min-width: 0;
+  overflow: hidden;
 }
 
 .admin-look-copy label {
@@ -7757,5 +7772,105 @@ body.admin-inventory-open {
     display: block;
     width: 100%;
     transform: translate(0, var(--admin-text-y, 0)) !important;
+  }
+}
+
+@media (min-width: 621px) and (max-width: 1180px) {
+  .admin-editor {
+    gap: 0.85rem;
+  }
+
+  .admin-section-title {
+    align-items: start;
+  }
+
+  .admin-look-list {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-look-card {
+    grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .admin-look-preview {
+    height: clamp(220px, 31vw, 310px);
+    min-height: 0;
+  }
+
+  .admin-look-preview img {
+    max-height: none;
+  }
+
+  .look-publish-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .look-publish-actions .tiny-upload,
+  .look-publish-actions .button,
+  .look-publish-actions .photo-fit-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-product-card {
+    grid-template-columns: minmax(220px, 0.34fr) minmax(0, 1fr);
+  }
+
+  .product-library-section .admin-section-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, max-content));
+    justify-content: start;
+    width: 100%;
+  }
+
+  .product-library-section .admin-section-actions span,
+  .product-library-section .admin-section-actions button {
+    min-width: 0;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  .admin-edit-toolbar {
+    right: 12px;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    width: auto;
+    max-width: 900px;
+    margin-inline: auto;
+    gap: 0.45rem;
+    padding: 0.55rem;
+    border-radius: 18px;
+  }
+
+  .admin-edit-toolbar-copy {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .admin-edit-toolbar-copy span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-edit-toolbar-actions {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.35rem;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .admin-edit-toolbar button,
+  .admin-edit-toolbar a {
+    min-height: 38px;
+    padding: 0.48rem 0.55rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
   }
 }
