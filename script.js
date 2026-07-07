@@ -1632,8 +1632,9 @@ function scheduleScrollChrome() {
 function finishPageTransition(nextPage) {
   if (!nextPage) return;
   sitePages().forEach((page) => {
+    page.hidden = page !== nextPage;
     page.classList.remove("is-turning-out", "is-turning-in");
-    page.classList.toggle("is-active", page === nextPage && !page.hidden);
+    page.classList.toggle("is-active", page === nextPage);
   });
   updateBookStatus(nextPage.dataset.pagePanel || currentPageKey);
 }
@@ -1654,7 +1655,8 @@ function showSitePage(pageKey, options = {}) {
   if (productPage) productPage.hidden = resolvedKey !== "product";
   body.classList.toggle("product-detail-open", resolvedKey === "product");
   const targetPage = pageElement(resolvedKey);
-  if (!targetPage || targetPage.hidden) return;
+  if (!targetPage) return;
+  targetPage.hidden = false;
 
   if (track && resolvedKey !== currentPageKey) {
     pageVisitStack = [...pageVisitStack.filter((key) => key !== currentPageKey), currentPageKey].slice(-8);
@@ -1766,6 +1768,7 @@ function showAdminPage() {
   if (window.location.hash !== "#adminPage") {
     history.replaceState(null, "", "#adminPage");
   }
+  adminPage.hidden = false;
   showSitePage("home", { updateHash: false, force: true });
   renderAdminVisibility();
   adminPage.hidden = false;
