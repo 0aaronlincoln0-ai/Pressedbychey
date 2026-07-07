@@ -3060,6 +3060,10 @@ figcaption {
   font-weight: 800;
 }
 
+.cart-status.is-error {
+  color: #9f1239;
+}
+
 .scrim {
   position: fixed;
   inset: 0;

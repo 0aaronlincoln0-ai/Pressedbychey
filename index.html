@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260626-photo-replace-v4" />
+    <link rel="stylesheet" href="styles.css?v=20260707-stripe-checkout-v1" />
   </head>
   <body>
     <div class="scroll-progress" aria-hidden="true"></div>
@@ -313,16 +313,17 @@
         </div>
         <p class="cart-mini-note">Chey will confirm sizing, timing, and any custom notes before your set is finished.</p>
         <div class="cart-checkout-actions">
-          <button type="button" class="button primary wide" id="checkoutButton">Checkout With Account</button>
+          <button type="button" class="button primary wide" id="checkoutButton">Pay Securely With Stripe</button>
           <button type="button" class="button secondary wide" id="guestCheckoutOpen">Checkout As Guest</button>
         </div>
+        <p class="cart-status" id="checkoutStatus" role="status"></p>
         <details class="guest-checkout" id="guestCheckout">
           <summary>Checkout as guest</summary>
           <label>Name <input id="guestName" autocomplete="name" placeholder="Full name" /></label>
           <label>Email <input id="guestEmail" type="email" autocomplete="email" placeholder="Email for order updates" /></label>
           <label>Phone <input id="guestPhone" autocomplete="tel" placeholder="Phone number" /></label>
           <label>Order notes <textarea id="guestNotes" placeholder="Sizing, delivery, or design notes"></textarea></label>
-          <button type="button" class="button secondary wide" id="guestCheckoutButton">Place Guest Order</button>
+          <button type="button" class="button secondary wide" id="guestCheckoutButton">Continue To Secure Payment</button>
           <p class="cart-status" id="guestCheckoutStatus" role="status"></p>
         </details>
       </div>
@@ -649,6 +650,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260626-photo-replace-v4"></script>
+    <script src="script.js?v=20260707-stripe-checkout-v1"></script>
   </body>
 </html>

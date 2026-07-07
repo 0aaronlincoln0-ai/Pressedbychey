@@ -94,6 +94,7 @@ const pageLinks = () => document.querySelectorAll("[data-page-link]");
 const navBar = document.querySelector(".nav");
 const scrollProgress = document.querySelector(".scroll-progress");
 const checkoutButton = document.querySelector("#checkoutButton");
+const checkoutStatus = document.querySelector("#checkoutStatus");
 const accountAuth = document.querySelector("#accountAuth");
 const accountDashboard = document.querySelector("#accountDashboard");
 const accountStatus = document.querySelector("#accountStatus");
@@ -199,6 +200,9 @@ const ADMIN_LIVE_SAVE_FAILURE_MESSAGE = "Saved on this device. Live site sync is
 const ADMIN_LIVE_SAVE_SUCCESS_MESSAGE = "Saved to the live website.";
 const CUSTOMER_STORAGE_KEY = "pressedByCheyCustomers";
 const GUEST_ORDER_STORAGE_KEY = "pressedByCheyGuestOrders";
+const STRIPE_CHECKOUT_ENDPOINT = "/.netlify/functions/create-checkout-session";
+const STRIPE_CHECKOUT_STATUS_ENDPOINT = "/.netlify/functions/checkout-status";
+const CHECKOUT_PENDING_ORDER_KEY = "pressedByCheyPendingCheckoutOrder";
 const nailSizeOptions = ["", "000", "00", "0", "0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
 const sizeFingerKeys = ["thumb", "index", "middle", "ring", "pinky"];
 const sizeHandKeys = ["left", "right"];
@@ -2617,7 +2621,8 @@ function updateInlineProductElement(el) {
   const addButton = card?.querySelector("[data-name]");
   if (addButton) {
     addButton.dataset.name = product.name || "";
-    addButton.dataset.price = product.price || "";
+    addButton.dataset.price = productCheckoutPrice({ ...product, index });
+    addButton.dataset.productIndex = String(index);
   }
   queueInlineAdminSave("Saving product...");
 }
@@ -3572,25 +3577,22 @@ function checkoutCart() {
   if (!cart.length) return;
   const user = currentCustomer();
   if (!user) {
-    openGuestCheckout("Sign in for account checkout, or place this order as a guest.");
+    openGuestCheckout("Add your contact info and continue to secure payment.");
     return;
   }
-  const total = cartTotalValue();
-  user.orders = user.orders || [];
-  user.orders.unshift({
-    id: `Order ${String(user.orders.length + 1).padStart(3, "0")}`,
-    date: new Date().toLocaleDateString(),
-    total,
-    items: cart.map((item) => ({ ...item, image: item.image ? "Reference photo attached" : "" }))
+  if (cartHasOnlyQuoteRequests()) {
+    saveAccountQuoteOrder(user);
+    return;
+  }
+  startStripeCheckout({
+    source: "account",
+    customer: {
+      mode: "account",
+      name: user.name,
+      email: user.email,
+      notes: customerSizesSummary(user)
+    }
   });
-  cart.splice(0, cart.length);
-  cartEmptyMessage = "Order saved to your account.";
-  saveCustomerState();
-  renderCart();
-  renderAccount();
-  renderAdminUsers();
-  closeCartDrawer();
-  openAccount("Order saved to your account.");
 }
 
 function openGuestCheckout(message = "Guest checkout is ready. Add your contact info and place the order.") {
@@ -3618,6 +3620,135 @@ function checkoutGuest() {
     guestCheckoutStatus.textContent = "Enter a valid email so Chey can send order updates.";
     return;
   }
+  if (cartHasOnlyQuoteRequests()) {
+    saveGuestQuoteOrder({ name, email, phone, notes });
+    return;
+  }
+  startStripeCheckout({
+    source: "guest",
+    customer: { mode: "guest", name, email, phone, notes }
+  });
+}
+
+function cartQuoteItems() {
+  return cart.filter((item) => item.customOrder || cartItemTotal(item) <= 0);
+}
+
+function cartHasOnlyQuoteRequests() {
+  return cart.length > 0 && cartQuoteItems().length === cart.length;
+}
+
+function cartHasMixedQuoteAndPayItems() {
+  const quoteCount = cartQuoteItems().length;
+  return quoteCount > 0 && quoteCount < cart.length;
+}
+
+function setCheckoutMessage(message = "", isError = false) {
+  if (checkoutStatus) {
+    checkoutStatus.textContent = message;
+    checkoutStatus.classList.toggle("is-error", Boolean(isError));
+  }
+  if (guestCheckout?.open && guestCheckoutStatus) {
+    guestCheckoutStatus.textContent = message;
+    guestCheckoutStatus.classList.toggle("is-error", Boolean(isError));
+  }
+}
+
+function setCheckoutBusy(isBusy) {
+  [checkoutButton, guestCheckoutButton, guestCheckoutOpen].forEach((button) => {
+    if (button) button.disabled = Boolean(isBusy);
+  });
+}
+
+function checkoutReturnBaseUrl() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+function checkoutProductIndex(value) {
+  if (value === "" || value === null || value === undefined) return "";
+  const index = Number(value);
+  return Number.isInteger(index) && index >= 0 ? index : "";
+}
+
+function checkoutLineItems() {
+  return cart.map((item) => ({
+    name: item.name,
+    price: item.price,
+    quantity: cartItemQuantity(item),
+    customOrder: Boolean(item.customOrder),
+    sourceProductIndex: checkoutProductIndex(item.sourceProductIndex),
+    category: item.category || "",
+    shape: item.shape || "",
+    note: item.note || ""
+  }));
+}
+
+function pendingCheckoutSnapshot(customer = {}) {
+  return {
+    createdAt: new Date().toISOString(),
+    customer,
+    items: cart.map((item) => ({ ...item, image: item.image ? "Reference photo attached" : "" })),
+    total: cartTotalValue()
+  };
+}
+
+async function startStripeCheckout({ source = "guest", customer = {} } = {}) {
+  if (!cart.length) return;
+  if (cartHasMixedQuoteAndPayItems()) {
+    setCheckoutMessage("Payable products and quote-only custom requests need separate checkouts. Remove the quote request or pay for the ready products first.", true);
+    return;
+  }
+  const total = cartTotalValue();
+  if (total <= 0) {
+    setCheckoutMessage("This bag needs Chey to review it before payment because it does not have a final price.", true);
+    return;
+  }
+
+  setCheckoutBusy(true);
+  setCheckoutMessage("Opening secure Stripe checkout...");
+  try {
+    sessionStorage.setItem(CHECKOUT_PENDING_ORDER_KEY, JSON.stringify(pendingCheckoutSnapshot({ ...customer, source })));
+    const response = await fetch(STRIPE_CHECKOUT_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: checkoutLineItems(),
+        customer,
+        source,
+        returnBaseUrl: checkoutReturnBaseUrl()
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.url) {
+      throw new Error(data.error || "Stripe checkout could not start.");
+    }
+    window.location.assign(data.url);
+  } catch (error) {
+    setCheckoutBusy(false);
+    setCheckoutMessage(error.message || "Stripe checkout could not start.", true);
+  }
+}
+
+function saveAccountQuoteOrder(user) {
+  const total = cartTotalValue();
+  user.orders = user.orders || [];
+  user.orders.unshift({
+    id: `Quote ${String(user.orders.length + 1).padStart(3, "0")}`,
+    date: new Date().toLocaleDateString(),
+    total,
+    items: cart.map((item) => ({ ...item, image: item.image ? "Reference photo attached" : "" }))
+  });
+  cart.splice(0, cart.length);
+  cartEmptyMessage = "Custom request saved for Chey to review.";
+  saveCustomerState();
+  renderCart();
+  renderAccount();
+  renderAdminUsers();
+  closeCartDrawer();
+  openAccount("Custom request saved for Chey to review before payment.");
+}
+
+function saveGuestQuoteOrder({ name, email, phone, notes }) {
   const total = cartTotalValue();
   guestOrders.unshift({
     id: `Guest ${String(guestOrders.length + 1).padStart(3, "0")}`,
@@ -3640,6 +3771,102 @@ function checkoutGuest() {
   guestCheckout.open = false;
   guestCheckoutStatus.textContent = "";
   openCart();
+}
+
+function localPaidOrderFromServer(order = {}) {
+  const total = Number(order.total || 0) / 100 || cartTotalValue();
+  return {
+    id: order.id || `Paid ${new Date().toLocaleDateString()}`,
+    date: new Date(order.paidAt || Date.now()).toLocaleString(),
+    total: total % 1 === 0 ? String(total) : total.toFixed(2),
+    items: Array.isArray(order.items)
+      ? order.items.map((item) => ({
+          name: item.name,
+          price: Number(item.unitAmount || 0) / 100,
+          quantity: item.quantity,
+          shape: item.category || "",
+          image: item.image ? "Product photo attached" : ""
+        }))
+      : []
+  };
+}
+
+function recordPaidCheckoutLocally(order = {}) {
+  const paidOrder = localPaidOrderFromServer(order);
+  const pending = readPendingCheckoutSnapshot();
+  const email = (order.customer?.email || pending?.customer?.email || "").toLowerCase();
+  const user = customerState.users.find((item) => item.email === email) || currentCustomer();
+  if (user) {
+    user.orders = user.orders || [];
+    if (!user.orders.some((saved) => saved.id === paidOrder.id)) {
+      user.orders.unshift(paidOrder);
+      saveCustomerState();
+    }
+    renderAccount();
+    renderAdminUsers();
+    return;
+  }
+
+  if (!guestOrders.some((saved) => saved.id === paidOrder.id)) {
+    guestOrders.unshift({
+      ...paidOrder,
+      name: order.customer?.name || pending?.customer?.name || "Guest customer",
+      email,
+      phone: order.customer?.phone || pending?.customer?.phone || "",
+      notes: order.customer?.notes || pending?.customer?.notes || ""
+    });
+    saveGuestOrders();
+    renderAdminGuestOrders();
+  }
+}
+
+function readPendingCheckoutSnapshot() {
+  try {
+    return JSON.parse(sessionStorage.getItem(CHECKOUT_PENDING_ORDER_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+async function handleCheckoutReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const checkoutResult = params.get("checkout");
+  if (!checkoutResult) return;
+
+  openCart();
+  if (checkoutResult === "cancel") {
+    setCheckoutMessage("Payment was canceled. Your bag is still here when you are ready.", true);
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.hash || "#shop"}`);
+    return;
+  }
+
+  const sessionId = params.get("session_id");
+  if (!sessionId) {
+    setCheckoutMessage("Stripe sent you back, but the checkout session was missing. Check Stripe before remaking the order.", true);
+    return;
+  }
+
+  setCheckoutMessage("Confirming payment with Stripe...");
+  try {
+    const response = await fetch(`${STRIPE_CHECKOUT_STATUS_ENDPOINT}?session_id=${encodeURIComponent(sessionId)}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || "Payment could not be verified.");
+    }
+    if (!data.paid) {
+      setCheckoutMessage("Checkout returned without a completed payment. If this looks wrong, check the Stripe dashboard.", true);
+      return;
+    }
+    recordPaidCheckoutLocally(data.order);
+    cart.splice(0, cart.length);
+    cartEmptyMessage = "Payment received. Thank you for your order.";
+    renderCart();
+    sessionStorage.removeItem(CHECKOUT_PENDING_ORDER_KEY);
+    setCheckoutMessage("Payment received. Chey has the order details and will follow up with sizing/timing.");
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.hash || "#shop"}`);
+  } catch (error) {
+    setCheckoutMessage(error.message || "Payment verification failed. Check Stripe before remaking the order.", true);
+  }
 }
 
 function renderAdminUsers() {
@@ -3683,7 +3910,9 @@ function renderAdminGuestOrders() {
 }
 
 document.querySelectorAll("[data-name]").forEach((button) => {
-  button.addEventListener("click", () => addToCart(button.dataset.name, button.dataset.price));
+  button.addEventListener("click", () => addToCart(button.dataset.name, button.dataset.price, {
+    sourceProductIndex: checkoutProductIndex(button.dataset.productIndex)
+  }));
 });
 
 accountButton.addEventListener("click", () => openAccount());
@@ -4055,12 +4284,14 @@ if (customAdd && customDetails && shade && shape) {
 
 setupNailSizeDropdowns();
 loadCustomerState();
+loadGuestOrders();
 renderCart();
 renderAccount();
 renderLooks();
 updateBuilder();
 setupProductTryOns();
 setupPhotoZoom();
+handleCheckoutReturn();
 
 document.querySelectorAll(".nail-preview, .builder-preview").forEach((tray) => {
   let shineFrame = 0;
@@ -4135,7 +4366,6 @@ function imageUrlFromStyle(element) {
 async function setupAdmin() {
   bindAdminRemoteSyncEvents();
   loadAdminState();
-  loadGuestOrders();
   migrateLegacyAdminTextKeys();
   repairCorruptedQuickFieldCopy();
   markEditableText();
@@ -7022,7 +7252,7 @@ function renderCustomProducts() {
         ${product.stock ? `<p class="product-stock">${escapeHTML(product.stock)}</p>` : ""}
         <div class="product-bottom">
           ${productPriceMarkup(productForDisplay)}
-          <button type="button" data-name="${escapeAttribute(product.name)}" data-price="${escapeAttribute(checkoutPrice)}"${soldOut || missingPrice ? " disabled" : ""}>${soldOut ? "Sold Out" : missingPrice ? "Set Price" : "Add"}</button>
+          <button type="button" data-name="${escapeAttribute(product.name)}" data-price="${escapeAttribute(checkoutPrice)}" data-product-index="${index}"${soldOut || missingPrice ? " disabled" : ""}>${soldOut ? "Sold Out" : missingPrice ? "Set Price" : "Add"}</button>
         </div>
         ${canInlineEdit ? `
           <div class="inline-product-store-fields" aria-label="Admin product details">
@@ -7060,7 +7290,12 @@ function renderCustomProducts() {
       </div>
     `;
     article.querySelector("[data-name]").addEventListener("click", (event) => {
-      addToCart(event.currentTarget.dataset.name, event.currentTarget.dataset.price);
+      addToCart(event.currentTarget.dataset.name, event.currentTarget.dataset.price, {
+        image: product.image || "",
+        shape: detectProductShape(`${product.name || ""} ${product.description || ""}`) || "",
+        category: product.category || "",
+        sourceProductIndex: index
+      });
     });
     article.addEventListener("click", (event) => {
       if (event.target.closest("button, a, input, select, textarea, label, [contenteditable='true']")) return;
@@ -7091,4 +7326,6 @@ function renderCustomProducts() {
   if (currentPageKey === "product" && selectedProductIndex >= 0) renderProductDetail();
 }
 
-setupAdmin();
+setupAdmin().catch((error) => {
+  console.error("Pressed by Chey startup failed", error);
+});
