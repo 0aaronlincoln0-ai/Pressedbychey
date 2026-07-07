@@ -12,6 +12,7 @@ const guestCheckout = document.querySelector("#guestCheckout");
 const guestName = document.querySelector("#guestName");
 const guestEmail = document.querySelector("#guestEmail");
 const guestPhone = document.querySelector("#guestPhone");
+const guestSizing = document.querySelector("#guestSizing");
 const guestNotes = document.querySelector("#guestNotes");
 const guestCheckoutButton = document.querySelector("#guestCheckoutButton");
 const guestCheckoutOpen = document.querySelector("#guestCheckoutOpen");
@@ -3027,6 +3028,11 @@ function orderRequestNotesMarkup(order = {}) {
     : "";
 }
 
+function orderSizingMarkup(order = {}) {
+  const sizing = orderSizingSummary(order);
+  return sizing ? `<p class="order-request-note"><strong>Sizing:</strong> ${escapeHTML(sizing)}</p>` : "";
+}
+
 function handleCustomOrderPhotoUpload() {
   if (!customOrderPhoto || !customOrderPreviewImage || !customOrderPhotoName || !customOrderPreview) return;
   const file = customOrderPhoto.files?.[0];
@@ -3163,6 +3169,24 @@ function customerSizesSummary(user) {
   return `Sizes - ${handSizeSummary("Left", sizes.left)}; ${handSizeSummary("Right", sizes.right)}`;
 }
 
+function customerCheckoutPayload(user) {
+  const sizing = customerSizesSummary(user);
+  return {
+    mode: "account",
+    name: user.name,
+    email: user.email,
+    sizing,
+    notes: sizing
+  };
+}
+
+function orderSizingSummary(order = {}) {
+  const sizing = order.customer?.sizing || order.sizing || "";
+  if (sizing) return sizing;
+  const notes = order.customer?.notes || order.notes || "";
+  return /^Sizes\b|^Sizes\s*-|^Sizes not saved/i.test(notes) ? notes : "";
+}
+
 function loadCustomerState() {
   try {
     const saved = JSON.parse(localStorage.getItem(CUSTOMER_STORAGE_KEY) || "{}");
@@ -3280,6 +3304,7 @@ function renderOrderHistory(user) {
               <strong>${escapeHTML(order.id)}</strong>
               <p>${escapeHTML(order.date)} · $${order.total}</p>
               <p>${escapeHTML(order.items.map(orderItemSummary).join(", "))}</p>
+              ${orderSizingMarkup(order)}
               ${orderRequestNotesMarkup(order)}
             </div>
           `
@@ -3642,18 +3667,18 @@ function checkoutCart() {
     openGuestCheckout("Add your contact info and continue to secure payment.");
     return;
   }
+  if (!hasSavedHandSizes(user.sizes)) {
+    setCheckoutMessage("Save your nail sizing in your profile before checking out, or use guest checkout and enter sizing there.", true);
+    openAccount("Save your left and right hand sizing before checkout.");
+    return;
+  }
   if (cartHasOnlyQuoteRequests()) {
     saveAccountQuoteOrder(user);
     return;
   }
   startStripeCheckout({
     source: "account",
-    customer: {
-      mode: "account",
-      name: user.name,
-      email: user.email,
-      notes: customerSizesSummary(user)
-    }
+    customer: customerCheckoutPayload(user)
   });
 }
 
@@ -3673,6 +3698,7 @@ function checkoutGuest() {
   const name = guestName.value.trim();
   const email = guestEmail.value.trim();
   const phone = guestPhone.value.trim();
+  const sizing = guestSizing?.value.trim() || "";
   const notes = guestNotes.value.trim();
   if (!name || !email) {
     guestCheckoutStatus.textContent = "Add a name and email for guest checkout.";
@@ -3682,13 +3708,19 @@ function checkoutGuest() {
     guestCheckoutStatus.textContent = "Enter a valid email so Chey can send order updates.";
     return;
   }
+  if (!sizing) {
+    guestCheckoutStatus.textContent = "Add sizing before guest checkout so Chey knows what to make.";
+    guestCheckoutStatus.classList.add("is-error");
+    guestSizing?.focus();
+    return;
+  }
   if (cartHasOnlyQuoteRequests()) {
-    saveGuestQuoteOrder({ name, email, phone, notes });
+    saveGuestQuoteOrder({ name, email, phone, sizing, notes });
     return;
   }
   startStripeCheckout({
     source: "guest",
-    customer: { mode: "guest", name, email, phone, notes }
+    customer: { mode: "guest", name, email, phone, sizing, notes }
   });
 }
 
@@ -3798,6 +3830,8 @@ function saveAccountQuoteOrder(user) {
     id: `Quote ${String(user.orders.length + 1).padStart(3, "0")}`,
     date: new Date().toLocaleDateString(),
     total,
+    customer: customerCheckoutPayload(user),
+    sizing: customerSizesSummary(user),
     items: cart.map((item) => ({ ...item, image: item.image ? "Reference photo attached" : "" }))
   });
   cart.splice(0, cart.length);
@@ -3810,7 +3844,7 @@ function saveAccountQuoteOrder(user) {
   openAccount("Custom request saved for Chey to review before payment.");
 }
 
-function saveGuestQuoteOrder({ name, email, phone, notes }) {
+function saveGuestQuoteOrder({ name, email, phone, sizing, notes }) {
   const total = cartTotalValue();
   guestOrders.unshift({
     id: `Guest ${String(guestOrders.length + 1).padStart(3, "0")}`,
@@ -3818,14 +3852,16 @@ function saveGuestQuoteOrder({ name, email, phone, notes }) {
     name,
     email,
     phone,
+    sizing,
     notes,
+    customer: { mode: "guest", name, email, phone, sizing, notes },
     total,
     items: cart.map((item) => ({ ...item, image: item.image ? "Reference photo attached" : "" }))
   });
   cart.splice(0, cart.length);
   cartEmptyMessage = "Your guest order has been saved.";
-  [guestName, guestEmail, guestPhone, guestNotes].forEach((input) => {
-    input.value = "";
+  [guestName, guestEmail, guestPhone, guestSizing, guestNotes].forEach((input) => {
+    if (input) input.value = "";
   });
   saveGuestOrders();
   renderCart();
@@ -3841,6 +3877,8 @@ function localPaidOrderFromServer(order = {}) {
     id: order.id || `Paid ${new Date().toLocaleDateString()}`,
     date: new Date(order.paidAt || Date.now()).toLocaleString(),
     total: total % 1 === 0 ? String(total) : total.toFixed(2),
+    customer: order.customer || {},
+    sizing: orderSizingSummary(order),
     items: Array.isArray(order.items)
       ? order.items.map((item) => ({
           name: item.name,
@@ -3875,6 +3913,7 @@ function recordPaidCheckoutLocally(order = {}) {
       name: order.customer?.name || pending?.customer?.name || "Guest customer",
       email,
       phone: order.customer?.phone || pending?.customer?.phone || "",
+      sizing: order.customer?.sizing || pending?.customer?.sizing || paidOrder.sizing || "",
       notes: order.customer?.notes || pending?.customer?.notes || ""
     });
     saveGuestOrders();
@@ -3945,6 +3984,7 @@ function renderAdminUsers() {
               <p>${escapeHTML(sizes)}</p>
               <p>${(user.savedProducts || []).length} saved products · ${(user.orders || []).length} orders</p>
               <p>${escapeHTML((user.orders || []).map((order) => order.id).join(", ") || "No order history")}</p>
+              ${(user.orders || []).slice(0, 2).map(orderSizingMarkup).join("")}
               ${(user.orders || []).slice(0, 2).map(orderRequestNotesMarkup).join("")}
             </div>
           `;
@@ -3963,6 +4003,7 @@ function renderAdminGuestOrders() {
             <p>${escapeHTML(order.date)} - $${order.total}</p>
             <p>${escapeHTML(order.email)}${order.phone ? ` - ${escapeHTML(order.phone)}` : ""}</p>
             <p>${escapeHTML((order.items || []).map(orderItemSummary).join(", "))}</p>
+            ${orderSizingMarkup(order)}
             ${orderRequestNotesMarkup(order)}
             ${order.notes ? `<p>${escapeHTML(order.notes)}</p>` : ""}
           </div>
@@ -4096,6 +4137,10 @@ function renderAdminLiveOrders() {
                   <h4>Customer</h4>
                   <p>${escapeHTML(orderCustomerEmail(order) || "No email saved")}</p>
                   <p>${escapeHTML(orderCustomerPhone(order) || "No phone saved")}</p>
+                </section>
+                <section>
+                  <h4>Sizing</h4>
+                  <p>${escapeHTML(orderSizingSummary(order) || "No sizing saved with this order")}</p>
                 </section>
                 <section>
                   <h4>Shipping</h4>

@@ -208,6 +208,7 @@ async function createStripeCheckoutSession({ key, order, baseUrl, request }) {
   params.append("payment_intent_data[metadata][order_notification_email]", orderNotificationEmail());
   params.append("payment_intent_data[metadata][customer_name]", order.customer.name || "");
   params.append("payment_intent_data[metadata][customer_email]", order.customer.email || "");
+  if (order.customer.sizing) params.append("payment_intent_data[metadata][customer_sizing]", safeText(order.customer.sizing, "", 480));
   params.append("phone_number_collection[enabled]", "true");
   params.append("shipping_address_collection[allowed_countries][0]", "US");
   params.append("billing_address_collection", "auto");
@@ -265,8 +266,12 @@ export default async (request) => {
       name: safeText(payload?.customer?.name, "", 100),
       email: safeText(payload?.customer?.email, "", 120).toLowerCase(),
       phone: safeText(payload?.customer?.phone, "", 40),
+      sizing: safeText(payload?.customer?.sizing, "", 700),
       notes: safeText(payload?.customer?.notes, "", 450)
     };
+    if (customer.mode === "guest" && !customer.sizing) {
+      throw new Error("Add sizing before guest checkout so Chey knows what to make.");
+    }
     const order = {
       id: `pbc-${Date.now()}-${randomUUID().slice(0, 8)}`,
       status: "created",

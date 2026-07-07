@@ -3290,6 +3290,32 @@ figcaption {
   resize: vertical;
 }
 
+.guest-checkout .guest-sizing-required {
+  position: relative;
+}
+
+.guest-checkout .guest-sizing-required::after {
+  content: "Required";
+  justify-self: start;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.18rem 0.52rem;
+  background: rgba(203, 46, 114, 0.1);
+  color: var(--berry);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.guest-checkout .guest-sizing-help {
+  margin: -0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .cart-status {
   min-height: 1.2rem;
   margin: 0;
@@ -6577,20 +6603,19 @@ h2,
 
 .home-fit-guide .photo-proof-grid img {
   box-sizing: border-box;
-  height: clamp(150px, 18vw, 250px);
-  padding: clamp(0.45rem, 1.25vw, 0.85rem);
+  height: auto;
+  aspect-ratio: 1659 / 948;
+  padding: 0;
   object-fit: contain;
   object-position: center center;
-  background:
-    radial-gradient(circle at 22% 18%, rgba(255, 231, 243, 0.72), transparent 34%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 251, 0.92));
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: #fff7fb;
+  border: 1px solid rgba(203, 46, 114, 0.12);
   border-radius: 22px;
 }
 
 @media (min-width: 621px) and (max-width: 980px) and (orientation: portrait) {
   .home-fit-guide .photo-proof-grid img {
-    height: clamp(155px, 18vw, 230px);
+    height: auto;
   }
 }
 
@@ -6600,7 +6625,7 @@ h2,
   }
 
   .home-fit-guide .photo-proof-grid img {
-    height: clamp(145px, 44vw, 215px);
+    height: auto;
   }
 }
 
