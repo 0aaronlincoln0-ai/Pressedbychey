@@ -683,17 +683,18 @@ const discountOptions = [
   ["Limited", "Limited badge"]
 ];
 
+const nailShapeOptions = [
+  ["almond", "Almond"],
+  ["square", "Square"],
+  ["coffin", "Coffin"],
+  ["oval", "Oval"],
+  ["stiletto", "Stiletto"],
+  ["round", "Round"]
+];
+
 const categoryOptions = [
-  ["custom", "Custom / handmade"],
-  ["chrome", "Chrome"],
-  ["jelly", "Jelly"],
-  ["coquette", "Coquette"],
-  ["french", "French tip"],
-  ["aura", "Aura"],
-  ["cat-eye", "Cat-eye"],
-  ["glitter", "Glitter"],
-  ["seasonal", "Seasonal"],
-  ["sizing-kit", "Sizing kit"]
+  ["", "Choose nail shape"],
+  ...nailShapeOptions
 ];
 
 const stockOptions = [
@@ -2050,7 +2051,7 @@ function inventoryPricingSummary(look) {
 
 function inventoryCardMeta(look) {
   const publishedAt = adminState.lookDetails?.[look.index]?.publishedAt || "";
-  const categoryLabel = optionLabel(categoryOptions, look.finish, "Custom / handmade");
+  const categoryLabel = optionLabel(categoryOptions, look.finish, "Shape not set");
   const stockLabel = optionLabel(stockOptions, look.stock || "Available", look.stock || "Available");
   const pricing = inventoryPricingSummary(look);
   return {
@@ -2167,7 +2168,7 @@ function renderAdminInventoryPanel() {
               <label>Sale price
                 <input data-inventory-index="${look.index}" data-inventory-field="salePrice" value="${escapeAttribute(look.salePrice)}" inputmode="decimal" placeholder="Auto" />
               </label>
-              <label>Category
+              <label>Nail shape
                 <select data-inventory-index="${look.index}" data-inventory-field="finish">
                   ${optionMarkup(categoryOptions, look.finish)}
                 </select>
@@ -3543,7 +3544,7 @@ function productDetailCustomerData(product, index) {
     copy: product.description || "Handmade by Chey.",
     price: productCheckoutPrice({ ...product, index }),
     image: product.image || "",
-    shape: detectProductShape(`${product.name || ""} ${product.description || ""}`) || ""
+    shape: productShapeCustomerValue(product)
   };
 }
 
@@ -3577,7 +3578,7 @@ function renderProductDetail() {
   const soldOut = /sold\s*out|unavailable/i.test(product.stock || "");
   const missingPrice = checkoutPrice <= 0;
   const discountLabel = productDiscountLabel(productForDisplay);
-  const categoryLabel = optionLabel(categoryOptions, product.category, "Custom / handmade");
+  const shapeLabel = productShapeLabel(product);
   const stockLabel = optionLabel(stockOptions, product.stock || "Available", product.stock || "Available");
   const skuMarkup = product.sku ? `<span><small>Product code</small><strong>${escapeHTML(product.sku)}</strong></span>` : "";
 
@@ -3600,7 +3601,7 @@ function renderProductDetail() {
         <p class="product-detail-description">${escapeHTML(product.description || "A handmade Pressed by Chey set, created and finished with care.")}</p>
         <div class="product-detail-facts" aria-label="Product details">
           <span><small>Availability</small><strong>${escapeHTML(stockLabel)}</strong></span>
-          <span><small>Style</small><strong>${escapeHTML(categoryLabel)}</strong></span>
+          <span><small>Shape</small><strong>${escapeHTML(shapeLabel)}</strong></span>
           ${skuMarkup}
         </div>
         <div class="product-detail-confidence">
@@ -3634,7 +3635,7 @@ function renderProductDetail() {
     addToCart(item.name, item.price, {
       image: item.image,
       shape: item.shape,
-      category: product.category || "",
+      category: productCategoryValue(product),
       quantity: productDetailQuantity,
       sourceProductIndex: selectedProductIndex
     });
@@ -4300,14 +4301,28 @@ scrim.addEventListener("click", closeAccountPanel);
 scrim.addEventListener("click", closeAdmin);
 
 function applyProductFilter(filter) {
+  const existingEmptyState = productGrid?.querySelector(".product-filter-empty");
+  if (existingEmptyState) existingEmptyState.remove();
+  let visibleCount = 0;
   document.querySelectorAll(".product").forEach((product) => {
     if (product.dataset.inlineEditorCard === "true") {
       product.classList.remove("hidden");
       return;
     }
-    const isMatch = filter === "all" || product.dataset.category === filter;
+    const isMatch = filter === "all" || product.dataset.shape === filter;
     product.classList.toggle("hidden", !isMatch);
+    if (isMatch) visibleCount += 1;
   });
+  if (productGrid && filter !== "all" && visibleCount === 0) {
+    const activeFilterLabel = document.querySelector(`.filter[data-filter="${CSS.escape(filter)}"]`)?.textContent?.trim() || "that shape";
+    const emptyState = document.createElement("article");
+    emptyState.className = "store-empty-state product-filter-empty";
+    emptyState.innerHTML = `
+      <strong>No ${escapeHTML(activeFilterLabel)} sets are live yet.</strong>
+      <p>Check All sets, or ask Chey about a custom ${escapeHTML(activeFilterLabel.toLowerCase())} shape.</p>
+    `;
+    productGrid.appendChild(emptyState);
+  }
 }
 
 document.querySelectorAll(".filter").forEach((button) => {
@@ -4589,10 +4604,41 @@ function previewProductOnHand(product) {
 
 function detectProductShape(text) {
   const copy = text.toLowerCase();
-  if (copy.includes("coffin")) return "coffin";
-  if (copy.includes("square")) return "square";
-  if (copy.includes("almond") || copy.includes("oval")) return "almond";
+  if (copy.includes("stiletto")) return "stiletto";
+  if (copy.includes("ballerina") || copy.includes("coffin")) return "coffin";
+  if (copy.includes("soft square") || copy.includes("square")) return "square";
+  if (copy.includes("round") || copy.includes("short")) return "round";
+  if (copy.includes("oval")) return "oval";
+  if (copy.includes("almond")) return "almond";
   return "";
+}
+
+function normalizeNailShape(value) {
+  const copy = String(value || "").toLowerCase().trim();
+  if (copy === "stiletto") return "stiletto";
+  if (copy === "ballerina" || copy === "coffin") return "coffin";
+  if (copy === "soft-square" || copy === "soft square" || copy === "square") return "square";
+  if (copy === "round" || copy === "short") return "round";
+  if (copy === "oval") return "oval";
+  if (copy === "almond") return "almond";
+  return "";
+}
+
+function productShapeFilterValue(product = {}) {
+  return normalizeNailShape(product.category) || detectProductShape(`${product.name || ""} ${product.description || ""} ${product.tag || ""}`);
+}
+
+function productShapeLabel(product = {}, fallback = "Shape not set") {
+  const shape = productShapeFilterValue(product);
+  return optionLabel(nailShapeOptions, shape, fallback);
+}
+
+function productCategoryValue(product = {}) {
+  return productShapeFilterValue(product) || product.category || "";
+}
+
+function productShapeCustomerValue(product = {}) {
+  return productShapeLabel(product, "");
 }
 
 if (customAdd && customDetails && shade && shape) {
@@ -6286,7 +6332,7 @@ function renderAdminProducts() {
           </label>
         </div>
         <div class="admin-field-row">
-          <label>Style
+          <label>Nail shape
             <select data-custom-product="${index}" data-field="category">
               ${optionMarkup(categoryOptions, product.category)}
             </select>
@@ -7581,13 +7627,15 @@ function renderCustomProducts() {
   if (filterRow) filterRow.hidden = !adminState.customProducts.length;
   adminState.customProducts.forEach((product, index) => {
     const productForDisplay = { ...product, index };
+    const productShape = productShapeFilterValue(product);
     const discountLabel = productDiscountLabel(productForDisplay);
     const checkoutPrice = productCheckoutPrice(productForDisplay);
     const soldOut = /sold\s*out|unavailable/i.test(product.stock || "");
     const missingPrice = checkoutPrice <= 0;
     const article = document.createElement("article");
     article.className = "product custom-added is-visible";
-    article.dataset.category = product.category;
+    article.dataset.category = productCategoryValue(product);
+    article.dataset.shape = productShape;
     article.dataset.adminProductIndex = String(index);
     article.tabIndex = 0;
     article.setAttribute("role", "link");
@@ -7626,7 +7674,7 @@ function renderCustomProducts() {
                 ${optionMarkup(stockOptions, product.stock)}
               </select>
             </label>
-            <label>Style/category
+            <label>Nail shape
               <select data-inline-product-index="${index}" data-inline-product-input="category">
                 ${optionMarkup(categoryOptions, product.category)}
               </select>
@@ -7645,8 +7693,8 @@ function renderCustomProducts() {
     article.querySelector("[data-name]").addEventListener("click", (event) => {
       addToCart(event.currentTarget.dataset.name, event.currentTarget.dataset.price, {
         image: product.image || "",
-        shape: detectProductShape(`${product.name || ""} ${product.description || ""}`) || "",
-        category: product.category || "",
+        shape: productShapeCustomerValue(product),
+        category: productCategoryValue(product),
         sourceProductIndex: index
       });
     });
