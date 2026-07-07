@@ -4568,17 +4568,14 @@ function productElementsForTryOn() {
 
 function previewProductOnHand(product) {
   if (!builderPreview || !shape) return;
-  const swatches = Array.from(product.querySelectorAll(".swatch-row span")).map((item) =>
-    item.style.getPropertyValue("--swatch").trim()
-  );
   const name = product.querySelector("h3").textContent.trim();
   const description = product.querySelector(".product-copy > p:not(.product-tag)").textContent.trim();
   const price = productPriceFromCard(product);
   const image = product.querySelector(".photo-preview img")?.getAttribute("src") || "";
   selectedLook = {
     name,
-    base: swatches[0] || "#fff3f8",
-    accent: swatches[1] || swatches[0] || "#ff9fc3",
+    base: "#fff3f8",
+    accent: "#ff9fc3",
     finish: product.dataset.category || "gloss",
     copy: description,
     photo: image,
@@ -7604,11 +7601,6 @@ function renderCustomProducts() {
       <div class="product-copy">
         <p class="product-tag" data-admin-product-index="${index}" data-admin-product-field="tag">${escapeHTML(product.tag)}</p>
         <h3 data-admin-product-index="${index}" data-admin-product-field="name">${escapeHTML(product.name)}</h3>
-        <div class="swatch-row" aria-label="Color palette">
-          <span style="--swatch: #ffe0eb"></span>
-          <span style="--swatch: #f3659e"></span>
-          <span style="--swatch: #fff7fb"></span>
-        </div>
         <p data-admin-product-index="${index}" data-admin-product-field="description">${escapeHTML(product.description)}</p>
         ${product.stock ? `<p class="product-stock">${escapeHTML(product.stock)}</p>` : ""}
         <div class="product-bottom">

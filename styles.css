@@ -1371,22 +1371,6 @@ img[data-photo-position="right"] {
   animation: catEyeSweep 4.2s ease-in-out infinite;
 }
 
-.swatch-row {
-  display: flex;
-  gap: 0.35rem;
-  margin: -0.1rem 0 0.75rem;
-}
-
-.swatch-row span {
-  display: block;
-  width: 24px;
-  height: 24px;
-  border: 2px solid white;
-  border-radius: 50%;
-  background: var(--swatch);
-  box-shadow: 0 0 0 1px var(--line), 0 8px 18px rgba(143, 29, 81, 0.12);
-}
-
 .product-copy {
   padding: 1.1rem;
 }
