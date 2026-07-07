@@ -897,10 +897,18 @@ h3 {
   line-height: 1.65;
 }
 
+.footer p {
+  max-width: 42rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .footer-contact-links {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem 0.8rem;
+  align-items: center;
+  max-width: 100%;
   margin-top: 0.45rem;
 }
 
@@ -909,6 +917,7 @@ h3 {
 .cart-support-card a {
   color: var(--berry);
   font-weight: 900;
+  overflow-wrap: anywhere;
   text-decoration: none;
 }
 
@@ -917,6 +926,15 @@ h3 {
 .cart-support-card a:hover {
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+
+.footer .admin-text-positioned,
+.feature .admin-text-positioned,
+.product .admin-text-positioned,
+.fit-grid article .admin-text-positioned,
+.review-track figure .admin-text-positioned {
+  display: revert;
+  transform: none !important;
 }
 
 .section-heading {
@@ -2254,9 +2272,9 @@ figcaption {
 }
 
 .footer {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
@@ -2265,15 +2283,23 @@ figcaption {
 }
 
 .footer-brand {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   min-width: 0;
   gap: 0.9rem;
 }
 
+.footer-brand > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.28rem;
+}
+
 .footer-logo {
   width: 64px;
   height: 64px;
+  flex: 0 0 auto;
   object-fit: contain;
 }
 

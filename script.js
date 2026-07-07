@@ -272,6 +272,7 @@ const quickContentFields = [
   { key: "review-2-name", label: "Review 2 name", selector: '.review-track figure:nth-of-type(2) figcaption' },
   { key: "review-3-quote", label: "Review 3 quote", selector: '.review-track figure:nth-of-type(3) blockquote', multiline: true },
   { key: "review-3-name", label: "Review 3 name", selector: '.review-track figure:nth-of-type(3) figcaption' },
+  { key: "footer-brand-title", label: "Footer brand title", selector: ".footer strong" },
   { key: "footer-description", label: "Footer description", selector: ".footer p", multiline: true }
 ];
 const layoutSectionMeta = [
@@ -382,7 +383,18 @@ const lookLibrary = Array.from({ length: MAX_LOOK_SLOTS }, (_, index) => {
     finish: "custom"
   };
 });
-const legacyCopyMigrations = [];
+const legacyCopyMigrations = [
+  {
+    selector: ".footer strong",
+    from: "Shop the latest sets",
+    to: "Pressed by Chey"
+  },
+  {
+    selector: ".footer p",
+    from: "Fresh uploads from Chey's current collection.",
+    to: "Handmade press-on nail sets, custom color drops, and pink favorites."
+  }
+];
 const corruptedQuickCopyRules = [
   {
     key: "hero-description",
@@ -2498,6 +2510,7 @@ function isEditableTextControlCandidate(el) {
   if (!el || !el.dataset.adminText) return false;
   if (el.hidden || adminState.hiddenText?.[el.dataset.adminText]) return false;
   if (el.closest(".admin-edit-toolbar, .admin-inventory-panel, .account-panel, .cart-drawer, .admin-page")) return false;
+  if (isTextOffsetProtected(el)) return false;
   const panel = el.closest("[data-page-panel]");
   if (panel && panel.dataset.pagePanel !== currentPageKey) return false;
   const rect = el.getBoundingClientRect();
@@ -5053,6 +5066,10 @@ function markEditableText() {
   applyHiddenTextState();
 }
 
+function isTextOffsetProtected(el) {
+  return Boolean(el?.closest?.(".footer, .feature, .product, .fit-grid article, .review-track figure, .service-strip, .cart-support-card"));
+}
+
 function applyHiddenTextState() {
   document.querySelectorAll("[data-admin-text]").forEach((el) => {
     const key = el.dataset.adminText;
@@ -5079,6 +5096,12 @@ function sanitizeTextOffset(value = {}) {
 
 function applyTextOffset(el, key = el?.dataset?.adminText) {
   if (!el || !key) return;
+  if (isTextOffsetProtected(el)) {
+    el.classList.remove("admin-text-positioned");
+    el.style.removeProperty("--admin-text-x");
+    el.style.removeProperty("--admin-text-y");
+    return;
+  }
   const offset = sanitizeTextOffset(adminState.textOffsets?.[key]);
   const hasOffset = Math.abs(offset.x) > 0.5 || Math.abs(offset.y) > 0.5;
   el.classList.toggle("admin-text-positioned", hasOffset);
