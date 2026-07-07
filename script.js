@@ -145,6 +145,12 @@ const adminGuestOrderList = document.querySelector("#adminGuestOrderList");
 const adminLiveOrderList = document.querySelector("#adminLiveOrderList");
 const liveOrderStatus = document.querySelector("#liveOrderStatus");
 const refreshLiveOrdersButton = document.querySelector("#refreshLiveOrders");
+const orderDatePreset = document.querySelector("#orderDatePreset");
+const orderDateFrom = document.querySelector("#orderDateFrom");
+const orderDateTo = document.querySelector("#orderDateTo");
+const clearOrderDateFilters = document.querySelector("#clearOrderDateFilters");
+const collapseAllOrders = document.querySelector("#collapseAllOrders");
+const expandAllOrders = document.querySelector("#expandAllOrders");
 const adminNewOrdersCount = document.querySelector("#adminNewOrdersCount");
 const adminWorkingOrdersCount = document.querySelector("#adminWorkingOrdersCount");
 const adminDoneOrdersCount = document.querySelector("#adminDoneOrdersCount");
@@ -223,6 +229,7 @@ let customerState = {
 let passwordResetRequest = null;
 let guestOrders = [];
 let liveOrders = [];
+let collapsedLiveOrderIds = new Set();
 let adminSession = null;
 let adminState = {
   texts: {},
@@ -4081,6 +4088,65 @@ function formatOrderDate(value) {
   });
 }
 
+function orderDateForFiltering(order = {}) {
+  const candidates = [order.paidAt, order.createdAt, order.updatedAt, order.date].filter(Boolean);
+  for (const value of candidates) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) return date;
+  }
+  return null;
+}
+
+function orderDateSummary(order = {}) {
+  const date = orderDateForFiltering(order);
+  return date ? formatOrderDate(date.toISOString()) : "Date not saved";
+}
+
+function localDateInputToDate(value, endOfDay = false) {
+  if (!value) return null;
+  const [year, month, day] = String(value).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  if (endOfDay) date.setDate(date.getDate() + 1);
+  return date;
+}
+
+function activeOrderDateRange() {
+  const preset = orderDatePreset?.value || "all";
+  const now = new Date();
+  if (preset === "today") {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return { preset, start, end };
+  }
+  if (preset === "7" || preset === "30") {
+    const start = new Date(now);
+    start.setDate(start.getDate() - Number(preset));
+    return { preset, start, end: null };
+  }
+  if (preset === "custom") {
+    return {
+      preset,
+      start: localDateInputToDate(orderDateFrom?.value),
+      end: localDateInputToDate(orderDateTo?.value, true)
+    };
+  }
+  return { preset: "all", start: null, end: null };
+}
+
+function filteredLiveOrders() {
+  const { start, end } = activeOrderDateRange();
+  return liveOrders.filter((order) => {
+    if (!start && !end) return true;
+    const date = orderDateForFiltering(order);
+    if (!date) return false;
+    if (start && date < start) return false;
+    if (end && date >= end) return false;
+    return true;
+  });
+}
+
 function orderPaymentDetail(order = {}) {
   if (order.paymentStatus === "paid") {
     return order.paidAt ? `Paid ${formatOrderDate(order.paidAt)}` : "Payment confirmed by checkout.";
@@ -4088,11 +4154,11 @@ function orderPaymentDetail(order = {}) {
   return "Do not make or ship until payment says Paid.";
 }
 
-function updateAdminDashboardSummary() {
+function updateAdminDashboardSummary(orders = liveOrders) {
   const incomingStatuses = new Set(["Payment pending", "Needs review"]);
   const workingStatuses = new Set(["Needs making", "Making", "Packing", "Ready to ship", "Shipped"]);
   const doneStatuses = new Set(["Completed", "Canceled"]);
-  const counts = liveOrders.reduce((summary, order) => {
+  const counts = orders.reduce((summary, order) => {
     const status = orderWorkflowStatus(order);
     if (incomingStatuses.has(status)) summary.incoming += 1;
     else if (workingStatuses.has(status)) summary.working += 1;
@@ -4108,68 +4174,122 @@ function updateAdminDashboardSummary() {
 
 function renderAdminLiveOrders() {
   if (!adminLiveOrderList) return;
-  updateAdminDashboardSummary();
-  adminLiveOrderList.innerHTML = liveOrders.length
-    ? liveOrders
+  const visibleOrders = filteredLiveOrders();
+  updateAdminDashboardSummary(visibleOrders);
+  adminLiveOrderList.innerHTML = visibleOrders.length
+    ? visibleOrders
         .map((order) => {
+          const orderId = order.id || "";
           const status = orderWorkflowStatus(order);
           const paid = order.paymentStatus === "paid";
           const paymentLabel = orderPaymentStatusLabel(order);
+          const collapsed = collapsedLiveOrderIds.has(orderId);
           return `
-            <article class="admin-live-order-card ${paid ? "is-paid" : "is-pending"}">
+            <article class="admin-live-order-card ${paid ? "is-paid" : "is-pending"} ${collapsed ? "is-collapsed" : ""}">
               <div class="admin-live-order-head">
                 <div>
                   <span class="payment-pill ${paid ? "is-paid" : "is-pending"}">${escapeHTML(paymentLabel)}</span>
                   <strong>${escapeHTML(orderCustomerName(order))}</strong>
-                  <p>${escapeHTML(order.id || "Order")}</p>
+                  <p>${escapeHTML(order.id || "Order")} · ${escapeHTML(orderDateSummary(order))}</p>
                 </div>
                 <div class="admin-live-order-total">
                   <strong>${formatOrderMoney(order.total || order.amountTotal, order.currency)}</strong>
                   <small>${escapeHTML(status)}</small>
+                  <button class="admin-order-collapse" type="button" data-toggle-live-order="${escapeAttribute(orderId)}" aria-expanded="${collapsed ? "false" : "true"}">
+                    ${collapsed ? "Open" : "Collapse"}
+                  </button>
                 </div>
               </div>
-              <div class="admin-live-order-grid">
-                <section>
-                  <h4>Products to make / ship</h4>
-                  ${(order.items || []).map((item) => `<p>${escapeHTML(orderItemWorkflowSummary(item))}</p>`).join("") || "<p>No product line items saved.</p>"}
-                </section>
-                <section>
-                  <h4>Customer</h4>
-                  <p>${escapeHTML(orderCustomerEmail(order) || "No email saved")}</p>
-                  <p>${escapeHTML(orderCustomerPhone(order) || "No phone saved")}</p>
-                </section>
-                <section>
-                  <h4>Sizing</h4>
-                  <p>${escapeHTML(orderSizingSummary(order) || "No sizing saved with this order")}</p>
-                </section>
-                <section>
-                  <h4>Shipping</h4>
-                  <p>${escapeHTML(orderShippingSummary(order))}</p>
-                </section>
-                <section class="admin-live-order-payment">
-                  <h4>Payment</h4>
-                  <p><strong>${escapeHTML(paymentLabel)}</strong></p>
-                  <p>${escapeHTML(orderPaymentDetail(order))}</p>
-                </section>
-              </div>
-              <div class="admin-live-order-actions">
-                <label>Status
-                  <select data-live-order-status="${escapeAttribute(order.id)}">
-                    ${fulfillmentStatusOptions(status)}
-                  </select>
-                </label>
-                <label>Chey notes
-                  <textarea data-live-order-note="${escapeAttribute(order.id)}" placeholder="Sizing, make notes, tracking, pickup plan...">${escapeTextarea(order.adminNote || "")}</textarea>
-                </label>
-                <button type="button" data-save-live-order="${escapeAttribute(order.id)}">Save Order Update</button>
-                <button class="danger" type="button" data-delete-live-order="${escapeAttribute(order.id)}">Delete Order</button>
+              <div class="admin-live-order-body">
+                <div class="admin-live-order-grid">
+                  <section>
+                    <h4>Products to make / ship</h4>
+                    ${(order.items || []).map((item) => `<p>${escapeHTML(orderItemWorkflowSummary(item))}</p>`).join("") || "<p>No product line items saved.</p>"}
+                  </section>
+                  <section>
+                    <h4>Customer</h4>
+                    <p>${escapeHTML(orderCustomerEmail(order) || "No email saved")}</p>
+                    <p>${escapeHTML(orderCustomerPhone(order) || "No phone saved")}</p>
+                  </section>
+                  <section>
+                    <h4>Sizing</h4>
+                    <p>${escapeHTML(orderSizingSummary(order) || "No sizing saved with this order")}</p>
+                  </section>
+                  <section>
+                    <h4>Shipping</h4>
+                    <p>${escapeHTML(orderShippingSummary(order))}</p>
+                  </section>
+                  <section class="admin-live-order-payment">
+                    <h4>Payment</h4>
+                    <p><strong>${escapeHTML(paymentLabel)}</strong></p>
+                    <p>${escapeHTML(orderPaymentDetail(order))}</p>
+                  </section>
+                </div>
+                <div class="admin-live-order-actions">
+                  <label>Status
+                    <select data-live-order-status="${escapeAttribute(order.id)}">
+                      ${fulfillmentStatusOptions(status)}
+                    </select>
+                  </label>
+                  <label>Chey notes
+                    <textarea data-live-order-note="${escapeAttribute(order.id)}" placeholder="Sizing, make notes, tracking, pickup plan...">${escapeTextarea(order.adminNote || "")}</textarea>
+                  </label>
+                  <button type="button" data-save-live-order="${escapeAttribute(order.id)}">Save Order Update</button>
+                  <button class="danger" type="button" data-delete-live-order="${escapeAttribute(order.id)}">Delete Order</button>
+                </div>
               </div>
             </article>
           `;
         })
         .join("")
-    : `<div class="admin-user-card"><p>No live paid orders yet. New checkout orders will show here after customers start checkout.</p></div>`;
+    : `<div class="admin-user-card"><p>${liveOrders.length ? "No orders match the selected date filter." : "No live paid orders yet. New checkout orders will show here after customers start checkout."}</p></div>`;
   autoGrowTextareas(adminLiveOrderList);
+}
+
+function setLiveOrderFilterStatus(prefix = "Showing") {
+  if (!liveOrderStatus) return;
+  if (!liveOrders.length) {
+    setAdminMessage(liveOrderStatus, `${prefix} 0 live orders.`);
+    return;
+  }
+  const visibleCount = filteredLiveOrders().length;
+  const suffix = visibleCount === liveOrders.length ? "" : ` after date filter`;
+  setAdminMessage(liveOrderStatus, `${prefix} ${visibleCount} of ${liveOrders.length} live order${liveOrders.length === 1 ? "" : "s"}${suffix}.`);
+}
+
+function applyLiveOrderDateFilters({ message = true } = {}) {
+  renderAdminLiveOrders();
+  if (message) setLiveOrderFilterStatus();
+}
+
+function toggleLiveOrderCollapse(orderId) {
+  if (!orderId) return;
+  if (collapsedLiveOrderIds.has(orderId)) collapsedLiveOrderIds.delete(orderId);
+  else collapsedLiveOrderIds.add(orderId);
+  renderAdminLiveOrders();
+}
+
+function collapseVisibleLiveOrders() {
+  filteredLiveOrders().forEach((order) => {
+    if (order.id) collapsedLiveOrderIds.add(order.id);
+  });
+  renderAdminLiveOrders();
+  setLiveOrderFilterStatus("Collapsed");
+}
+
+function expandVisibleLiveOrders() {
+  filteredLiveOrders().forEach((order) => {
+    if (order.id) collapsedLiveOrderIds.delete(order.id);
+  });
+  renderAdminLiveOrders();
+  setLiveOrderFilterStatus("Expanded");
+}
+
+function clearLiveOrderDateFilters() {
+  if (orderDatePreset) orderDatePreset.value = "all";
+  if (orderDateFrom) orderDateFrom.value = "";
+  if (orderDateTo) orderDateTo.value = "";
+  applyLiveOrderDateFilters();
 }
 
 async function fetchAdminLiveOrders({ showStatus = true } = {}) {
@@ -4183,7 +4303,7 @@ async function fetchAdminLiveOrders({ showStatus = true } = {}) {
     if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not load live orders.");
     liveOrders = Array.isArray(payload.orders) ? payload.orders : [];
     renderAdminLiveOrders();
-    if (showStatus) setAdminMessage(liveOrderStatus, `Loaded ${liveOrders.length} live order${liveOrders.length === 1 ? "" : "s"}.`);
+    if (showStatus) setLiveOrderFilterStatus("Loaded");
   } catch (error) {
     setAdminMessage(liveOrderStatus, error.message || "Could not load live orders.");
   }
@@ -4234,6 +4354,11 @@ async function deleteAdminLiveOrder(orderId) {
 }
 
 function handleAdminLiveOrderClick(event) {
+  const toggleButton = event.target.closest("[data-toggle-live-order]");
+  if (toggleButton) {
+    toggleLiveOrderCollapse(toggleButton.dataset.toggleLiveOrder);
+    return;
+  }
   const saveButton = event.target.closest("[data-save-live-order]");
   if (saveButton) {
     saveAdminLiveOrderUpdate(saveButton.dataset.saveLiveOrder);
@@ -4274,6 +4399,18 @@ guestCheckoutOpen.addEventListener("click", () => openGuestCheckout());
 guestCheckoutButton.addEventListener("click", checkoutGuest);
 refreshLiveOrdersButton?.addEventListener("click", () => fetchAdminLiveOrders());
 adminLiveOrderList?.addEventListener("click", handleAdminLiveOrderClick);
+orderDatePreset?.addEventListener("change", () => applyLiveOrderDateFilters());
+orderDateFrom?.addEventListener("change", () => {
+  if (orderDatePreset) orderDatePreset.value = "custom";
+  applyLiveOrderDateFilters();
+});
+orderDateTo?.addEventListener("change", () => {
+  if (orderDatePreset) orderDatePreset.value = "custom";
+  applyLiveOrderDateFilters();
+});
+clearOrderDateFilters?.addEventListener("click", clearLiveOrderDateFilters);
+collapseAllOrders?.addEventListener("click", collapseVisibleLiveOrders);
+expandAllOrders?.addEventListener("click", expandVisibleLiveOrders);
 
 savedProductsList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-add-saved]");

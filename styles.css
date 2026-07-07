@@ -2757,6 +2757,58 @@ figcaption {
   gap: 1rem;
 }
 
+.admin-order-tools {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) repeat(2, minmax(130px, 0.8fr)) repeat(3, auto);
+  align-items: end;
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(143, 29, 81, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-order-tools label {
+  display: grid;
+  gap: 0.28rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-order-tools select,
+.admin-order-tools input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.62rem;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.admin-order-tools button,
+.admin-order-collapse {
+  min-height: 42px;
+  border: 1px solid rgba(143, 29, 81, 0.14);
+  border-radius: 14px;
+  padding: 0.62rem 0.85rem;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--berry);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
 .admin-live-order-card {
   display: grid;
   gap: 1rem;
@@ -2817,6 +2869,26 @@ figcaption {
   justify-items: end;
   gap: 0.25rem;
   text-align: right;
+}
+
+.admin-live-order-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-live-order-card.is-collapsed {
+  gap: 0;
+  padding-block: 0.85rem;
+}
+
+.admin-live-order-card.is-collapsed .admin-live-order-body {
+  display: none;
+}
+
+.admin-order-collapse:hover,
+.admin-order-tools button:hover {
+  border-color: rgba(203, 46, 114, 0.32);
+  box-shadow: 0 10px 22px rgba(143, 29, 81, 0.1);
 }
 
 .admin-live-order-grid {
@@ -7543,6 +7615,7 @@ body.admin-inventory-open {
 @media (max-width: 700px) {
   .admin-view-tabs,
   .admin-dashboard-summary,
+  .admin-order-tools,
   .admin-live-order-head,
   .admin-live-order-grid,
   .admin-live-order-actions {

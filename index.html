@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260707-remove-round-filter-v1" />
+    <link rel="stylesheet" href="styles.css?v=20260707-admin-order-collapse-date-filters-v1" />
   </head>
   <body>
     <div class="scroll-progress" aria-hidden="true"></div>
@@ -502,6 +502,26 @@
               </article>
             </div>
             <p class="admin-status" id="liveOrderStatus" role="status"></p>
+            <div class="admin-order-tools" aria-label="Order display tools">
+              <label>Date filter
+                <select id="orderDatePreset">
+                  <option value="all">All dates</option>
+                  <option value="today">Today</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="custom">Custom range</option>
+                </select>
+              </label>
+              <label>From
+                <input id="orderDateFrom" type="date" />
+              </label>
+              <label>To
+                <input id="orderDateTo" type="date" />
+              </label>
+              <button type="button" id="clearOrderDateFilters">Clear Dates</button>
+              <button type="button" id="collapseAllOrders">Collapse All</button>
+              <button type="button" id="expandAllOrders">Expand All</button>
+            </div>
             <div class="admin-live-order-list" id="adminLiveOrderList"></div>
           </section>
           <section class="admin-section admin-publish-note">
@@ -711,6 +731,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260707-remove-round-filter-v1"></script>
+    <script src="script.js?v=20260707-admin-order-collapse-date-filters-v1"></script>
   </body>
 </html>
