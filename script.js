@@ -688,8 +688,7 @@ const nailShapeOptions = [
   ["square", "Square"],
   ["coffin", "Coffin"],
   ["oval", "Oval"],
-  ["stiletto", "Stiletto"],
-  ["round", "Round"]
+  ["stiletto", "Stiletto"]
 ];
 
 const categoryOptions = [
@@ -4607,7 +4606,6 @@ function detectProductShape(text) {
   if (copy.includes("stiletto")) return "stiletto";
   if (copy.includes("ballerina") || copy.includes("coffin")) return "coffin";
   if (copy.includes("soft square") || copy.includes("square")) return "square";
-  if (copy.includes("round") || copy.includes("short")) return "round";
   if (copy.includes("oval")) return "oval";
   if (copy.includes("almond")) return "almond";
   return "";
@@ -4618,7 +4616,6 @@ function normalizeNailShape(value) {
   if (copy === "stiletto") return "stiletto";
   if (copy === "ballerina" || copy === "coffin") return "coffin";
   if (copy === "soft-square" || copy === "soft square" || copy === "square") return "square";
-  if (copy === "round" || copy === "short") return "round";
   if (copy === "oval") return "oval";
   if (copy === "almond") return "almond";
   return "";
