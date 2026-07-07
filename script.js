@@ -3997,6 +3997,32 @@ function orderWorkflowStatus(order = {}) {
   return order.fulfillmentStatus || (order.paymentStatus === "paid" ? "Needs review" : "Payment pending");
 }
 
+function orderPaymentStatusLabel(order = {}) {
+  if (order.paymentStatus === "paid") return "Paid";
+  if (order.paymentStatus === "unpaid") return "Not paid";
+  if (order.paymentStatus === "no_payment_required") return "No payment required";
+  return order.paymentStatus ? String(order.paymentStatus) : "Payment pending";
+}
+
+function formatOrderDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value || "");
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function orderPaymentDetail(order = {}) {
+  if (order.paymentStatus === "paid") {
+    return order.paidAt ? `Paid ${formatOrderDate(order.paidAt)}` : "Payment confirmed by checkout.";
+  }
+  return "Do not make or ship until payment says Paid.";
+}
+
 function updateAdminDashboardSummary() {
   const incomingStatuses = new Set(["Payment pending", "Needs review"]);
   const workingStatuses = new Set(["Needs making", "Making", "Packing", "Ready to ship", "Shipped"]);
@@ -4023,11 +4049,12 @@ function renderAdminLiveOrders() {
         .map((order) => {
           const status = orderWorkflowStatus(order);
           const paid = order.paymentStatus === "paid";
+          const paymentLabel = orderPaymentStatusLabel(order);
           return `
             <article class="admin-live-order-card ${paid ? "is-paid" : "is-pending"}">
               <div class="admin-live-order-head">
                 <div>
-                  <span>${escapeHTML(paid ? "Paid order" : "Payment pending")}</span>
+                  <span class="payment-pill ${paid ? "is-paid" : "is-pending"}">${escapeHTML(paymentLabel)}</span>
                   <strong>${escapeHTML(orderCustomerName(order))}</strong>
                   <p>${escapeHTML(order.id || "Order")}</p>
                 </div>
@@ -4050,6 +4077,11 @@ function renderAdminLiveOrders() {
                   <h4>Shipping</h4>
                   <p>${escapeHTML(orderShippingSummary(order))}</p>
                 </section>
+                <section class="admin-live-order-payment">
+                  <h4>Payment</h4>
+                  <p><strong>${escapeHTML(paymentLabel)}</strong></p>
+                  <p>${escapeHTML(orderPaymentDetail(order))}</p>
+                </section>
               </div>
               <div class="admin-live-order-actions">
                 <label>Status
@@ -4061,6 +4093,7 @@ function renderAdminLiveOrders() {
                   <textarea data-live-order-note="${escapeAttribute(order.id)}" placeholder="Sizing, make notes, tracking, pickup plan...">${escapeTextarea(order.adminNote || "")}</textarea>
                 </label>
                 <button type="button" data-save-live-order="${escapeAttribute(order.id)}">Save Order Update</button>
+                <button class="danger" type="button" data-delete-live-order="${escapeAttribute(order.id)}">Delete Order</button>
               </div>
             </article>
           `;
@@ -4111,10 +4144,36 @@ async function saveAdminLiveOrderUpdate(orderId) {
   }
 }
 
+async function deleteAdminLiveOrder(orderId) {
+  const order = liveOrders.find((item) => item.id === orderId);
+  const label = order ? `${orderCustomerName(order)} - ${formatOrderMoney(order.total || order.amountTotal, order.currency)}` : orderId;
+  if (!window.confirm(`Delete this order from Chey's dashboard?\n\n${label}\n\nOnly delete test, duplicate, or canceled orders.`)) return;
+  setAdminMessage(liveOrderStatus, "Deleting order...");
+  try {
+    const response = await fetch(`${ADMIN_ORDERS_ENDPOINT}?orderId=${encodeURIComponent(orderId)}`, {
+      method: "DELETE",
+      headers: adminRemoteWriteHeaders()
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not delete order.");
+    liveOrders = liveOrders.filter((item) => item.id !== orderId);
+    renderAdminLiveOrders();
+    setAdminMessage(liveOrderStatus, "Order deleted.");
+  } catch (error) {
+    setAdminMessage(liveOrderStatus, error.message || "Could not delete order.");
+  }
+}
+
 function handleAdminLiveOrderClick(event) {
-  const button = event.target.closest("[data-save-live-order]");
-  if (!button) return;
-  saveAdminLiveOrderUpdate(button.dataset.saveLiveOrder);
+  const saveButton = event.target.closest("[data-save-live-order]");
+  if (saveButton) {
+    saveAdminLiveOrderUpdate(saveButton.dataset.saveLiveOrder);
+    return;
+  }
+  const deleteButton = event.target.closest("[data-delete-live-order]");
+  if (deleteButton) {
+    deleteAdminLiveOrder(deleteButton.dataset.deleteLiveOrder);
+  }
 }
 
 document.querySelectorAll("[data-name]").forEach((button) => {
@@ -6130,7 +6189,10 @@ function renderAdminProducts() {
       </div>
       <div class="admin-product-fields">
         <div class="admin-product-head">
-          <strong>Shop Product ${index + 1}</strong>
+          <div>
+            <strong>Shop Product ${index + 1}</strong>
+            <span class="admin-shop-status is-live">Live in shop</span>
+          </div>
           <button class="delete-product" type="button" data-delete-custom-product="${index}">Withdraw</button>
         </div>
         <label>Name <input data-custom-product="${index}" data-field="name" value="${escapeAttribute(product.name)}" /></label>

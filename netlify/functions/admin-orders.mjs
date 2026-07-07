@@ -75,7 +75,7 @@ async function listOrders(store) {
 
 function normalizeFulfillmentStatus(value = "") {
   const status = String(value || "").trim();
-  const allowed = ["Payment pending", "Needs review", "Needs making", "Ready to ship", "Shipped", "Canceled"];
+  const allowed = ["Payment pending", "Needs review", "Needs making", "Making", "Packing", "Ready to ship", "Shipped", "Completed", "Canceled"];
   return allowed.includes(status) ? status : "Needs review";
 }
 
