@@ -198,9 +198,9 @@ async function createStripeCheckoutSession({ key, order, baseUrl, request }) {
   if (!response.ok) {
     const message = data?.error?.message || "";
     if (/api key|secret key|authentication/i.test(message)) {
-      throw new Error("Payment setup needs the correct Stripe secret key before checkout can open.");
+      throw new Error("Payment setup needs the correct checkout secret before checkout can open.");
     }
-    throw new Error(message || "Stripe could not create the checkout session.");
+    throw new Error(message || "Secure checkout could not start.");
   }
   return data;
 }
@@ -213,7 +213,7 @@ export default async (request) => {
   const key = stripeSecretKey();
   if (!key || !/^(sk|rk)_(test|live)_/.test(key)) {
     return jsonResponse({
-      error: "Stripe is not fully configured yet. Add STRIPE_SECRET_KEY in Netlify environment variables before taking payments."
+      error: "Secure checkout is not fully configured yet."
     }, { status: 503 });
   }
 

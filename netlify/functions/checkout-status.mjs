@@ -29,7 +29,7 @@ async function retrieveSession(sessionId, key) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data?.error?.message || "Could not verify Stripe checkout status.");
+    throw new Error(data?.error?.message || "Could not verify checkout status.");
   }
   return data;
 }
@@ -55,7 +55,7 @@ export default async (request) => {
 
   const key = stripeSecretKey();
   if (!key || !/^(sk|rk)_(test|live)_/.test(key)) {
-    return jsonResponse({ error: "Stripe status verification is not configured." }, { status: 503 });
+    return jsonResponse({ error: "Checkout status verification is not configured." }, { status: 503 });
   }
 
   const url = new URL(request.url);

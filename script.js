@@ -3705,7 +3705,7 @@ async function startStripeCheckout({ source = "guest", customer = {} } = {}) {
   }
 
   setCheckoutBusy(true);
-  setCheckoutMessage("Opening secure Stripe checkout...");
+  setCheckoutMessage("Opening secure checkout...");
   try {
     sessionStorage.setItem(CHECKOUT_PENDING_ORDER_KEY, JSON.stringify(pendingCheckoutSnapshot({ ...customer, source })));
     const response = await fetch(STRIPE_CHECKOUT_ENDPOINT, {
@@ -3720,12 +3720,12 @@ async function startStripeCheckout({ source = "guest", customer = {} } = {}) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.url) {
-      throw new Error(data.error || "Stripe checkout could not start.");
+      throw new Error(data.error || "Secure checkout could not start.");
     }
     window.location.assign(data.url);
   } catch (error) {
     setCheckoutBusy(false);
-    setCheckoutMessage(error.message || "Stripe checkout could not start.", true);
+    setCheckoutMessage(error.message || "Secure checkout could not start.", true);
   }
 }
 
@@ -3842,11 +3842,11 @@ async function handleCheckoutReturn() {
 
   const sessionId = params.get("session_id");
   if (!sessionId) {
-    setCheckoutMessage("Stripe sent you back, but the checkout session was missing. Check Stripe before remaking the order.", true);
+    setCheckoutMessage("Secure checkout sent you back, but the order confirmation was missing. Check the payment dashboard before remaking the order.", true);
     return;
   }
 
-  setCheckoutMessage("Confirming payment with Stripe...");
+  setCheckoutMessage("Confirming payment...");
   try {
     const response = await fetch(`${STRIPE_CHECKOUT_STATUS_ENDPOINT}?session_id=${encodeURIComponent(sessionId)}`);
     const data = await response.json().catch(() => ({}));
@@ -3854,7 +3854,7 @@ async function handleCheckoutReturn() {
       throw new Error(data.error || "Payment could not be verified.");
     }
     if (!data.paid) {
-      setCheckoutMessage("Checkout returned without a completed payment. If this looks wrong, check the Stripe dashboard.", true);
+      setCheckoutMessage("Checkout returned without a completed payment. If this looks wrong, check the payment dashboard.", true);
       return;
     }
     recordPaidCheckoutLocally(data.order);
