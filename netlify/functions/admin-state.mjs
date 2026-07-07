@@ -21,7 +21,7 @@ function jsonResponse(body, init = {}) {
 }
 
 function defaultLayoutOrder() {
-  return ["home", "shop", "fit", "reviews"];
+  return ["home", "shop", "reviews"];
 }
 
 function defaultAdminState() {

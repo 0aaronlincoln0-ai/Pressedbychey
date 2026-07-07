@@ -276,9 +276,8 @@ const quickContentFields = [
   { key: "footer-description", label: "Footer description", selector: ".footer p", multiline: true }
 ];
 const layoutSectionMeta = [
-  { key: "home", label: "Home", selector: '[data-page-panel="home"]', note: "Hero, trend strip, and welcome content" },
+  { key: "home", label: "Home", selector: '[data-page-panel="home"]', note: "Hero, fit guide, trend strip, and welcome content" },
   { key: "shop", label: "Shop", selector: '[data-page-panel="shop"]', note: "Product grid and shopping page" },
-  { key: "fit", label: "Fit guide", selector: '[data-page-panel="fit"]', note: "Sizing and application guidance page" },
   { key: "reviews", label: "Reviews", selector: '[data-page-panel="reviews"]', note: "Customer social proof page" }
 ];
 const LOOK_SLOT_BATCH_SIZE = 12;
@@ -1708,6 +1707,30 @@ function showSitePage(pageKey, options = {}) {
   performScroll();
 }
 
+function scrollToHomeSection(sectionId, options = {}) {
+  const { behavior = "smooth", force = false } = options;
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({
+    top: Math.max(window.scrollY + section.getBoundingClientRect().top - navOffset() - 12, 0),
+    behavior: force || prefersReducedMotion ? "auto" : behavior
+  });
+}
+
+function showHomeSectionFromHash(hash = window.location.hash, options = {}) {
+  const key = hash.replace("#", "").trim().toLowerCase();
+  if (key !== "fit") return false;
+  showSitePage("home", {
+    updateHash: false,
+    force: Boolean(options.force),
+    behavior: options.behavior || "smooth",
+    track: options.track
+  });
+  requestAnimationFrame(() => scrollToHomeSection("fit", options));
+  return true;
+}
+
 function openCart() {
   closeAccountPanel();
   body.classList.add("cart-open");
@@ -2912,6 +2935,7 @@ window.addEventListener("hashchange", () => {
     showAdminPage();
     return;
   }
+  if (showHomeSectionFromHash(window.location.hash, { behavior: "smooth" })) return;
   const productIndex = productIndexFromHash();
   if (productIndex >= 0) {
     openProductDetail(productIndex, { updateHash: false, behavior: "smooth" });
@@ -4691,6 +4715,8 @@ async function setupAdmin() {
     const productIndex = productIndexFromHash();
     if (productIndex >= 0) {
       openProductDetail(productIndex, { updateHash: false, force: true });
+    } else if (showHomeSectionFromHash(window.location.hash, { force: true })) {
+      // Fit Guide now lives inside Home, so direct #fit links should land there.
     } else {
       showSitePage(pageKeyFromHash(), { updateHash: false, force: true });
     }
@@ -4925,6 +4951,11 @@ function applyLayoutState() {
   });
   pageBook.appendChild(fragment);
   updatePageLinkVisibility();
+  if (showHomeSectionFromHash(window.location.hash, { force: true, track: false })) {
+    schedulePageStateFromScroll();
+    scheduleScrollChrome();
+    return;
+  }
   const requestedKey = adminState.hiddenSections[pageKeyFromHash()] ? firstVisiblePageKey() : pageKeyFromHash();
   currentPageKey = adminState.hiddenSections[currentPageKey] ? requestedKey : currentPageKey;
   showSitePage(currentPageKey || requestedKey, { updateHash: false, force: true });

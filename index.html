@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260707-admin-products-orders-v1" />
+    <link rel="stylesheet" href="styles.css?v=20260707-home-fit-guide-v1" />
   </head>
   <body>
     <div class="scroll-progress" aria-hidden="true"></div>
@@ -28,7 +28,6 @@
         <nav class="nav-links" aria-label="Main navigation">
           <a href="#home" data-page-link="home">Home</a>
           <a href="#shop" data-page-link="shop">Shop</a>
-          <a href="#fit" data-page-link="fit">Fit Guide</a>
           <a href="#reviews" data-page-link="reviews">Reviews</a>
           <a href="#adminPage" id="adminNav" hidden>Admin</a>
         </nav>
@@ -53,7 +52,7 @@
             </p>
             <div class="hero-actions">
               <a class="button primary" href="#shop" data-page-link="shop">Shop Sets</a>
-              <a class="button secondary" href="#fit" data-page-link="fit">Find Your Fit</a>
+              <a class="button secondary" href="#fit">Find Your Fit</a>
             </div>
             <div class="hero-stats" aria-label="Store highlights">
               <span><strong>10 sizes</strong> per kit</span>
@@ -119,6 +118,40 @@
               <span class="feature-icon">+</span>
               <h3>Photo-ready packaging</h3>
               <p>Branded unboxing, care card, and replacement nail options.</p>
+            </article>
+          </div>
+        </section>
+        <section class="section fit home-fit-guide" id="fit" aria-labelledby="fit-title">
+          <div class="section-heading" data-reveal>
+            <p class="eyebrow">Fit Guide</p>
+            <h2 id="fit-title">Simple sizing keeps returns low.</h2>
+          </div>
+          <div class="photo-proof-grid" aria-label="Real manicure references" data-reveal>
+            <img
+              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 600'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fff8fb'/%3E%3Cstop offset='100%25' stop-color='%23ffe5ef'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='900' height='600' rx='36' fill='url(%23bg)'/%3E%3Crect x='42' y='42' width='816' height='516' rx='30' fill='none' stroke='%23cb2e72' stroke-opacity='.2' stroke-width='6' stroke-dasharray='18 18'/%3E%3Ctext x='450' y='282' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='700' fill='%238f1d51'%3ESizing reference%3C/text%3E%3Ctext x='450' y='338' text-anchor='middle' font-family='Arial,sans-serif' font-size='26' fill='%23714c5f'%3Ecoming soon%3C/text%3E%3C/svg%3E"
+              alt="Sizing reference guide"
+            />
+            <img
+              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 600'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fff8fb'/%3E%3Cstop offset='100%25' stop-color='%23ffe5ef'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='900' height='600' rx='36' fill='url(%23bg)'/%3E%3Crect x='42' y='42' width='816' height='516' rx='30' fill='none' stroke='%23cb2e72' stroke-opacity='.2' stroke-width='6' stroke-dasharray='18 18'/%3E%3Ctext x='450' y='282' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='700' fill='%238f1d51'%3EApplication guide%3C/text%3E%3Ctext x='450' y='338' text-anchor='middle' font-family='Arial,sans-serif' font-size='26' fill='%23714c5f'%3Ecoming soon%3C/text%3E%3C/svg%3E"
+              alt="Application guide"
+            />
+          </div>
+          <p class="photo-proof-tip" data-reveal>Tap any sizing photo to view it full screen.</p>
+          <div class="fit-grid">
+            <article data-reveal>
+              <span>01</span>
+              <h3>Order a sizing kit</h3>
+              <p>Try every size before buying your next set.</p>
+            </article>
+            <article data-reveal>
+              <span>02</span>
+              <h3>Save your profile</h3>
+              <p>Thumb through pinky measurements stay linked to future orders.</p>
+            </article>
+            <article data-reveal>
+              <span>03</span>
+              <h3>Apply in minutes</h3>
+              <p>Prep, press, cure the look, and remove gently for reuse.</p>
             </article>
           </div>
         </section>
@@ -232,45 +265,6 @@
               <section class="section product-detail-page" id="productDetailPage" aria-live="polite">
                 <div id="productDetailContent"></div>
               </section>
-            </div>
-          </section>
-
-          <section class="site-page" data-page-panel="fit" aria-label="Fit guide page" hidden>
-            <div class="page-surface">
-        <section class="section fit" id="fit" aria-labelledby="fit-title">
-          <div class="section-heading" data-reveal>
-            <p class="eyebrow">Fit Guide</p>
-            <h2 id="fit-title">Simple sizing keeps returns low.</h2>
-          </div>
-          <div class="photo-proof-grid" aria-label="Real manicure references" data-reveal>
-            <img
-              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 600'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fff8fb'/%3E%3Cstop offset='100%25' stop-color='%23ffe5ef'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='900' height='600' rx='36' fill='url(%23bg)'/%3E%3Crect x='42' y='42' width='816' height='516' rx='30' fill='none' stroke='%23cb2e72' stroke-opacity='.2' stroke-width='6' stroke-dasharray='18 18'/%3E%3Ctext x='450' y='282' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='700' fill='%238f1d51'%3ESizing reference%3C/text%3E%3Ctext x='450' y='338' text-anchor='middle' font-family='Arial,sans-serif' font-size='26' fill='%23714c5f'%3Ecoming soon%3C/text%3E%3C/svg%3E"
-              alt="Sizing reference guide"
-            />
-            <img
-              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 600'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fff8fb'/%3E%3Cstop offset='100%25' stop-color='%23ffe5ef'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='900' height='600' rx='36' fill='url(%23bg)'/%3E%3Crect x='42' y='42' width='816' height='516' rx='30' fill='none' stroke='%23cb2e72' stroke-opacity='.2' stroke-width='6' stroke-dasharray='18 18'/%3E%3Ctext x='450' y='282' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='700' fill='%238f1d51'%3EApplication guide%3C/text%3E%3Ctext x='450' y='338' text-anchor='middle' font-family='Arial,sans-serif' font-size='26' fill='%23714c5f'%3Ecoming soon%3C/text%3E%3C/svg%3E"
-              alt="Application guide"
-            />
-          </div>
-          <p class="photo-proof-tip" data-reveal>Tap any sizing photo to view it full screen.</p>
-          <div class="fit-grid">
-            <article data-reveal>
-              <span>01</span>
-              <h3>Order a sizing kit</h3>
-              <p>Try every size before buying your next set.</p>
-            </article>
-            <article data-reveal>
-              <span>02</span>
-              <h3>Save your profile</h3>
-              <p>Thumb through pinky measurements stay linked to future orders.</p>
-            </article>
-            <article data-reveal>
-              <span>03</span>
-              <h3>Apply in minutes</h3>
-              <p>Prep, press, cure the look, and remove gently for reuse.</p>
-            </article>
-          </div>
-        </section>
             </div>
           </section>
 
@@ -709,6 +703,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260707-admin-products-orders-v1"></script>
+    <script src="script.js?v=20260707-home-fit-guide-v1"></script>
   </body>
 </html>
