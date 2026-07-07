@@ -140,6 +140,9 @@ const sizeInputs = {
 };
 const adminUserList = document.querySelector("#adminUserList");
 const adminGuestOrderList = document.querySelector("#adminGuestOrderList");
+const adminLiveOrderList = document.querySelector("#adminLiveOrderList");
+const liveOrderStatus = document.querySelector("#liveOrderStatus");
+const refreshLiveOrdersButton = document.querySelector("#refreshLiveOrders");
 const adminContentList = document.querySelector("#adminContentList");
 const adminContentStatus = document.querySelector("#adminContentStatus");
 const adminLayoutList = document.querySelector("#adminLayoutList");
@@ -187,7 +190,7 @@ const presetAura = {
   radius: 210
 };
 const ADMIN_PASSWORD = "chey2026";
-const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com"];
+const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com"];
 const ADMIN_SESSION_KEY = "pressedByCheyAdminSession";
 const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const ADMIN_STORAGE_KEY = "pressedByCheyEdits";
@@ -202,6 +205,7 @@ const CUSTOMER_STORAGE_KEY = "pressedByCheyCustomers";
 const GUEST_ORDER_STORAGE_KEY = "pressedByCheyGuestOrders";
 const STRIPE_CHECKOUT_ENDPOINT = "/.netlify/functions/create-checkout-session";
 const STRIPE_CHECKOUT_STATUS_ENDPOINT = "/.netlify/functions/checkout-status";
+const ADMIN_ORDERS_ENDPOINT = "/.netlify/functions/admin-orders";
 const CHECKOUT_PENDING_ORDER_KEY = "pressedByCheyPendingCheckoutOrder";
 const nailSizeOptions = ["", "000", "00", "0", "0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
 const sizeFingerKeys = ["thumb", "index", "middle", "ring", "pinky"];
@@ -212,6 +216,7 @@ let customerState = {
 };
 let passwordResetRequest = null;
 let guestOrders = [];
+let liveOrders = [];
 let adminSession = null;
 let adminState = {
   texts: {},
@@ -3909,6 +3914,153 @@ function renderAdminGuestOrders() {
     : `<div class="admin-user-card"><p>No guest orders yet.</p></div>`;
 }
 
+function formatOrderMoney(cents = 0, currency = "usd") {
+  const amount = Number(cents || 0) / 100;
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: String(currency || "usd").toUpperCase() }).format(safeAmount);
+  } catch {
+    return `$${safeAmount.toFixed(2)}`;
+  }
+}
+
+function orderCustomerName(order = {}) {
+  return order.customer?.name || order.customerName || order.shipping?.name || "Customer";
+}
+
+function orderCustomerEmail(order = {}) {
+  return order.customer?.email || order.customerEmail || "";
+}
+
+function orderCustomerPhone(order = {}) {
+  return order.customer?.phone || order.customerPhone || "";
+}
+
+function orderShippingSummary(order = {}) {
+  const address = order.shipping?.address;
+  if (!address) return "Shipping address collected in checkout";
+  return [
+    address.line1,
+    address.line2,
+    [address.city, address.state, address.postal_code].filter(Boolean).join(", "),
+    address.country
+  ].filter(Boolean).join(" - ");
+}
+
+function orderItemWorkflowSummary(item = {}) {
+  const unit = Number(item.unitAmount || item.price || 0);
+  const unitLabel = item.unitAmount ? formatOrderMoney(unit) : `$${unit}`;
+  const qty = Number(item.quantity || 1);
+  return `${item.name || "Product"} x ${qty} (${unitLabel}${item.category ? ` - ${item.category}` : ""})`;
+}
+
+function fulfillmentStatusOptions(selected = "") {
+  return ["Payment pending", "Needs review", "Needs making", "Ready to ship", "Shipped", "Canceled"]
+    .map((status) => `<option value="${escapeAttribute(status)}"${status === selected ? " selected" : ""}>${escapeHTML(status)}</option>`)
+    .join("");
+}
+
+function renderAdminLiveOrders() {
+  if (!adminLiveOrderList) return;
+  adminLiveOrderList.innerHTML = liveOrders.length
+    ? liveOrders
+        .map((order) => {
+          const status = order.fulfillmentStatus || (order.paymentStatus === "paid" ? "Needs review" : "Payment pending");
+          const paid = order.paymentStatus === "paid";
+          return `
+            <article class="admin-live-order-card ${paid ? "is-paid" : "is-pending"}">
+              <div class="admin-live-order-head">
+                <div>
+                  <span>${escapeHTML(paid ? "Paid order" : "Payment pending")}</span>
+                  <strong>${escapeHTML(orderCustomerName(order))}</strong>
+                  <p>${escapeHTML(order.id || "Order")}</p>
+                </div>
+                <div class="admin-live-order-total">
+                  <strong>${formatOrderMoney(order.total || order.amountTotal, order.currency)}</strong>
+                  <small>${escapeHTML(status)}</small>
+                </div>
+              </div>
+              <div class="admin-live-order-grid">
+                <section>
+                  <h4>Products to make / ship</h4>
+                  ${(order.items || []).map((item) => `<p>${escapeHTML(orderItemWorkflowSummary(item))}</p>`).join("") || "<p>No product line items saved.</p>"}
+                </section>
+                <section>
+                  <h4>Customer</h4>
+                  <p>${escapeHTML(orderCustomerEmail(order) || "No email saved")}</p>
+                  <p>${escapeHTML(orderCustomerPhone(order) || "No phone saved")}</p>
+                </section>
+                <section>
+                  <h4>Shipping</h4>
+                  <p>${escapeHTML(orderShippingSummary(order))}</p>
+                </section>
+              </div>
+              <div class="admin-live-order-actions">
+                <label>Status
+                  <select data-live-order-status="${escapeAttribute(order.id)}">
+                    ${fulfillmentStatusOptions(status)}
+                  </select>
+                </label>
+                <label>Chey notes
+                  <textarea data-live-order-note="${escapeAttribute(order.id)}" placeholder="Sizing, make notes, tracking, pickup plan...">${escapeTextarea(order.adminNote || "")}</textarea>
+                </label>
+                <button type="button" data-save-live-order="${escapeAttribute(order.id)}">Save Order Update</button>
+              </div>
+            </article>
+          `;
+        })
+        .join("")
+    : `<div class="admin-user-card"><p>No live paid orders yet. New checkout orders will show here after customers start checkout.</p></div>`;
+  autoGrowTextareas(adminLiveOrderList);
+}
+
+async function fetchAdminLiveOrders({ showStatus = true } = {}) {
+  if (!adminLiveOrderList || !isAdminSignedIn()) return;
+  if (showStatus) setAdminMessage(liveOrderStatus, "Loading live orders...");
+  try {
+    const response = await fetch(ADMIN_ORDERS_ENDPOINT, {
+      headers: adminRemoteWriteHeaders()
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not load live orders.");
+    liveOrders = Array.isArray(payload.orders) ? payload.orders : [];
+    renderAdminLiveOrders();
+    if (showStatus) setAdminMessage(liveOrderStatus, `Loaded ${liveOrders.length} live order${liveOrders.length === 1 ? "" : "s"}.`);
+  } catch (error) {
+    setAdminMessage(liveOrderStatus, error.message || "Could not load live orders.");
+  }
+}
+
+async function saveAdminLiveOrderUpdate(orderId) {
+  const statusSelect = adminLiveOrderList?.querySelector(`[data-live-order-status="${CSS.escape(orderId)}"]`);
+  const noteField = adminLiveOrderList?.querySelector(`[data-live-order-note="${CSS.escape(orderId)}"]`);
+  setAdminMessage(liveOrderStatus, "Saving order update...");
+  try {
+    const response = await fetch(ADMIN_ORDERS_ENDPOINT, {
+      method: "PUT",
+      headers: adminRemoteWriteHeaders(),
+      body: JSON.stringify({
+        orderId,
+        fulfillmentStatus: statusSelect?.value || "Needs review",
+        adminNote: noteField?.value || ""
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not save order update.");
+    liveOrders = liveOrders.map((order) => (order.id === orderId ? payload.order : order));
+    renderAdminLiveOrders();
+    setAdminMessage(liveOrderStatus, "Order update saved.");
+  } catch (error) {
+    setAdminMessage(liveOrderStatus, error.message || "Could not save order update.");
+  }
+}
+
+function handleAdminLiveOrderClick(event) {
+  const button = event.target.closest("[data-save-live-order]");
+  if (!button) return;
+  saveAdminLiveOrderUpdate(button.dataset.saveLiveOrder);
+}
+
 document.querySelectorAll("[data-name]").forEach((button) => {
   button.addEventListener("click", () => addToCart(button.dataset.name, button.dataset.price, {
     sourceProductIndex: checkoutProductIndex(button.dataset.productIndex)
@@ -3935,6 +4087,8 @@ saveSizesButton.addEventListener("click", saveCustomerSizes);
 checkoutButton.addEventListener("click", checkoutCart);
 guestCheckoutOpen.addEventListener("click", () => openGuestCheckout());
 guestCheckoutButton.addEventListener("click", checkoutGuest);
+refreshLiveOrdersButton?.addEventListener("click", () => fetchAdminLiveOrders());
+adminLiveOrderList?.addEventListener("click", handleAdminLiveOrderClick);
 
 savedProductsList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-add-saved]");
@@ -4379,6 +4533,7 @@ async function setupAdmin() {
   renderAdminLookPhotos();
   renderAdminUsers();
   renderAdminGuestOrders();
+  renderAdminLiveOrders();
   renderIdeas();
 
   const hadPendingRemoteState = Boolean(loadPendingRemoteAdminStateRecord());
@@ -4478,6 +4633,7 @@ function switchAdminView(view) {
   adminViewPanels.forEach((panel) => {
     panel.hidden = panel.dataset.adminViewPanel !== view;
   });
+  if (view === "orders") fetchAdminLiveOrders();
   autoGrowTextareas();
 }
 

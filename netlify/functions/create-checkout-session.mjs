@@ -6,6 +6,8 @@ const STATE_KEY = "admin-state";
 const ORDER_PREFIX = "orders";
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 const MAX_LINE_ITEMS = 20;
+const DEFAULT_ORDER_EMAIL = "cheyenne@pressedbychey.com";
+const DEFAULT_SUPPORT_PHONE = "9893922012";
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -93,6 +95,24 @@ function stripeSecretKey() {
   return process.env.STRIPE_SECRET_KEY || "";
 }
 
+function orderNotificationEmail() {
+  return process.env.ORDER_NOTIFICATION_EMAIL || process.env.CHEY_SUPPORT_EMAIL || DEFAULT_ORDER_EMAIL;
+}
+
+function supportEmail() {
+  return process.env.CHEY_SUPPORT_EMAIL || orderNotificationEmail();
+}
+
+function supportPhoneRaw() {
+  return process.env.CHEY_SUPPORT_PHONE || DEFAULT_SUPPORT_PHONE;
+}
+
+function supportPhoneDisplay() {
+  const digits = supportPhoneRaw().replace(/\D/g, "");
+  if (digits.length === 10) return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return supportPhoneRaw();
+}
+
 function orderKey(orderId) {
   return `${ORDER_PREFIX}/${orderId}.json`;
 }
@@ -172,15 +192,27 @@ function appendLineItem(params, item, index) {
 
 async function createStripeCheckoutSession({ key, order, baseUrl, request }) {
   const params = new URLSearchParams();
+  const email = supportEmail();
+  const phone = supportPhoneDisplay();
   params.append("mode", "payment");
   params.append("success_url", `${baseUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}#shop`);
   params.append("cancel_url", `${baseUrl}?checkout=cancel#shop`);
   params.append("client_reference_id", order.id);
   params.append("metadata[order_id]", order.id);
   params.append("metadata[site]", "pressedbychey");
+  params.append("metadata[order_notification_email]", orderNotificationEmail());
+  params.append("metadata[support_email]", email);
+  params.append("metadata[support_phone]", phone);
+  params.append("payment_intent_data[metadata][order_id]", order.id);
+  params.append("payment_intent_data[metadata][site]", "pressedbychey");
+  params.append("payment_intent_data[metadata][order_notification_email]", orderNotificationEmail());
+  params.append("payment_intent_data[metadata][customer_name]", order.customer.name || "");
+  params.append("payment_intent_data[metadata][customer_email]", order.customer.email || "");
   params.append("phone_number_collection[enabled]", "true");
   params.append("shipping_address_collection[allowed_countries][0]", "US");
   params.append("billing_address_collection", "auto");
+  params.append("custom_text[shipping_address][message]", `Questions before ordering? Contact Chey at ${email} or ${phone}.`);
+  params.append("custom_text[submit][message]", "After payment, Chey will receive the order details and follow up if anything needs attention.");
   if (order.customer.email) params.append("customer_email", order.customer.email);
   order.items.forEach((item, index) => appendLineItem(params, item, index));
 
@@ -239,10 +271,14 @@ export default async (request) => {
       id: `pbc-${Date.now()}-${randomUUID().slice(0, 8)}`,
       status: "created",
       paymentStatus: "pending",
+      fulfillmentStatus: "Payment pending",
       createdAt: new Date().toISOString(),
       customer,
       items,
-      total: items.reduce((sum, item) => sum + item.unitAmount * item.quantity, 0)
+      total: items.reduce((sum, item) => sum + item.unitAmount * item.quantity, 0),
+      orderNotificationEmail: orderNotificationEmail(),
+      supportEmail: supportEmail(),
+      supportPhone: supportPhoneDisplay()
     };
 
     const session = await createStripeCheckoutSession({ key, order, baseUrl, request });

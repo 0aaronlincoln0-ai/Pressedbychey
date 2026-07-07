@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260707-secure-checkout-v2" />
+    <link rel="stylesheet" href="styles.css?v=20260707-live-orders-v4" />
   </head>
   <body>
     <div class="scroll-progress" aria-hidden="true"></div>
@@ -93,6 +93,10 @@
             <strong>Easy checkout</strong>
             <span>Customers can sign in, save sizes, or check out as a guest.</span>
           </article>
+          <article>
+            <strong>Need help?</strong>
+            <span>Email Chey at <a href="mailto:cheyenne@pressedbychey.com">cheyenne@pressedbychey.com</a> or text <a href="tel:+19893922012">(989) 392-2012</a>.</span>
+          </article>
         </section>
 
         <section class="section intro" aria-labelledby="intro-title">
@@ -129,6 +133,10 @@
                   <div>
                   <strong>Pressed by Chey</strong>
                   <p>Handmade press-on nail sets, custom color drops, and pink favorites.</p>
+                  <div class="footer-contact-links" aria-label="Contact Chey">
+                    <a href="mailto:cheyenne@pressedbychey.com">cheyenne@pressedbychey.com</a>
+                    <a href="tel:+19893922012">(989) 392-2012</a>
+                  </div>
                   </div>
                 </div>
                 <a class="button secondary" href="#shop" data-page-link="shop">Shop Sets</a>
@@ -312,6 +320,10 @@
           <strong class="cart-total">$0</strong>
         </div>
         <p class="cart-mini-note">Chey will confirm sizing, timing, and any custom notes before your set is finished.</p>
+        <div class="cart-support-card" aria-label="Order support">
+          <strong>Questions before ordering?</strong>
+          <span><a href="mailto:cheyenne@pressedbychey.com">Email Chey</a> or <a href="tel:+19893922012">text/call (989) 392-2012</a>.</span>
+        </div>
         <div class="cart-checkout-actions">
           <button type="button" class="button primary wide" id="checkoutButton">Secure Checkout</button>
           <button type="button" class="button secondary wide" id="guestCheckoutOpen">Checkout As Guest</button>
@@ -448,6 +460,7 @@
         </div>
         <div class="admin-view-tabs" aria-label="Admin pages">
           <button class="active" type="button" data-admin-view="site">Site Editor</button>
+          <button type="button" data-admin-view="orders">Orders</button>
           <button type="button" data-admin-view="ideas">Design Studio</button>
         </div>
         <div class="admin-view-panel" id="adminSiteView" data-admin-view-panel="site">
@@ -531,6 +544,25 @@
           </div>
           <div class="admin-user-list" id="adminGuestOrderList"></div>
         </section>
+        </div>
+        <div class="admin-view-panel" id="adminOrdersView" data-admin-view-panel="orders" hidden>
+          <section class="admin-section">
+            <div class="admin-section-title">
+              <div>
+                <h3>Paid Order Workflow</h3>
+                <p>Track paid checkout orders from customers. Use this list to see what needs to be made, packed, or shipped.</p>
+              </div>
+              <div class="admin-section-actions">
+                <button type="button" id="refreshLiveOrders">Refresh Orders</button>
+              </div>
+            </div>
+            <p class="admin-status" id="liveOrderStatus" role="status"></p>
+            <div class="admin-live-order-list" id="adminLiveOrderList"></div>
+          </section>
+          <section class="admin-section admin-publish-note">
+            <h3>Order email setup</h3>
+            <p>Paid orders are stored here and in the payment dashboard. For automatic email alerts, enable successful-payment notifications in the payment dashboard for cheyenne@pressedbychey.com, or connect the Stripe webhook to an email sender.</p>
+          </section>
         </div>
         <div class="admin-view-panel" id="adminIdeaView" data-admin-view-panel="ideas" hidden>
           <section class="admin-section idea-studio">
@@ -650,6 +682,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260707-secure-checkout-v2"></script>
+    <script src="script.js?v=20260707-live-orders-v4"></script>
   </body>
 </html>

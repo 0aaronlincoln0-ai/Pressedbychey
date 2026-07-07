@@ -9,8 +9,10 @@ Fastest deploy:
 Important:
 - This storefront is static, with Netlify Functions for live admin saving and Stripe Checkout.
 - Before real payments work, set STRIPE_SECRET_KEY=sk_live_... in Netlify production environment variables. Do not commit that secret into the website files.
+- Paid order workflow also uses STRIPE_WEBHOOK_SECRET, ORDER_NOTIFICATION_EMAIL, CHEY_SUPPORT_EMAIL, and CHEY_SUPPORT_PHONE in Netlify environment variables.
 - The site images now live in the `assets/` folder, so make sure that folder is included in every upload.
 - Admin product, photo, copy, layout, design note, and product edits save to the deployed Netlify website through `/.netlify/functions/admin-state`.
+- Paid checkout orders show in Admin > Orders so Chey can track what needs review, making, packing, or shipping.
 - Paid product checkout redirects customers to Stripe's hosted Checkout page. Quote-only custom requests stay as review requests until Chey prices them.
 - Customer login, guest quote requests, saved sizes, saved products, and local order history still use browser storage for this demo version.
 - Admin login is through the Account sign-in: admin / chey2026. The Admin tab appears after admin sign-in.

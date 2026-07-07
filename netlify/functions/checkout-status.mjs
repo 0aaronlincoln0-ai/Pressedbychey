@@ -48,6 +48,25 @@ function publicOrder(order = {}, session = {}) {
   };
 }
 
+function publicCustomerFromSession(session = {}, saved = {}) {
+  const details = session.customer_details || {};
+  return {
+    ...(saved.customer || {}),
+    name: details.name || saved.customer?.name || saved.customerName || "",
+    email: details.email || saved.customer?.email || saved.customerEmail || "",
+    phone: details.phone || saved.customer?.phone || saved.customerPhone || ""
+  };
+}
+
+function shippingFromSession(session = {}, saved = {}) {
+  const shipping = session.shipping_details || {};
+  return {
+    ...(saved.shipping || {}),
+    name: shipping.name || "",
+    address: shipping.address || null
+  };
+}
+
 export default async (request) => {
   if (request.method !== "GET") {
     return jsonResponse({ error: "Method not allowed" }, { status: 405 });
@@ -75,11 +94,19 @@ export default async (request) => {
       stripeSessionId: session.id,
       status: session.status === "complete" ? "complete" : session.status,
       paymentStatus: session.payment_status || "unknown",
+      fulfillmentStatus: session.payment_status === "paid"
+        ? (savedOrder?.fulfillmentStatus === "Payment pending" ? "Needs review" : savedOrder?.fulfillmentStatus || "Needs review")
+        : savedOrder?.fulfillmentStatus || "Payment pending",
       amountSubtotal: session.amount_subtotal,
       amountTotal: session.amount_total,
       currency: session.currency,
+      customer: publicCustomerFromSession(session, savedOrder || {}),
       customerEmail: session.customer_details?.email || savedOrder?.customer?.email || "",
-      paidAt: session.payment_status === "paid" ? (savedOrder?.paidAt || new Date().toISOString()) : savedOrder?.paidAt || ""
+      customerName: session.customer_details?.name || savedOrder?.customer?.name || "",
+      customerPhone: session.customer_details?.phone || savedOrder?.customer?.phone || "",
+      shipping: shippingFromSession(session, savedOrder || {}),
+      paidAt: session.payment_status === "paid" ? (savedOrder?.paidAt || new Date().toISOString()) : savedOrder?.paidAt || "",
+      updatedAt: new Date().toISOString()
     };
 
     if (nextOrder.id) {
