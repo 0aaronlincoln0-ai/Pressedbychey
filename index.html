@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260707-live-orders-v4" />
+    <link rel="stylesheet" href="styles.css?v=20260707-admin-dashboard-v1" />
   </head>
   <body>
     <div class="scroll-progress" aria-hidden="true"></div>
@@ -450,21 +450,86 @@
         </section>
       </div>
     </aside>
-    <section class="section admin-page" id="adminPage" hidden aria-label="Admin editor">
+    <section class="section admin-page" id="adminPage" hidden aria-label="Admin dashboard">
       <div class="admin-editor">
         <div class="admin-header">
           <div>
             <p class="eyebrow">Admin</p>
-            <h2>Site Editor</h2>
+            <h2>Chey Dashboard</h2>
+            <p class="admin-header-subtitle">A private workspace for incoming orders, products to make, and live shop products.</p>
           </div>
           <button class="button secondary" type="button" id="adminLogout">Admin Log Out</button>
         </div>
         <div class="admin-view-tabs" aria-label="Admin pages">
-          <button class="active" type="button" data-admin-view="site">Site Editor</button>
-          <button type="button" data-admin-view="orders">Orders</button>
+          <button class="active" type="button" data-admin-view="orders">Orders Dashboard</button>
+          <button type="button" data-admin-view="products">Products</button>
+          <button type="button" data-admin-view="site">Site Editor</button>
           <button type="button" data-admin-view="ideas">Design Studio</button>
         </div>
-        <div class="admin-view-panel" id="adminSiteView" data-admin-view-panel="site">
+        <div class="admin-view-panel" id="adminOrdersView" data-admin-view-panel="orders">
+          <section class="admin-section dashboard-hero">
+            <div class="admin-section-title">
+              <div>
+                <h3>New Incoming Orders</h3>
+                <p>Start here every time Chey logs in. Paid orders show what needs to be made, packed, shipped, or followed up on.</p>
+              </div>
+              <div class="admin-section-actions">
+                <button type="button" id="refreshLiveOrders">Refresh Orders</button>
+              </div>
+            </div>
+            <div class="admin-dashboard-summary" aria-label="Order workflow summary">
+              <article>
+                <span>Incoming</span>
+                <strong id="adminNewOrdersCount">0</strong>
+                <p>Needs review or newly paid.</p>
+              </article>
+              <article>
+                <span>Working</span>
+                <strong id="adminWorkingOrdersCount">0</strong>
+                <p>Being made, packed, or shipped.</p>
+              </article>
+              <article>
+                <span>Done</span>
+                <strong id="adminDoneOrdersCount">0</strong>
+                <p>Completed, delivered, or closed.</p>
+              </article>
+              <article>
+                <span>Live Products</span>
+                <strong id="adminProductSummaryCount">0</strong>
+                <p>Products currently in the shop.</p>
+              </article>
+            </div>
+            <p class="admin-status" id="liveOrderStatus" role="status"></p>
+            <div class="admin-live-order-list" id="adminLiveOrderList"></div>
+          </section>
+          <section class="admin-section admin-publish-note">
+            <h3>Daily order workflow</h3>
+            <p>Use each order card to move the order from <strong>Needs review</strong> to <strong>Making</strong>, <strong>Packing</strong>, <strong>Shipped</strong>, or <strong>Completed</strong>. Chey's private notes stay with the order.</p>
+          </section>
+        </div>
+        <div class="admin-view-panel" id="adminProductsView" data-admin-view-panel="products" hidden>
+        <section class="admin-section product-library-section">
+          <div class="admin-section-title">
+            <div>
+              <h3>Products</h3>
+              <p>This is Chey's product library. Upload nail photos, polish product details, then publish finished designs directly to the Shop.</p>
+            </div>
+            <div class="admin-section-actions">
+              <span id="lookCountBadge">0 saved designs</span>
+              <span id="productCountBadge">0 live products</span>
+              <button type="button" id="saveProductChanges">Save Products</button>
+            </div>
+          </div>
+          <p class="admin-status" id="addProductStatus" role="status"></p>
+          <div class="admin-look-list" id="adminLookList"></div>
+          <details class="admin-published-products" open>
+            <summary>Published Shop Products</summary>
+            <p>These are the products customers can see in the Shop. Use the product library above to add more.</p>
+            <div class="admin-product-list" id="adminProductList"></div>
+          </details>
+        </section>
+        </div>
+        <div class="admin-view-panel" id="adminSiteView" data-admin-view-panel="site" hidden>
         <section class="admin-section admin-publish-note">
           <h3>Publishing Changes</h3>
           <p>Changes made here update this storefront right away. On the deployed Netlify site, admin changes are also saved to the live website so products, photos, copy, and layout edits stay visible for customers.</p>
@@ -507,26 +572,6 @@
           <h3>Photos</h3>
           <div class="admin-image-list" id="adminImageList"></div>
         </section>
-        <section class="admin-section product-library-section">
-          <div class="admin-section-title">
-            <div>
-              <h3>Products</h3>
-              <p>This is the product library. Upload nail photos, polish the product details, then publish finished designs directly to the Shop.</p>
-            </div>
-            <div class="admin-section-actions">
-              <span id="lookCountBadge">0 saved designs</span>
-              <span id="productCountBadge">0 live products</span>
-              <button type="button" id="saveProductChanges">Save Products</button>
-            </div>
-          </div>
-          <p class="admin-status" id="addProductStatus" role="status"></p>
-          <div class="admin-look-list" id="adminLookList"></div>
-          <details class="admin-published-products" open>
-            <summary>Published Shop Products</summary>
-            <p>These are the products customers can see in the Shop. Use the product library above to add more.</p>
-            <div class="admin-product-list" id="adminProductList"></div>
-          </details>
-        </section>
         <section class="admin-section">
           <div class="admin-section-title">
             <div>
@@ -545,25 +590,6 @@
           </div>
           <div class="admin-user-list" id="adminGuestOrderList"></div>
         </section>
-        </div>
-        <div class="admin-view-panel" id="adminOrdersView" data-admin-view-panel="orders" hidden>
-          <section class="admin-section">
-            <div class="admin-section-title">
-              <div>
-                <h3>Paid Order Workflow</h3>
-                <p>Track paid checkout orders from customers. Use this list to see what needs to be made, packed, or shipped.</p>
-              </div>
-              <div class="admin-section-actions">
-                <button type="button" id="refreshLiveOrders">Refresh Orders</button>
-              </div>
-            </div>
-            <p class="admin-status" id="liveOrderStatus" role="status"></p>
-            <div class="admin-live-order-list" id="adminLiveOrderList"></div>
-          </section>
-          <section class="admin-section admin-publish-note">
-            <h3>Order email setup</h3>
-            <p>Paid orders are stored here and in the payment dashboard. For automatic email alerts, enable successful-payment notifications in the payment dashboard for callison@pressedbychey.com, or connect the Stripe webhook to an email sender.</p>
-          </section>
         </div>
         <div class="admin-view-panel" id="adminIdeaView" data-admin-view-panel="ideas" hidden>
           <section class="admin-section idea-studio">
@@ -683,6 +709,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260707-live-orders-v4"></script>
+    <script src="script.js?v=20260707-admin-dashboard-v1"></script>
   </body>
 </html>

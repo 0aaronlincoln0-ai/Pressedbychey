@@ -144,6 +144,10 @@ const adminGuestOrderList = document.querySelector("#adminGuestOrderList");
 const adminLiveOrderList = document.querySelector("#adminLiveOrderList");
 const liveOrderStatus = document.querySelector("#liveOrderStatus");
 const refreshLiveOrdersButton = document.querySelector("#refreshLiveOrders");
+const adminNewOrdersCount = document.querySelector("#adminNewOrdersCount");
+const adminWorkingOrdersCount = document.querySelector("#adminWorkingOrdersCount");
+const adminDoneOrdersCount = document.querySelector("#adminDoneOrdersCount");
+const adminProductSummaryCount = document.querySelector("#adminProductSummaryCount");
 const adminContentList = document.querySelector("#adminContentList");
 const adminContentStatus = document.querySelector("#adminContentStatus");
 const adminLayoutList = document.querySelector("#adminLayoutList");
@@ -1772,15 +1776,15 @@ function showAdminPage() {
   showSitePage("home", { updateHash: false, force: true });
   renderAdminVisibility();
   adminPage.hidden = false;
+  switchAdminView("orders");
   requestAnimationFrame(() => {
     adminPage.scrollIntoView({ behavior: "smooth", block: "start" });
   });
-  setInlineEditStatus("Use Click To Edit Site to make changes directly on the page.");
+  setInlineEditStatus("Admin dashboard is open. Use Products for shop items or Site Editor for page edits.");
 }
 
 function showAdminOrdersPage() {
   showAdminPage();
-  switchAdminView("orders");
 }
 
 function renderAdminVisibility() {
@@ -3971,17 +3975,40 @@ function orderItemWorkflowSummary(item = {}) {
 }
 
 function fulfillmentStatusOptions(selected = "") {
-  return ["Payment pending", "Needs review", "Needs making", "Ready to ship", "Shipped", "Canceled"]
+  return ["Payment pending", "Needs review", "Needs making", "Making", "Packing", "Ready to ship", "Shipped", "Completed", "Canceled"]
     .map((status) => `<option value="${escapeAttribute(status)}"${status === selected ? " selected" : ""}>${escapeHTML(status)}</option>`)
     .join("");
 }
 
+function orderWorkflowStatus(order = {}) {
+  return order.fulfillmentStatus || (order.paymentStatus === "paid" ? "Needs review" : "Payment pending");
+}
+
+function updateAdminDashboardSummary() {
+  const incomingStatuses = new Set(["Payment pending", "Needs review"]);
+  const workingStatuses = new Set(["Needs making", "Making", "Packing", "Ready to ship", "Shipped"]);
+  const doneStatuses = new Set(["Completed", "Canceled"]);
+  const counts = liveOrders.reduce((summary, order) => {
+    const status = orderWorkflowStatus(order);
+    if (incomingStatuses.has(status)) summary.incoming += 1;
+    else if (workingStatuses.has(status)) summary.working += 1;
+    else if (doneStatuses.has(status)) summary.done += 1;
+    else summary.incoming += 1;
+    return summary;
+  }, { incoming: 0, working: 0, done: 0 });
+  if (adminNewOrdersCount) adminNewOrdersCount.textContent = String(counts.incoming);
+  if (adminWorkingOrdersCount) adminWorkingOrdersCount.textContent = String(counts.working);
+  if (adminDoneOrdersCount) adminDoneOrdersCount.textContent = String(counts.done);
+  if (adminProductSummaryCount) adminProductSummaryCount.textContent = String(adminState.customProducts.length);
+}
+
 function renderAdminLiveOrders() {
   if (!adminLiveOrderList) return;
+  updateAdminDashboardSummary();
   adminLiveOrderList.innerHTML = liveOrders.length
     ? liveOrders
         .map((order) => {
-          const status = order.fulfillmentStatus || (order.paymentStatus === "paid" ? "Needs review" : "Payment pending");
+          const status = orderWorkflowStatus(order);
           const paid = order.paymentStatus === "paid";
           return `
             <article class="admin-live-order-card ${paid ? "is-paid" : "is-pending"}">
@@ -6153,9 +6180,9 @@ function escapeHTML(value) {
 }
 
 function updateProductCount() {
-  if (!productCountBadge) return;
   const count = adminState.customProducts.length;
-  productCountBadge.textContent = `${count} live product${count === 1 ? "" : "s"}`;
+  if (productCountBadge) productCountBadge.textContent = `${count} live product${count === 1 ? "" : "s"}`;
+  if (adminProductSummaryCount) adminProductSummaryCount.textContent = String(count);
 }
 
 async function updatePublishedProductPhotoFromFile(index, file, input) {

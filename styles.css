@@ -3250,7 +3250,7 @@ figcaption {
 }
 
 .admin-page {
-  display: none !important;
+  display: grid;
   position: relative;
   z-index: 1;
   margin-top: clamp(1rem, 4vw, 3rem);
@@ -3261,6 +3261,14 @@ figcaption {
   background: rgba(255, 250, 253, 0.86);
   box-shadow: var(--shadow);
   backdrop-filter: blur(16px);
+}
+
+.admin-header-subtitle {
+  max-width: 42rem;
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .admin-publish-note {
@@ -3334,7 +3342,7 @@ figcaption {
 
 .admin-view-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
 }
 
@@ -3357,6 +3365,55 @@ figcaption {
 .admin-view-panel {
   display: grid;
   gap: 1rem;
+}
+
+.dashboard-hero {
+  padding: 1rem;
+  border: 1px solid rgba(203, 46, 114, 0.16);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 255, 255, 0.96), transparent 10rem),
+    linear-gradient(135deg, rgba(255, 242, 247, 0.92), rgba(248, 246, 237, 0.74));
+}
+
+.admin-dashboard-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-dashboard-summary article {
+  display: grid;
+  gap: 0.3rem;
+  min-height: 132px;
+  padding: 0.9rem;
+  border: 1px solid rgba(143, 29, 81, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 34px rgba(143, 29, 81, 0.08);
+}
+
+.admin-dashboard-summary span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-dashboard-summary strong {
+  color: var(--berry);
+  font-family: var(--serif);
+  font-size: clamp(2.2rem, 7vw, 3.8rem);
+  line-height: 0.85;
+}
+
+.admin-dashboard-summary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .admin-actions {
@@ -7293,6 +7350,7 @@ body.admin-inventory-open {
 
 @media (max-width: 700px) {
   .admin-view-tabs,
+  .admin-dashboard-summary,
   .admin-live-order-head,
   .admin-live-order-grid,
   .admin-live-order-actions {
