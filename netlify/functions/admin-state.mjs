@@ -6,7 +6,7 @@ const STORE_NAME = "pressed-by-chey";
 const STATE_KEY = "admin-state";
 const PHOTO_PREFIX = "photos";
 const DEFAULT_ADMIN_PASSWORD = "chey2026";
-const DEFAULT_ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com"];
+const DEFAULT_ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
 const DATA_URL_PATTERN = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/;
 
 function jsonResponse(body, init = {}) {

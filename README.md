@@ -59,8 +59,8 @@ The current customer-facing flow validates product prices against the live Netli
 Set these environment variables in Netlify for order workflow and support:
 
 ```text
-ORDER_NOTIFICATION_EMAIL=cheyenne@pressedbychey.com
-CHEY_SUPPORT_EMAIL=cheyenne@pressedbychey.com
+ORDER_NOTIFICATION_EMAIL=callison@pressedbychey.com
+CHEY_SUPPORT_EMAIL=callison@pressedbychey.com
 CHEY_SUPPORT_PHONE=9893922012
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```

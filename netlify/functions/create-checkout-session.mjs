@@ -6,7 +6,7 @@ const STATE_KEY = "admin-state";
 const ORDER_PREFIX = "orders";
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 const MAX_LINE_ITEMS = 20;
-const DEFAULT_ORDER_EMAIL = "cheyenne@pressedbychey.com";
+const DEFAULT_ORDER_EMAIL = "callison@pressedbychey.com";
 const DEFAULT_SUPPORT_PHONE = "9893922012";
 
 function jsonResponse(body, init = {}) {

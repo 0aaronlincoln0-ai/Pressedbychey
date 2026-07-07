@@ -3,7 +3,7 @@ import { getStore } from "@netlify/blobs";
 const STORE_NAME = "pressed-by-chey";
 const ORDER_PREFIX = "orders";
 const DEFAULT_ADMIN_PASSWORD = "chey2026";
-const DEFAULT_ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com"];
+const DEFAULT_ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {

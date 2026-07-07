@@ -104,6 +104,7 @@ const forgotPasswordButton = document.querySelector("#forgotPasswordButton");
 const passwordResetCard = document.querySelector("#passwordResetCard");
 const adminSessionCard = document.querySelector("#adminSessionCard");
 const adminContinueEditing = document.querySelector("#adminContinueEditing");
+const adminOpenOrders = document.querySelector("#adminOpenOrders");
 const adminExitMode = document.querySelector("#adminExitMode");
 const resetEmail = document.querySelector("#resetEmail");
 const sendResetCode = document.querySelector("#sendResetCode");
@@ -190,7 +191,7 @@ const presetAura = {
   radius: 210
 };
 const ADMIN_PASSWORD = "chey2026";
-const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com"];
+const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
 const ADMIN_SESSION_KEY = "pressedByCheyAdminSession";
 const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const ADMIN_STORAGE_KEY = "pressedByCheyEdits";
@@ -1762,15 +1763,27 @@ function showAdminPage() {
   }
   closeCartDrawer();
   closeAccountPanel();
-  showSitePage("home", { updateHash: true, force: true });
+  if (window.location.hash !== "#adminPage") {
+    history.replaceState(null, "", "#adminPage");
+  }
+  showSitePage("home", { updateHash: false, force: true });
   renderAdminVisibility();
+  adminPage.hidden = false;
+  requestAnimationFrame(() => {
+    adminPage.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   setInlineEditStatus("Use Click To Edit Site to make changes directly on the page.");
+}
+
+function showAdminOrdersPage() {
+  showAdminPage();
+  switchAdminView("orders");
 }
 
 function renderAdminVisibility() {
   const signedIn = isAdminSignedIn();
-  adminNav.hidden = true;
-  adminPage.hidden = true;
+  adminNav.hidden = !signedIn;
+  adminPage.hidden = !signedIn || window.location.hash !== "#adminPage";
   if (!signedIn && textEditMode) {
     textEditMode = false;
   }
@@ -3283,10 +3296,10 @@ function loginCustomer() {
     renderAdminVisibility();
     closeAccountPanel();
     textEditMode = false;
-    showSitePage("home", { updateHash: true, force: true });
+    showAdminPage();
     renderCustomProducts();
     syncInlineEditMode();
-    setInlineEditStatus("Admin is signed in. Press Click To Edit Site to change the page.");
+    setInlineEditStatus("Admin is signed in. Use the Admin Dashboard tabs to edit the site or view orders.");
     return;
   }
   const user = customerState.users.find((item) => item.email === email && item.password === password);
@@ -4072,7 +4085,8 @@ closeAccount.addEventListener("click", closeAccountPanel);
 customerRegister.addEventListener("click", registerCustomer);
 customerLogin.addEventListener("click", loginCustomer);
 customerLogout.addEventListener("click", logoutCustomer);
-adminContinueEditing?.addEventListener("click", closeAccountPanel);
+adminContinueEditing?.addEventListener("click", showAdminPage);
+adminOpenOrders?.addEventListener("click", showAdminOrdersPage);
 adminExitMode?.addEventListener("click", logoutAdmin);
 customOrderPhoto?.addEventListener("change", handleCustomOrderPhotoUpload);
 customOrderPhotoRemove?.addEventListener("click", clearCustomOrderPhoto);
