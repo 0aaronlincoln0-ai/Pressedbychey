@@ -218,6 +218,8 @@ const GUEST_ORDER_STORAGE_KEY = "pressedByCheyGuestOrders";
 const STRIPE_CHECKOUT_ENDPOINT = "/.netlify/functions/create-checkout-session";
 const STRIPE_CHECKOUT_STATUS_ENDPOINT = "/.netlify/functions/checkout-status";
 const ADMIN_ORDERS_ENDPOINT = "/.netlify/functions/admin-orders";
+const CUSTOMER_ACCOUNT_ENDPOINT = "/.netlify/functions/customer-account";
+const CUSTOM_REQUEST_ENDPOINT = "/.netlify/functions/custom-request";
 const CHECKOUT_PENDING_ORDER_KEY = "pressedByCheyPendingCheckoutOrder";
 const nailSizeOptions = ["", "000", "00", "0", "0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
 const sizeFingerKeys = ["thumb", "index", "middle", "ring", "pinky"];
@@ -3124,7 +3126,10 @@ function renderCart() {
   cartEmpty.classList.toggle("show", cart.length === 0);
   cartItems.classList.toggle("has-items", cart.length > 0);
   body.classList.toggle("cart-has-items", cart.length > 0);
-  guestCheckout.hidden = cart.length === 0;
+  const signedIn = Boolean(currentCustomer());
+  if (guestCheckoutOpen) guestCheckoutOpen.hidden = signedIn || cart.length === 0;
+  guestCheckout.hidden = signedIn || cart.length === 0;
+  if (signedIn) guestCheckout.open = false;
 }
 
 function addToCart(name, price, details = {}) {
@@ -3246,6 +3251,53 @@ function currentCustomer() {
   return customerState.users.find((user) => user.email === customerState.currentEmail) || null;
 }
 
+function mergeCustomerIntoLocal(customer = {}, password = "") {
+  const email = String(customer.email || "").toLowerCase();
+  if (!email) return null;
+  const existingIndex = customerState.users.findIndex((user) => user.email === email);
+  const existing = existingIndex >= 0 ? customerState.users[existingIndex] : {};
+  const nextUser = {
+    ...existing,
+    name: customer.name || existing.name || email.split("@")[0],
+    email,
+    password: password || existing.password || "",
+    sizes: normalizeCustomerSizes(customer.sizes || existing.sizes),
+    savedProducts: Array.isArray(customer.savedProducts) ? customer.savedProducts : existing.savedProducts || [],
+    orders: Array.isArray(customer.orders) ? customer.orders : existing.orders || [],
+    createdAt: customer.createdAt || existing.createdAt || "",
+    lastLogin: customer.lastLogin || existing.lastLogin || new Date().toLocaleString()
+  };
+  if (existingIndex >= 0) customerState.users[existingIndex] = nextUser;
+  else customerState.users.push(nextUser);
+  customerState.currentEmail = email;
+  saveCustomerState();
+  return nextUser;
+}
+
+async function customerAccountRequest(action, payload = {}) {
+  const response = await fetch(CUSTOMER_ACCOUNT_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, ...payload })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data?.ok === false) throw new Error(data.error || "Customer account could not be updated.");
+  return data.customer;
+}
+
+function syncCurrentCustomerProfile() {
+  const user = currentCustomer();
+  if (!user?.email || !user.password) return;
+  customerAccountRequest("save-profile", {
+    email: user.email,
+    password: user.password,
+    name: user.name,
+    sizes: user.sizes,
+    savedProducts: user.savedProducts || [],
+    orders: user.orders || []
+  }).catch(() => {});
+}
+
 function renderAccount() {
   const adminSignedIn = isAdminSignedIn();
   const user = currentCustomer();
@@ -3325,7 +3377,7 @@ function renderOrderHistory(user) {
     `;
 }
 
-function registerCustomer() {
+async function registerCustomer() {
   const name = registerName.value.trim();
   const email = registerEmail.value.trim().toLowerCase();
   const password = registerPassword.value;
@@ -3333,32 +3385,29 @@ function registerCustomer() {
     accountStatus.textContent = "Fill out name, email, and password.";
     return;
   }
-  if (customerState.users.some((user) => user.email === email)) {
-    accountStatus.textContent = "That email already has an account.";
-    return;
+  accountStatus.textContent = "Creating your profile...";
+  try {
+    const cloudCustomer = await customerAccountRequest("register", {
+      name,
+      email,
+      password,
+      sizes: normalizeCustomerSizes()
+    });
+    mergeCustomerIntoLocal(cloudCustomer, password);
+    exitAdminModeForCustomer();
+    accountStatus.textContent = "";
+    registerName.value = "";
+    registerEmail.value = "";
+    registerPassword.value = "";
+    renderAccount();
+    renderAdminUsers();
+    renderCart();
+  } catch (error) {
+    accountStatus.textContent = error.message || "Could not create that profile.";
   }
-  customerState.users.push({
-    name,
-    email,
-    password,
-    sizes: normalizeCustomerSizes(),
-    savedProducts: [],
-    orders: [],
-    createdAt: new Date().toLocaleString(),
-    lastLogin: new Date().toLocaleString()
-  });
-  customerState.currentEmail = email;
-  exitAdminModeForCustomer();
-  saveCustomerState();
-  accountStatus.textContent = "";
-  registerName.value = "";
-  registerEmail.value = "";
-  registerPassword.value = "";
-  renderAccount();
-  renderAdminUsers();
 }
 
-function loginCustomer() {
+async function loginCustomer() {
   const email = loginEmail.value.trim().toLowerCase();
   const password = loginPassword.value;
   if (isAdminLogin(email, password)) {
@@ -3378,19 +3427,52 @@ function loginCustomer() {
     setInlineEditStatus("Admin is signed in. Use the Admin Dashboard tabs to edit the site or view orders.");
     return;
   }
-  const user = customerState.users.find((item) => item.email === email && item.password === password);
-  if (!user) {
-    accountStatus.textContent = "No account found with that email and password.";
+  accountStatus.textContent = "Checking your profile...";
+  try {
+    const cloudCustomer = await customerAccountRequest("login", { email, password });
+    mergeCustomerIntoLocal(cloudCustomer, password);
+    exitAdminModeForCustomer();
+    accountStatus.textContent = "";
+    loginEmail.value = "";
+    loginPassword.value = "";
+    renderAccount();
+    renderCart();
+    return;
+  } catch (error) {
+    const localUser = customerState.users.find((item) => item.email === email && item.password === password);
+    if (localUser) {
+      exitAdminModeForCustomer();
+      localUser.lastLogin = new Date().toLocaleString();
+      customerState.currentEmail = email;
+      saveCustomerState();
+      try {
+        await customerAccountRequest("register", {
+          name: localUser.name || email.split("@")[0],
+          email,
+          password,
+          sizes: localUser.sizes || normalizeCustomerSizes()
+        });
+        await customerAccountRequest("save-profile", {
+          email,
+          password,
+          name: localUser.name,
+          sizes: localUser.sizes,
+          savedProducts: localUser.savedProducts || [],
+          orders: localUser.orders || []
+        });
+      } catch {
+        syncCurrentCustomerProfile();
+      }
+      accountStatus.textContent = "";
+      loginEmail.value = "";
+      loginPassword.value = "";
+      renderAccount();
+      renderCart();
+      return;
+    }
+    accountStatus.textContent = error.message || "No account found with that email and password.";
     return;
   }
-  exitAdminModeForCustomer();
-  user.lastLogin = new Date().toLocaleString();
-  customerState.currentEmail = email;
-  saveCustomerState();
-  accountStatus.textContent = "";
-  loginEmail.value = "";
-  loginPassword.value = "";
-  renderAccount();
 }
 
 function showPasswordReset(show = true) {
@@ -3479,6 +3561,7 @@ function logoutCustomer() {
   customerState.currentEmail = "";
   saveCustomerState();
   renderAccount();
+  renderCart();
 }
 
 function saveCustomerSizes() {
@@ -3496,6 +3579,7 @@ function saveCustomerSizes() {
     ])
   );
   saveCustomerState();
+  syncCurrentCustomerProfile();
   renderAdminUsers();
   accountStatus.textContent = "Left and right hand sizes saved.";
 }
@@ -3535,6 +3619,7 @@ function saveProductDataForCustomer(item) {
     user.savedProducts.push(item);
   }
   saveCustomerState();
+  syncCurrentCustomerProfile();
   renderAccount();
   renderAdminUsers();
   openAccount("Product saved.");
@@ -3691,6 +3776,10 @@ function checkoutCart() {
 
 function openGuestCheckout(message = "Guest checkout is ready. Add your contact info and place the order.") {
   if (!cart.length) return;
+  if (currentCustomer()) {
+    setCheckoutMessage("You are signed in, so checkout will use your saved profile.", false);
+    return;
+  }
   guestCheckout.hidden = false;
   guestCheckout.open = true;
   guestCheckoutStatus.textContent = message;
@@ -3784,6 +3873,20 @@ function checkoutLineItems() {
   }));
 }
 
+function quoteRequestLineItems() {
+  return cart.map((item) => ({
+    name: item.name,
+    price: item.price,
+    quantity: cartItemQuantity(item),
+    customOrder: true,
+    sourceProductIndex: checkoutProductIndex(item.sourceProductIndex),
+    category: item.category || "",
+    shape: item.shape || "",
+    note: item.note || "",
+    image: item.image || ""
+  }));
+}
+
 function pendingCheckoutSnapshot(customer = {}) {
   return {
     createdAt: new Date().toISOString(),
@@ -3830,52 +3933,102 @@ async function startStripeCheckout({ source = "guest", customer = {} } = {}) {
   }
 }
 
-function saveAccountQuoteOrder(user) {
-  const total = cartTotalValue();
-  user.orders = user.orders || [];
-  user.orders.unshift({
-    id: `Quote ${String(user.orders.length + 1).padStart(3, "0")}`,
-    date: new Date().toLocaleDateString(),
-    total,
-    customer: customerCheckoutPayload(user),
-    sizing: customerSizesSummary(user),
-    items: cart.map((item) => ({ ...item, image: item.image ? "Reference photo attached" : "" }))
-  });
-  cart.splice(0, cart.length);
-  cartEmptyMessage = "Custom request saved for Chey to review.";
-  saveCustomerState();
-  renderCart();
-  renderAccount();
-  renderAdminUsers();
-  closeCartDrawer();
-  openAccount("Custom request saved for Chey to review before payment.");
+function localQuoteOrderFromServer(order = {}) {
+  return {
+    id: order.id || `Quote ${Date.now()}`,
+    date: order.createdAt ? new Date(order.createdAt).toLocaleString() : new Date().toLocaleString(),
+    total: Number(order.total || 0),
+    customer: order.customer || {},
+    sizing: orderSizingSummary(order),
+    items: Array.isArray(order.items)
+      ? order.items.map((item) => ({
+          ...item,
+          price: Number(item.unitAmount || item.price || 0) / (item.unitAmount ? 100 : 1),
+          image: item.image ? "Reference photo attached" : ""
+        }))
+      : []
+  };
 }
 
-function saveGuestQuoteOrder({ name, email, phone, sizing, notes }) {
-  const total = cartTotalValue();
-  guestOrders.unshift({
-    id: `Guest ${String(guestOrders.length + 1).padStart(3, "0")}`,
-    date: new Date().toLocaleString(),
-    name,
-    email,
-    phone,
-    sizing,
-    notes,
-    customer: { mode: "guest", name, email, phone, sizing, notes },
-    total,
-    items: cart.map((item) => ({ ...item, image: item.image ? "Reference photo attached" : "" }))
+async function submitQuoteRequestOrder({ source = "account", customer = {} } = {}) {
+  const response = await fetch(CUSTOM_REQUEST_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source,
+      customer,
+      items: quoteRequestLineItems()
+    })
   });
-  cart.splice(0, cart.length);
-  cartEmptyMessage = "Your guest order has been saved.";
-  [guestName, guestEmail, guestPhone, guestSizing, guestNotes].forEach((input) => {
-    if (input) input.value = "";
-  });
-  saveGuestOrders();
-  renderCart();
-  renderAdminGuestOrders();
-  guestCheckout.open = false;
-  guestCheckoutStatus.textContent = "";
-  openCart();
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || "Custom request could not be sent to Chey.");
+  }
+  return data.order;
+}
+
+async function saveAccountQuoteOrder(user) {
+  setCheckoutBusy(true);
+  setCheckoutMessage("Sending your custom request to Chey...");
+  try {
+    const order = await submitQuoteRequestOrder({
+      source: "account",
+      customer: customerCheckoutPayload(user)
+    });
+    user.orders = user.orders || [];
+    user.orders.unshift(localQuoteOrderFromServer(order));
+    cart.splice(0, cart.length);
+    cartEmptyMessage = "Custom request sent to Chey for review.";
+    saveCustomerState();
+    syncCurrentCustomerProfile();
+    renderCart();
+    renderAccount();
+    renderAdminUsers();
+    closeCartDrawer();
+    openAccount("Custom request sent to Chey for review before payment.");
+  } catch (error) {
+    setCheckoutMessage(error.message || "Custom request could not be sent to Chey.", true);
+  } finally {
+    setCheckoutBusy(false);
+  }
+}
+
+async function saveGuestQuoteOrder({ name, email, phone, sizing, notes }) {
+  setCheckoutBusy(true);
+  guestCheckoutStatus.textContent = "Sending your custom request to Chey...";
+  guestCheckoutStatus.classList.remove("is-error");
+  try {
+    const customer = { mode: "guest", name, email, phone, sizing, notes };
+    const order = await submitQuoteRequestOrder({
+      source: "guest",
+      customer
+    });
+    guestOrders.unshift({
+      ...localQuoteOrderFromServer(order),
+      name,
+      email,
+      phone,
+      sizing,
+      notes,
+      customer
+    });
+    cart.splice(0, cart.length);
+    cartEmptyMessage = "Your custom request was sent to Chey.";
+    [guestName, guestEmail, guestPhone, guestSizing, guestNotes].forEach((input) => {
+      if (input) input.value = "";
+    });
+    saveGuestOrders();
+    renderCart();
+    renderAdminGuestOrders();
+    guestCheckout.open = false;
+    guestCheckoutStatus.textContent = "";
+    openCart();
+  } catch (error) {
+    guestCheckoutStatus.textContent = error.message || "Custom request could not be sent to Chey.";
+    guestCheckoutStatus.classList.add("is-error");
+  } finally {
+    setCheckoutBusy(false);
+  }
 }
 
 function localPaidOrderFromServer(order = {}) {
@@ -3908,6 +4061,7 @@ function recordPaidCheckoutLocally(order = {}) {
     if (!user.orders.some((saved) => saved.id === paidOrder.id)) {
       user.orders.unshift(paidOrder);
       saveCustomerState();
+      syncCurrentCustomerProfile();
     }
     renderAccount();
     renderAdminUsers();
@@ -4059,6 +4213,13 @@ function orderItemWorkflowSummary(item = {}) {
   return `${item.name || "Product"} x ${qty} (${unitLabel}${item.category ? ` - ${item.category}` : ""})`;
 }
 
+function orderItemWorkflowMarkup(item = {}) {
+  const photoLink = item.image
+    ? `<br><a href="${escapeAttribute(item.image)}" target="_blank" rel="noopener">Open reference photo</a>`
+    : "";
+  return `<p>${escapeHTML(orderItemWorkflowSummary(item))}${photoLink}</p>`;
+}
+
 function fulfillmentStatusOptions(selected = "") {
   return ["Payment pending", "Needs review", "Needs making", "Making", "Packing", "Ready to ship", "Shipped", "Completed", "Canceled"]
     .map((status) => `<option value="${escapeAttribute(status)}"${status === selected ? " selected" : ""}>${escapeHTML(status)}</option>`)
@@ -4204,7 +4365,7 @@ function renderAdminLiveOrders() {
                 <div class="admin-live-order-grid">
                   <section>
                     <h4>Products to make / ship</h4>
-                    ${(order.items || []).map((item) => `<p>${escapeHTML(orderItemWorkflowSummary(item))}</p>`).join("") || "<p>No product line items saved.</p>"}
+                    ${(order.items || []).map(orderItemWorkflowMarkup).join("") || "<p>No product line items saved.</p>"}
                   </section>
                   <section>
                     <h4>Customer</h4>
@@ -5354,6 +5515,23 @@ function repairCorruptedQuickFieldCopy() {
   return changed;
 }
 
+function repairHeroStatDuplicateText() {
+  const heroStats = Array.from(document.querySelectorAll(".hero-stats span"));
+  if (heroStats.length < 3) return false;
+  const defaults = ["10 sizes per kit", "7-14 days wear", "Reusable designs"];
+  const keys = heroStats.slice(0, 3).map((el) => el.dataset.adminText).filter(Boolean);
+  if (keys.length < 3) return false;
+  const values = keys.map((key) => normalizeCopyValue(adminState.texts[key]));
+  const savedValues = values.filter(Boolean);
+  const allSavedStatsMatch = savedValues.length === 3 && savedValues.every((value) => value === savedValues[0]);
+  if (!allSavedStatsMatch) return false;
+  keys.forEach((key, index) => {
+    adminState.texts[key] = defaults[index];
+  });
+  localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
+  return true;
+}
+
 function markEditableText() {
   const elements = editableElements();
   elements.forEach((el) => {
@@ -5442,6 +5620,7 @@ function applyAdminState() {
   renderCustomPages();
   renderCustomBlocks();
   markEditableText();
+  repairHeroStatDuplicateText();
   Object.entries(adminState.texts).forEach(([key, value]) => {
     const el = document.querySelector(`[data-admin-text="${key}"]`);
     if (el) el.textContent = value;
