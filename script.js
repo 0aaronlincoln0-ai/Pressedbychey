@@ -126,6 +126,14 @@ const customerLogout = document.querySelector("#customerLogout");
 const accountName = document.querySelector("#accountName");
 const savedProductsList = document.querySelector("#savedProductsList");
 const orderHistoryList = document.querySelector("#orderHistoryList");
+const customerAccountPageStatus = document.querySelector("#customerAccountPageStatus");
+const customerQuoteList = document.querySelector("#customerQuoteList");
+const customerOrderPageList = document.querySelector("#customerOrderPageList");
+const customerQuoteRefreshStamp = document.querySelector("#customerQuoteRefreshStamp");
+const customerAccountSizingSummary = document.querySelector("#customerAccountSizingSummary");
+const customerAccountRefresh = document.querySelector("#customerAccountRefresh");
+const customerAccountPanelOpen = document.querySelector("#customerAccountPanelOpen");
+const customerAccountFavoritesOpen = document.querySelector("#customerAccountFavoritesOpen");
 const saveSizesButton = document.querySelector("#saveSizes");
 const sizeInputs = {
   left: {
@@ -233,6 +241,7 @@ const sizeHandKeys = ["left", "right"];
 const CUSTOM_ORDER_MAX_PHOTO_SIZE = 1600;
 const LIVE_REQUEST_TIMEOUT_MS = 18000;
 const ADMIN_ORDER_REFRESH_MS = 30000;
+const CUSTOMER_QUOTE_REFRESH_MS = 6000;
 let customerState = {
   users: [],
   currentEmail: ""
@@ -241,7 +250,9 @@ let passwordResetRequest = null;
 let guestOrders = [];
 let liveOrders = [];
 let collapsedLiveOrderIds = new Set();
+let quoteSentFeedbackOrderIds = new Set();
 let adminLiveOrderRefreshTimer = null;
+let customerQuoteRefreshTimer = null;
 let adminSession = null;
 let adminState = {
   texts: {},
@@ -515,6 +526,7 @@ function pageKeyFromHash(hash = window.location.hash) {
   const key = hash.replace("#", "").trim().toLowerCase();
   if (!key || key === "top") return "home";
   if (/^product-\d+$/.test(key)) return "product";
+  if (key === "account") return "account";
   return allPageKeys().includes(key) ? key : "home";
 }
 
@@ -1543,6 +1555,7 @@ function pageElement(key) {
 
 function pageMeta(key) {
   if (key === "product") return { key: "product", label: "Product details" };
+  if (key === "account") return { key: "account", label: "Customer account" };
   return allLayoutSections().find((section) => section.key === key) || null;
 }
 
@@ -1587,6 +1600,10 @@ function updateBookStatus(activeKey = currentPageKey) {
     bookStatus.innerHTML = "<strong>Product details</strong><span>Review this set, choose a quantity, or return to the Shop.</span>";
     return;
   }
+  if (activeKey === "account") {
+    bookStatus.innerHTML = "<strong>Customer account</strong><span>Quotes and order history refresh from the live website.</span>";
+    return;
+  }
   const orderedKeys = visiblePageKeys();
   const activeIndex = Math.max(orderedKeys.indexOf(activeKey), 0);
   pageBook.dataset.pageCurrent = String(activeIndex + 1);
@@ -1600,7 +1617,7 @@ function sectionFocusLine() {
 }
 
 function syncPageStateFromScroll() {
-  if (currentPageKey === "product") return;
+  if (currentPageKey === "product" || currentPageKey === "account") return;
   const orderedKeys = visiblePageKeys();
   if (!orderedKeys.length) return;
   const focusLine = sectionFocusLine();
@@ -1699,6 +1716,14 @@ function showSitePage(pageKey, options = {}) {
   currentPageKey = resolvedKey;
   updatePageNavState(resolvedKey);
   finishPageTransition(targetPage);
+  if (resolvedKey === "account") {
+    closeAccountPanel();
+    renderCustomerAccountPage();
+    syncCustomerQuoteRefresh();
+    refreshCustomerQuotesQuietly();
+  } else {
+    syncCustomerQuoteRefresh();
+  }
   lockPageNavigation(force ? 80 : 760);
 
   if (updateHash && window.location.hash !== `#${resolvedKey}`) {
@@ -1768,11 +1793,14 @@ function openAccount(message = "") {
   document.querySelector(".account-panel").setAttribute("aria-hidden", "false");
   if (message) accountStatus.textContent = message;
   renderAccount();
+  syncCustomerQuoteRefresh();
+  refreshCustomerQuotesQuietly();
 }
 
 function closeAccountPanel() {
   body.classList.remove("account-open");
   document.querySelector(".account-panel").setAttribute("aria-hidden", "true");
+  syncCustomerQuoteRefresh();
 }
 
 function isAdminLogin(email, password) {
@@ -3461,6 +3489,80 @@ function syncCurrentCustomerProfile() {
   }).catch(() => {});
 }
 
+function accountPanelIsOpen() {
+  return body.classList.contains("account-open") && document.visibilityState === "visible";
+}
+
+function customerAccountPageIsOpen() {
+  return currentPageKey === "account" && document.visibilityState === "visible";
+}
+
+function customerAccountViewIsOpen() {
+  return accountPanelIsOpen() || customerAccountPageIsOpen();
+}
+
+function customerQuoteSignature(user = {}) {
+  return (user.orders || [])
+    .filter(orderHasCustomQuote)
+    .map((order) => [
+      order.id,
+      quoteAmountCents(order),
+      order.quoteStatus || "",
+      order.quoteMessage || "",
+      order.paymentStatus || ""
+    ].join("|"))
+    .join("::");
+}
+
+async function refreshCurrentCustomerFromCloud({ showStatus = false } = {}) {
+  const user = currentCustomer();
+  const password = customerSessionPasswords.get(String(user?.email || "").toLowerCase());
+  if (!user?.email || !password || isAdminSignedIn()) return;
+  const beforeSignature = customerQuoteSignature(user);
+  if (showStatus && accountStatus) accountStatus.textContent = "Checking for quote updates...";
+  try {
+    const cloudCustomer = await customerAccountRequest("refresh-profile", {
+      email: user.email,
+      password
+    });
+    const merged = mergeCustomerIntoLocal(cloudCustomer, password);
+    renderAccount();
+    renderCustomerAccountPage();
+    const afterSignature = customerQuoteSignature(merged || currentCustomer() || {});
+    if (afterSignature && afterSignature !== beforeSignature && accountStatus) {
+      accountStatus.textContent = "Quote updated. Review it in your order history.";
+      if (customerAccountPageStatus) customerAccountPageStatus.textContent = "Quote updated from Chey. Review it below.";
+    } else if (showStatus && accountStatus) {
+      accountStatus.textContent = "";
+      if (customerAccountPageStatus) customerAccountPageStatus.textContent = "";
+    }
+    if (customerQuoteRefreshStamp) customerQuoteRefreshStamp.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  } catch (error) {
+    if (showStatus && accountStatus) accountStatus.textContent = error.message || "Could not refresh quote updates.";
+    if (showStatus && customerAccountPageStatus) customerAccountPageStatus.textContent = error.message || "Could not refresh quote updates.";
+  }
+}
+
+function refreshCustomerQuotesQuietly() {
+  if (customerAccountViewIsOpen() && currentCustomer()) refreshCurrentCustomerFromCloud();
+}
+
+function startCustomerQuoteRefresh() {
+  if (customerQuoteRefreshTimer) return;
+  customerQuoteRefreshTimer = window.setInterval(refreshCustomerQuotesQuietly, CUSTOMER_QUOTE_REFRESH_MS);
+}
+
+function stopCustomerQuoteRefresh() {
+  if (!customerQuoteRefreshTimer) return;
+  window.clearInterval(customerQuoteRefreshTimer);
+  customerQuoteRefreshTimer = null;
+}
+
+function syncCustomerQuoteRefresh() {
+  if (customerAccountViewIsOpen() && currentCustomer()) startCustomerQuoteRefresh();
+  else stopCustomerQuoteRefresh();
+}
+
 function renderAccount() {
   const adminSignedIn = isAdminSignedIn();
   const user = currentCustomer();
@@ -3473,12 +3575,14 @@ function renderAccount() {
     accountStatus.textContent = "";
     savedProductsList.innerHTML = "";
     orderHistoryList.innerHTML = "";
+    renderCustomerAccountPage();
     return;
   }
   if (!user) {
     accountStatus.hidden = false;
     savedProductsList.innerHTML = "";
     orderHistoryList.innerHTML = "";
+    renderCustomerAccountPage();
     return;
   }
   accountStatus.hidden = false;
@@ -3492,6 +3596,7 @@ function renderAccount() {
   });
   renderSavedProducts(user);
   renderOrderHistory(user);
+  renderCustomerAccountPage();
 }
 
 function renderSavedProducts(user) {
@@ -3569,6 +3674,85 @@ function renderOrderHistory(user) {
     `;
 }
 
+function customerQuoteCardMarkup(order = {}) {
+  const quoteCents = quoteAmountCents(order);
+  const payable = isQuotePayable(order);
+  const status = order.quoteStatus || (quoteCents ? "Quoted" : "Waiting for Chey");
+  const message = order.quoteMessage || "Chey has not added a quote message yet.";
+  return `
+    <article class="customer-quote-card ${payable ? "is-payable" : ""}">
+      <div class="customer-quote-head">
+        <div>
+          <span class="payment-pill ${payable ? "is-paid" : "is-pending"}">${escapeHTML(status)}</span>
+          <strong>${escapeHTML(order.id || "Custom quote")}</strong>
+          <p>${escapeHTML(order.date || orderDateSummary(order))}</p>
+        </div>
+        <div class="customer-quote-price">
+          <strong>${quoteCents ? formatOrderMoney(quoteCents, order.currency) : "Pending"}</strong>
+          <small>${escapeHTML(order.paymentStatus === "paid" ? "Paid" : payable ? "Ready to pay" : "Quote updating")}</small>
+        </div>
+      </div>
+      <p class="order-request-note"><strong>Message from Chey:</strong> ${escapeHTML(message)}</p>
+      <p>${escapeHTML((order.items || []).map(orderItemSummary).join(", ") || "Custom request")}</p>
+      ${orderSizingMarkup(order)}
+      ${orderRequestNotesMarkup(order)}
+      ${payable ? `<button type="button" data-pay-quote="${escapeAttribute(order.id)}">Accept Quote & Pay ${formatOrderMoney(quoteCents, order.currency)}</button>` : ""}
+    </article>
+  `;
+}
+
+function customerOrderPageMarkup(order = {}) {
+  const quoteCents = quoteAmountCents(order);
+  return `
+    <div class="account-list-item">
+      <strong>${escapeHTML(order.id || "Order")}</strong>
+      <p>${escapeHTML(order.date || orderDateSummary(order))} - ${quoteCents ? `Quote ${formatOrderMoney(quoteCents, order.currency)}` : `$${order.total || 0}`}</p>
+      <p>${escapeHTML(order.paymentStatus || order.quoteStatus || order.fulfillmentStatus || "Status updating")}</p>
+      <p>${escapeHTML((order.items || []).map(orderItemSummary).join(", ") || "No products saved")}</p>
+      ${orderSizingMarkup(order)}
+      ${orderRequestNotesMarkup(order)}
+    </div>
+  `;
+}
+
+function renderCustomerAccountPage() {
+  if (!customerQuoteList || !customerOrderPageList) return;
+  const user = currentCustomer();
+  if (!user) {
+    customerQuoteList.innerHTML = `
+      <div class="account-list-item account-empty-card">
+        <strong>Sign in to view quotes</strong>
+        <p>Open your customer profile to see quotes from Chey and pay when they are ready.</p>
+        <button type="button" data-open-account-panel>Sign In</button>
+      </div>
+    `;
+    customerOrderPageList.innerHTML = "";
+    if (customerAccountSizingSummary) customerAccountSizingSummary.textContent = "Sign in to see saved sizing.";
+    if (customerQuoteRefreshStamp) customerQuoteRefreshStamp.textContent = "Live sync paused";
+    return;
+  }
+  const orders = user.orders || [];
+  const quoteOrders = orders.filter(orderHasCustomQuote);
+  customerQuoteList.innerHTML = quoteOrders.length
+    ? quoteOrders.map(customerQuoteCardMarkup).join("")
+    : `
+      <div class="account-list-item account-empty-card">
+        <strong>No quotes yet</strong>
+        <p>After you send a custom request, Chey's quote and message will appear here automatically.</p>
+      </div>
+    `;
+  customerOrderPageList.innerHTML = orders.length
+    ? orders.map(customerOrderPageMarkup).join("")
+    : `
+      <div class="account-list-item account-empty-card">
+        <strong>No order history yet</strong>
+        <p>Paid orders and custom quote requests will stay here.</p>
+      </div>
+    `;
+  if (customerAccountSizingSummary) customerAccountSizingSummary.textContent = customerSizesSummary(user);
+  if (customerQuoteRefreshStamp) customerQuoteRefreshStamp.textContent = `Live sync on - ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+}
+
 async function registerCustomer() {
   const name = registerName.value.trim();
   const email = registerEmail.value.trim().toLowerCase();
@@ -3598,6 +3782,8 @@ async function registerCustomer() {
     renderAccount();
     renderAdminUsers();
     renderCart();
+    closeAccountPanel();
+    showSitePage("account", { updateHash: true, behavior: "smooth", force: true });
   } catch (error) {
     accountStatus.textContent = error.message || "Could not create that profile.";
   }
@@ -3633,6 +3819,8 @@ async function loginCustomer() {
     loginPassword.value = "";
     renderAccount();
     renderCart();
+    closeAccountPanel();
+    showSitePage("account", { updateHash: true, behavior: "smooth", force: true });
     return;
   } catch (error) {
     const localUser = customerState.users.find((item) => item.email === email && item.password === password);
@@ -3667,6 +3855,8 @@ async function loginCustomer() {
       loginPassword.value = "";
       renderAccount();
       renderCart();
+      closeAccountPanel();
+      showSitePage("account", { updateHash: true, behavior: "smooth", force: true });
       return;
     }
     accountStatus.textContent = error.message || "No account found with that email and password.";
@@ -3746,6 +3936,8 @@ async function verifyPasswordReset() {
     accountStatus.textContent = "Password updated. You are signed in.";
     renderAccount();
     renderCart();
+    closeAccountPanel();
+    showSitePage("account", { updateHash: true, behavior: "smooth", force: true });
   } catch (error) {
     accountStatus.textContent = error.message || "Password could not be reset.";
   }
@@ -3754,8 +3946,14 @@ async function verifyPasswordReset() {
 function logoutCustomer() {
   customerState.currentEmail = "";
   saveCustomerState();
+  stopCustomerQuoteRefresh();
   renderAccount();
+  renderCustomerAccountPage();
   renderCart();
+  if (currentPageKey === "account") {
+    showSitePage("home", { updateHash: true, behavior: "smooth", force: true });
+    openAccount("You are signed out.");
+  }
 }
 
 function saveCustomerSizes() {
@@ -3775,7 +3973,10 @@ function saveCustomerSizes() {
   saveCustomerState();
   syncCurrentCustomerProfile();
   renderAdminUsers();
+  renderAccount();
+  renderCustomerAccountPage();
   accountStatus.textContent = "Left and right hand sizes saved.";
+  if (customerAccountPageStatus) customerAccountPageStatus.textContent = "Saved sizing updated.";
 }
 
 function productPriceFromCard(product) {
@@ -3815,6 +4016,7 @@ function saveProductDataForCustomer(item) {
   saveCustomerState();
   syncCurrentCustomerProfile();
   renderAccount();
+  renderCustomerAccountPage();
   renderAdminUsers();
   openAccount("Product saved.");
 }
@@ -4234,7 +4436,9 @@ async function saveAccountQuoteOrder(user) {
     renderAccount();
     renderAdminUsers();
     closeCartDrawer();
-    openAccount("Custom request sent to Chey for review before payment.");
+    closeAccountPanel();
+    showSitePage("account", { updateHash: true, behavior: "smooth", force: true });
+    if (customerAccountPageStatus) customerAccountPageStatus.textContent = "Custom request sent to Chey for review before payment.";
   } catch (error) {
     setCheckoutMessage(error.message || "Custom request could not be sent to Chey.", true);
   } finally {
@@ -4320,6 +4524,7 @@ function recordPaidCheckoutLocally(order = {}) {
       syncCurrentCustomerProfile();
     }
     renderAccount();
+    renderCustomerAccountPage();
     renderAdminUsers();
     return;
   }
@@ -4643,11 +4848,13 @@ function renderAdminLiveOrders() {
           const collapsed = collapsedLiveOrderIds.has(orderId);
           const quoteOrder = orderHasCustomQuote(order);
           const quoteCents = quoteAmountCents(order);
+          const quoteSentFeedback = quoteSentFeedbackOrderIds.has(orderId);
           return `
-            <article class="admin-live-order-card ${paid ? "is-paid" : "is-pending"} ${quoteOrder ? "is-quote-order" : ""} ${collapsed ? "is-collapsed" : ""}">
+            <article class="admin-live-order-card ${paid ? "is-paid" : "is-pending"} ${quoteOrder ? "is-quote-order" : ""} ${quoteSentFeedback ? "is-quote-sent-feedback" : ""} ${collapsed ? "is-collapsed" : ""}">
               <div class="admin-live-order-head">
                 <div>
                   <span class="payment-pill ${paid ? "is-paid" : "is-pending"}">${escapeHTML(paymentLabel)}</span>
+                  ${quoteSentFeedback ? `<span class="quote-sent-confirmation">Quote accepted and sent</span>` : ""}
                   <strong>${escapeHTML(orderCustomerName(order))}</strong>
                   <p>${escapeHTML(order.id || "Order")} · ${escapeHTML(orderDateSummary(order))}</p>
                 </div>
@@ -4814,7 +5021,7 @@ function syncAdminLiveOrderAutoRefresh() {
   else stopAdminLiveOrderAutoRefresh();
 }
 
-async function saveAdminLiveOrderUpdate(orderId) {
+async function saveAdminLiveOrderUpdate(orderId, { quoteSent = false } = {}) {
   const statusSelect = adminLiveOrderList?.querySelector(`[data-live-order-status="${CSS.escape(orderId)}"]`);
   const noteField = adminLiveOrderList?.querySelector(`[data-live-order-note="${CSS.escape(orderId)}"]`);
   const quoteAmountField = adminLiveOrderList?.querySelector(`[data-live-order-quote-amount="${CSS.escape(orderId)}"]`);
@@ -4836,8 +5043,16 @@ async function saveAdminLiveOrderUpdate(orderId) {
     });
     if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not save order update.");
     liveOrders = liveOrders.map((order) => (order.id === orderId ? payload.order : order));
+    if (quoteSent) {
+      collapsedLiveOrderIds.add(orderId);
+      quoteSentFeedbackOrderIds.add(orderId);
+      window.setTimeout(() => {
+        quoteSentFeedbackOrderIds.delete(orderId);
+        renderAdminLiveOrders();
+      }, 5000);
+    }
     renderAdminLiveOrders();
-    setAdminMessage(liveOrderStatus, "Order update saved.");
+    setAdminMessage(liveOrderStatus, quoteSent ? "Quote accepted, sent to the customer profile, and collapsed." : "Order update saved.");
   } catch (error) {
     setAdminMessage(liveOrderStatus, error.message || "Could not save order update.");
   }
@@ -4853,7 +5068,7 @@ function sendAdminLiveQuote(orderId) {
     return;
   }
   if (quoteStatusField) quoteStatusField.value = "Quoted";
-  saveAdminLiveOrderUpdate(orderId);
+  saveAdminLiveOrderUpdate(orderId, { quoteSent: true });
 }
 
 async function deleteAdminLiveOrder(orderId) {
@@ -4903,7 +5118,15 @@ document.querySelectorAll("[data-name]").forEach((button) => {
   }));
 });
 
-accountButton.addEventListener("click", () => openAccount());
+function openCustomerAccountDestination() {
+  if (currentCustomer()) {
+    showSitePage("account", { updateHash: true, behavior: "smooth", force: true });
+    return;
+  }
+  openAccount();
+}
+
+accountButton.addEventListener("click", openCustomerAccountDestination);
 closeAccount.addEventListener("click", closeAccountPanel);
 customerRegister.addEventListener("click", registerCustomer);
 customerLogin.addEventListener("click", loginCustomer);
@@ -4960,6 +5183,25 @@ orderHistoryList?.addEventListener("click", (event) => {
   if (!button) return;
   payQuoteOrder(button.dataset.payQuote);
 });
+
+customerQuoteList?.addEventListener("click", (event) => {
+  const payButton = event.target.closest("[data-pay-quote]");
+  if (payButton) {
+    payQuoteOrder(payButton.dataset.payQuote);
+    return;
+  }
+  const signInButton = event.target.closest("[data-open-account-panel]");
+  if (signInButton) openAccount("Sign in to view quotes from Chey.");
+});
+
+customerOrderPageList?.addEventListener("click", (event) => {
+  const payButton = event.target.closest("[data-pay-quote]");
+  if (payButton) payQuoteOrder(payButton.dataset.payQuote);
+});
+
+customerAccountRefresh?.addEventListener("click", () => refreshCurrentCustomerFromCloud({ showStatus: true }));
+customerAccountPanelOpen?.addEventListener("click", () => openAccount("Edit your saved sizing and profile details."));
+customerAccountFavoritesOpen?.addEventListener("click", () => openAccount("Saved favorites are in your profile editor."));
 
 cartItems.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-index]");
@@ -5522,10 +5764,15 @@ async function setupAdmin() {
   document.addEventListener("input", handleInlineEditableInput);
   document.addEventListener("blur", handleInlineEditableBlur, true);
   document.addEventListener("keydown", handleInlineEditKeydown, true);
-  window.addEventListener("focus", refreshAdminLiveOrdersQuietly);
+  window.addEventListener("focus", () => {
+    refreshAdminLiveOrdersQuietly();
+    refreshCustomerQuotesQuietly();
+  });
   document.addEventListener("visibilitychange", () => {
     syncAdminLiveOrderAutoRefresh();
+    syncCustomerQuoteRefresh();
     refreshAdminLiveOrdersQuietly();
+    refreshCustomerQuotesQuietly();
   });
   document.addEventListener("input", (event) => {
     if (event.target.matches("textarea")) autoGrowTextarea(event.target);

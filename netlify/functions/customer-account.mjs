@@ -311,6 +311,10 @@ export default async (request) => {
     return jsonResponse({ ok: true, customer: await publicCustomer(savedCustomer, store) });
   }
 
+  if (action === "refresh-profile") {
+    return jsonResponse({ ok: true, customer: await publicCustomer(savedCustomer, store) });
+  }
+
   if (action === "save-profile") {
     const nextCustomer = {
       ...savedCustomer,
