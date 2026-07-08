@@ -4715,6 +4715,7 @@ function renderAdminLiveOrders() {
                     <textarea data-live-order-note="${escapeAttribute(order.id)}" placeholder="Sizing, make notes, tracking, pickup plan...">${escapeTextarea(order.adminNote || "")}</textarea>
                   </label>
                   <button type="button" data-save-live-order="${escapeAttribute(order.id)}">Save Order Update</button>
+                  ${quoteOrder ? `<button class="quote-send" type="button" data-send-live-quote="${escapeAttribute(order.id)}">Accept & Send Quote</button>` : ""}
                   <button class="danger" type="button" data-delete-live-order="${escapeAttribute(order.id)}">Delete Order</button>
                 </div>
               </div>
@@ -4842,6 +4843,19 @@ async function saveAdminLiveOrderUpdate(orderId) {
   }
 }
 
+function sendAdminLiveQuote(orderId) {
+  const quoteAmountField = adminLiveOrderList?.querySelector(`[data-live-order-quote-amount="${CSS.escape(orderId)}"]`);
+  const quoteStatusField = adminLiveOrderList?.querySelector(`[data-live-order-quote-status="${CSS.escape(orderId)}"]`);
+  const amount = Number(String(quoteAmountField?.value || "").replace(/[^0-9.]/g, ""));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    setAdminMessage(liveOrderStatus, "Add the quote price before sending it to the customer.");
+    quoteAmountField?.focus();
+    return;
+  }
+  if (quoteStatusField) quoteStatusField.value = "Quoted";
+  saveAdminLiveOrderUpdate(orderId);
+}
+
 async function deleteAdminLiveOrder(orderId) {
   const order = liveOrders.find((item) => item.id === orderId);
   const label = order ? `${orderCustomerName(order)} - ${formatOrderMoney(order.total || order.amountTotal, order.currency)}` : orderId;
@@ -4870,6 +4884,11 @@ function handleAdminLiveOrderClick(event) {
   const saveButton = event.target.closest("[data-save-live-order]");
   if (saveButton) {
     saveAdminLiveOrderUpdate(saveButton.dataset.saveLiveOrder);
+    return;
+  }
+  const sendQuoteButton = event.target.closest("[data-send-live-quote]");
+  if (sendQuoteButton) {
+    sendAdminLiveQuote(sendQuoteButton.dataset.sendLiveQuote);
     return;
   }
   const deleteButton = event.target.closest("[data-delete-live-order]");
