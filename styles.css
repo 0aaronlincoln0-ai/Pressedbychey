@@ -528,10 +528,21 @@ a {
 }
 
 .brand-logo {
-  width: 48px;
-  height: 48px;
+  width: clamp(138px, 17vw, 210px);
+  height: auto;
+  max-height: 66px;
   object-fit: contain;
   filter: drop-shadow(0 7px 14px rgba(143, 29, 81, 0.16));
+}
+
+.brand-text-fallback {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .brand-mark {
@@ -2281,8 +2292,8 @@ figcaption {
 }
 
 .footer-logo {
-  width: 64px;
-  height: 64px;
+  width: clamp(160px, 24vw, 260px);
+  height: auto;
   flex: 0 0 auto;
   object-fit: contain;
 }
@@ -5044,13 +5055,9 @@ body.photo-lightbox-open {
     font-size: 0.82rem;
   }
 
-  .brand span:last-child {
-    display: none;
-  }
-
   .brand-logo {
-    width: 42px;
-    height: 42px;
+    width: clamp(114px, 32vw, 150px);
+    max-height: 54px;
   }
 
   .site-page {
@@ -5283,8 +5290,8 @@ body.photo-lightbox-open {
   }
 
   .footer-logo {
-    width: 58px;
-    height: 58px;
+    width: min(240px, 82vw);
+    height: auto;
   }
 
   .footer .button {
@@ -5432,8 +5439,9 @@ body::after {
 }
 
 .brand-logo {
-  width: 46px;
-  height: 46px;
+  width: clamp(138px, 17vw, 210px);
+  height: auto;
+  max-height: 66px;
 }
 
 .nav-links {
