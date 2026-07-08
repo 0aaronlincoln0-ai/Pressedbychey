@@ -167,6 +167,8 @@ const cart = [];
 let selectedLook = null;
 let customInspirationSrc = "";
 let customOrderPhotoDataUrl = "";
+let customOrderPhotoRemoteUrl = "";
+let customOrderPhotoUploadBusy = false;
 let textEditMode = false;
 let inlineEditSaveTimer = null;
 let inlineImageEditTarget = null;
@@ -227,6 +229,7 @@ const CHECKOUT_PENDING_ORDER_KEY = "pressedByCheyPendingCheckoutOrder";
 const nailSizeOptions = ["", "000", "00", "0", "0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
 const sizeFingerKeys = ["thumb", "index", "middle", "ring", "pinky"];
 const sizeHandKeys = ["left", "right"];
+const CUSTOM_ORDER_MAX_PHOTO_SIZE = 1600;
 let customerState = {
   users: [],
   currentEmail: ""
@@ -3047,24 +3050,88 @@ function orderSizingMarkup(order = {}) {
   return sizing ? `<p class="order-request-note"><strong>Sizing:</strong> ${escapeHTML(sizing)}</p>` : "";
 }
 
-function handleCustomOrderPhotoUpload() {
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(new Error("Photo could not be read.")));
+    reader.readAsDataURL(file);
+  });
+}
+
+function imageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Photo could not be prepared. Try a JPG or PNG image."));
+    image.src = dataUrl;
+  });
+}
+
+async function prepareCustomOrderPhotoDataUrl(file) {
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const image = await imageFromDataUrl(originalDataUrl);
+  const width = image.naturalWidth || image.width || 1;
+  const height = image.naturalHeight || image.height || 1;
+  const scale = Math.min(1, CUSTOM_ORDER_MAX_PHOTO_SIZE / Math.max(width, height));
+  const nextWidth = Math.max(1, Math.round(width * scale));
+  const nextHeight = Math.max(1, Math.round(height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = nextWidth;
+  canvas.height = nextHeight;
+  const context = canvas.getContext("2d");
+  if (!context) return originalDataUrl;
+  context.drawImage(image, 0, 0, nextWidth, nextHeight);
+  return canvas.toDataURL("image/jpeg", 0.84);
+}
+
+async function uploadCustomOrderPhoto(dataUrl) {
+  const response = await fetch(CUSTOM_REQUEST_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "upload-photo", image: dataUrl })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok || !data.image) {
+    throw new Error(data.error || "Reference photo could not be saved.");
+  }
+  return data.image;
+}
+
+async function handleCustomOrderPhotoUpload() {
   if (!customOrderPhoto || !customOrderPreviewImage || !customOrderPhotoName || !customOrderPreview) return;
   const file = customOrderPhoto.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.addEventListener("load", () => {
-    customOrderPhotoDataUrl = String(reader.result || "");
+  customOrderPhotoUploadBusy = true;
+  customOrderPhotoRemoteUrl = "";
+  if (customOrderStatus) customOrderStatus.textContent = "Saving reference photo...";
+  if (customOrderSubmit) customOrderSubmit.disabled = true;
+  try {
+    customOrderPhotoDataUrl = await prepareCustomOrderPhotoDataUrl(file);
     customOrderPreviewImage.src = customOrderPhotoDataUrl;
-    customOrderPhotoName.textContent = file.name;
+    customOrderPhotoName.textContent = `${file.name} - saved for Chey`;
     customOrderPreview.hidden = false;
-    if (customOrderStatus) customOrderStatus.textContent = "";
-  });
-  reader.readAsDataURL(file);
+    customOrderPhotoRemoteUrl = await uploadCustomOrderPhoto(customOrderPhotoDataUrl);
+    if (customOrderStatus) customOrderStatus.textContent = "Reference photo saved. Finish the details and add the request to your bag.";
+  } catch (error) {
+    customOrderPhotoDataUrl = "";
+    customOrderPhotoRemoteUrl = "";
+    customOrderPreviewImage.removeAttribute("src");
+    customOrderPreview.hidden = true;
+    customOrderPhoto.value = "";
+    customOrderPhotoName.textContent = "Reference photo uploaded";
+    if (customOrderStatus) customOrderStatus.textContent = error.message || "Reference photo could not be saved.";
+  } finally {
+    customOrderPhotoUploadBusy = false;
+    if (customOrderSubmit) customOrderSubmit.disabled = false;
+  }
 }
 
 function clearCustomOrderPhoto() {
   if (!customOrderPhoto || !customOrderPreviewImage || !customOrderPhotoName || !customOrderPreview) return;
   customOrderPhotoDataUrl = "";
+  customOrderPhotoRemoteUrl = "";
+  customOrderPhotoUploadBusy = false;
   customOrderPhoto.value = "";
   customOrderPreviewImage.removeAttribute("src");
   customOrderPhotoName.textContent = "Reference photo uploaded";
@@ -3098,8 +3165,12 @@ function submitCustomOrderRequest() {
     customOrderDescription.focus();
     return;
   }
-  if (!customOrderPhotoDataUrl) {
-    customOrderStatus.textContent = "Upload a reference photo before sending the custom order request.";
+  if (customOrderPhotoUploadBusy) {
+    customOrderStatus.textContent = "The reference photo is still saving. Wait a moment, then add the request.";
+    return;
+  }
+  if (!customOrderPhotoRemoteUrl) {
+    customOrderStatus.textContent = "Upload and save a reference photo before sending the custom order request.";
     customOrderPhoto?.focus();
     return;
   }
@@ -3111,7 +3182,8 @@ function submitCustomOrderRequest() {
     length: selectedLength,
     sizePreference: selectedSizePreference,
     note: description,
-    image: customOrderPhotoDataUrl
+    image: customOrderPhotoRemoteUrl,
+    previewImage: customOrderPhotoDataUrl
   });
   customOrderStatus.textContent = "Custom order request added to your bag. Submit checkout so Chey can review it.";
   if (customOrderName) customOrderName.value = "";
@@ -3128,6 +3200,7 @@ function renderCart() {
     const row = document.createElement("div");
     row.className = `cart-item${item.image ? " has-image" : ""}${item.customOrder ? " is-custom-order" : ""}`;
     row.style.setProperty("--cart-index", String(index));
+    const cartImage = item.previewImage || item.image || "";
     const meta = orderItemMeta(item) || [item.shape, item.shade, item.note ? "Design notes included" : "", item.image ? "Inspiration photo included" : ""]
       .filter(Boolean)
       .map(escapeHTML)
@@ -3135,7 +3208,7 @@ function renderCart() {
     const price = Number(item.price) || 0;
     row.innerHTML = `
       <div class="cart-thumb-wrap">
-        ${item.image ? `<img class="cart-thumb" src="${item.image}" alt="Inspiration for ${escapeHTML(item.name)}" />` : `<span class="cart-thumb-fallback" aria-hidden="true"></span>`}
+        ${cartImage ? `<img class="cart-thumb" src="${cartImage}" alt="Inspiration for ${escapeHTML(item.name)}" />` : `<span class="cart-thumb-fallback" aria-hidden="true"></span>`}
       </div>
       <div class="cart-item-copy">
         <span class="cart-item-number">Set ${index + 1}</span>
@@ -3916,11 +3989,16 @@ function quoteRequestLineItems() {
   }));
 }
 
+function orderItemWithoutPreview(item = {}) {
+  const { previewImage, ...rest } = item;
+  return rest;
+}
+
 function pendingCheckoutSnapshot(customer = {}) {
   return {
     createdAt: new Date().toISOString(),
     customer,
-    items: cart.map((item) => ({ ...item, image: item.image ? "Reference photo attached" : "" })),
+    items: cart.map((item) => ({ ...orderItemWithoutPreview(item), image: item.image ? "Reference photo attached" : "" })),
     total: cartTotalValue()
   };
 }

@@ -50,7 +50,10 @@ function safePhotoKey(key) {
 }
 
 async function storeReferencePhoto(store, dataUrl = "", origin = "") {
-  const match = String(dataUrl || "").match(DATA_URL_PATTERN);
+  const raw = String(dataUrl || "").trim();
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith("/.netlify/functions/custom-request?photo=")) return origin ? `${origin}${raw}` : raw;
+  const match = raw.match(DATA_URL_PATTERN);
   if (!match) return "";
   const [, mimeType, base64] = match;
   const bytes = Buffer.from(base64.replace(/\s/g, ""), "base64");
@@ -107,6 +110,12 @@ export default async (request) => {
     payload = await request.json();
   } catch {
     return jsonResponse({ error: "Invalid custom request." }, { status: 400 });
+  }
+
+  if (safeText(payload?.action, 40) === "upload-photo") {
+    const image = await storeReferencePhoto(store, payload?.image, url.origin);
+    if (!image) return jsonResponse({ error: "The reference photo could not be saved. Try a JPG or PNG image." }, { status: 400 });
+    return jsonResponse({ ok: true, image });
   }
 
   const customer = payload?.customer || {};
