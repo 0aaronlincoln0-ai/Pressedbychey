@@ -117,6 +117,16 @@ function orderKey(orderId) {
   return `${ORDER_PREFIX}/${orderId}.json`;
 }
 
+function safeOrderId(value = "") {
+  const id = String(value || "").trim();
+  if (!/^pbc-\d+-[a-z0-9-]+$/i.test(id)) return "";
+  return id;
+}
+
+function quoteAmountCents(order = {}) {
+  return Math.max(0, Math.round(Number(order.quoteAmount || 0)));
+}
+
 async function loadLiveProducts() {
   const store = getStore(STORE_NAME);
   const savedState = await store.get(STATE_KEY, { type: "json" });
@@ -177,6 +187,30 @@ function validateLineItems(items, liveProducts, origin) {
       sku: safeText(product.sku || "", "", 80)
     };
   });
+}
+
+function validateQuoteCheckout({ quoteOrder, customer }) {
+  if (!quoteOrder) throw new Error("Quote order was not found.");
+  if (quoteOrder.paymentStatus === "paid") throw new Error("This quote is already paid.");
+  if (/declined|canceled/i.test(quoteOrder.quoteStatus || "")) throw new Error("This quote is no longer active.");
+  const amount = quoteAmountCents(quoteOrder);
+  if (amount <= 0) throw new Error("Chey needs to set a quote price before payment.");
+  const orderEmail = safeText(quoteOrder.customer?.email || quoteOrder.customerEmail, "", 120).toLowerCase();
+  const customerEmail = safeText(customer?.email, "", 120).toLowerCase();
+  if (!orderEmail || !customerEmail || orderEmail !== customerEmail) {
+    throw new Error("Sign in with the customer account that requested this quote before paying.");
+  }
+  const firstItem = Array.isArray(quoteOrder.items) && quoteOrder.items[0] ? quoteOrder.items[0] : {};
+  return [{
+    name: safeText(firstItem.name || "Pressed by Chey custom quote", "Pressed by Chey custom quote", 120),
+    description: safeText(quoteOrder.quoteMessage || firstItem.note || "Custom press-on nail quote approved by Chey.", "", 240),
+    unitAmount: amount,
+    quantity: 1,
+    image: "",
+    sourceProductIndex: "",
+    category: "custom quote",
+    sku: quoteOrder.id || ""
+  }];
 }
 
 function appendLineItem(params, item, index) {
@@ -259,8 +293,6 @@ export default async (request) => {
 
   try {
     const baseUrl = safeReturnBaseUrl(payload?.returnBaseUrl, request.url);
-    const liveProducts = await loadLiveProducts();
-    const items = validateLineItems(payload?.items, liveProducts, new URL(request.url).origin);
     const customer = {
       mode: safeText(payload?.customer?.mode || "guest", "guest", 20),
       name: safeText(payload?.customer?.name, "", 100),
@@ -269,6 +301,46 @@ export default async (request) => {
       sizing: safeText(payload?.customer?.sizing, "", 700),
       notes: safeText(payload?.customer?.notes, "", 450)
     };
+    const store = getStore(STORE_NAME);
+    const quoteOrderId = safeOrderId(payload?.quoteOrderId);
+    if (quoteOrderId) {
+      const savedQuoteOrder = await store.get(orderKey(quoteOrderId), { type: "json" });
+      const checkoutItems = validateQuoteCheckout({ quoteOrder: savedQuoteOrder, customer });
+      const checkoutTotal = checkoutItems.reduce((sum, item) => sum + item.unitAmount * item.quantity, 0);
+      const order = {
+        ...savedQuoteOrder,
+        id: quoteOrderId,
+        status: "quote_checkout",
+        paymentStatus: "pending",
+        fulfillmentStatus: "Payment pending",
+        quoteStatus: "Accepted",
+        quoteAcceptedAt: savedQuoteOrder?.quoteAcceptedAt || new Date().toISOString(),
+        customer: {
+          ...(savedQuoteOrder?.customer || {}),
+          ...customer,
+          mode: "account"
+        },
+        items: Array.isArray(savedQuoteOrder?.items) ? savedQuoteOrder.items : [],
+        total: checkoutTotal,
+        orderNotificationEmail: orderNotificationEmail(),
+        supportEmail: supportEmail(),
+        supportPhone: supportPhoneDisplay(),
+        updatedAt: new Date().toISOString()
+      };
+      const session = await createStripeCheckoutSession({ key, order: { ...order, items: checkoutItems }, baseUrl, request });
+      order.stripeSessionId = session.id;
+      order.checkoutUrl = session.url;
+      await store.setJSON(orderKey(order.id), order);
+      return jsonResponse({
+        ok: true,
+        url: session.url,
+        sessionId: session.id,
+        orderId: order.id
+      });
+    }
+
+    const liveProducts = await loadLiveProducts();
+    const items = validateLineItems(payload?.items, liveProducts, new URL(request.url).origin);
     if (customer.mode === "guest" && !customer.sizing) {
       throw new Error("Add sizing before guest checkout so Chey knows what to make.");
     }
@@ -290,7 +362,7 @@ export default async (request) => {
     order.stripeSessionId = session.id;
     order.checkoutUrl = session.url;
 
-    await getStore(STORE_NAME).setJSON(orderKey(order.id), order);
+    await store.setJSON(orderKey(order.id), order);
 
     return jsonResponse({
       ok: true,

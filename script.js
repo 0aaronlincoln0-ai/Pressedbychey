@@ -169,6 +169,7 @@ let customInspirationSrc = "";
 let customOrderPhotoDataUrl = "";
 let customOrderPhotoRemoteUrl = "";
 let customOrderPhotoUploadBusy = false;
+const customerSessionPasswords = new Map();
 let textEditMode = false;
 let inlineEditSaveTimer = null;
 let inlineImageEditTarget = null;
@@ -230,6 +231,8 @@ const nailSizeOptions = ["", "000", "00", "0", "0.5", "1", "1.5", "2", "2.5", "3
 const sizeFingerKeys = ["thumb", "index", "middle", "ring", "pinky"];
 const sizeHandKeys = ["left", "right"];
 const CUSTOM_ORDER_MAX_PHOTO_SIZE = 1600;
+const LIVE_REQUEST_TIMEOUT_MS = 18000;
+const ADMIN_ORDER_REFRESH_MS = 30000;
 let customerState = {
   users: [],
   currentEmail: ""
@@ -238,6 +241,7 @@ let passwordResetRequest = null;
 let guestOrders = [];
 let liveOrders = [];
 let collapsedLiveOrderIds = new Set();
+let adminLiveOrderRefreshTimer = null;
 let adminSession = null;
 let adminState = {
   texts: {},
@@ -1828,6 +1832,7 @@ function showAdminPage() {
   renderAdminVisibility();
   adminPage.hidden = false;
   switchAdminView("orders");
+  syncAdminLiveOrderAutoRefresh();
   requestAnimationFrame(() => {
     adminPage.scrollIntoView({ behavior: "smooth", block: "start" });
   });
@@ -1848,12 +1853,14 @@ function renderAdminVisibility() {
   if (!signedIn) closeAdminInventoryPanel();
   renderAdminEditToolbar();
   syncInlineEditMode();
+  syncAdminLiveOrderAutoRefresh();
 }
 
 function logoutAdmin() {
   clearAdminSession();
   textEditMode = false;
   closeAdminInventoryPanel();
+  stopAdminLiveOrderAutoRefresh();
   showPasswordReset(false);
   renderAdminVisibility();
   showSitePage("home", { updateHash: true, force: true });
@@ -2991,6 +2998,30 @@ function escapeHTML(value) {
   });
 }
 
+async function fetchJsonWithTimeout(url, options = {}, timeoutMs = LIVE_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      ...options,
+      signal: controller.signal,
+      headers: {
+        ...(options.headers || {})
+      }
+    });
+    const payload = await response.json().catch(() => ({}));
+    return { response, payload };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Live website connection timed out. Check internet and try again.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 function orderItemMeta(item = {}) {
   return [
     item.customOrder ? "Custom order request" : "",
@@ -3026,6 +3057,24 @@ function orderItemPriceLabel(item = {}) {
   const quantity = cartItemQuantity(item);
   const total = cartItemTotal(item);
   return quantity > 1 ? `$${Number(item.price) || 0} each - $${total} total` : `$${total}`;
+}
+
+function centsToDollars(value = 0) {
+  const amount = Number(value || 0) / 100;
+  if (!Number.isFinite(amount)) return "0";
+  return amount % 1 === 0 ? String(amount) : amount.toFixed(2);
+}
+
+function quoteAmountCents(order = {}) {
+  return Math.max(0, Math.round(Number(order.quoteAmount || order.quoteAmountCents || 0)));
+}
+
+function orderHasCustomQuote(order = {}) {
+  return (order.items || []).some((item) => item.customOrder) || order.status === "quote_request" || Boolean(order.quoteStatus);
+}
+
+function isQuotePayable(order = {}) {
+  return orderHasCustomQuote(order) && order.paymentStatus !== "paid" && quoteAmountCents(order) > 0 && /quoted|accepted/i.test(order.quoteStatus || "Quoted");
 }
 
 function orderItemSummary(item = {}) {
@@ -3086,12 +3135,11 @@ async function prepareCustomOrderPhotoDataUrl(file) {
 }
 
 async function uploadCustomOrderPhoto(dataUrl) {
-  const response = await fetch(CUSTOM_REQUEST_ENDPOINT, {
+  const { response, payload: data } = await fetchJsonWithTimeout(CUSTOM_REQUEST_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "upload-photo", image: dataUrl })
   });
-  const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.ok || !data.image) {
     throw new Error(data.error || "Reference photo could not be saved.");
   }
@@ -3307,19 +3355,23 @@ function loadCustomerState() {
     const saved = JSON.parse(localStorage.getItem(CUSTOMER_STORAGE_KEY) || "{}");
     customerState = {
       users: Array.isArray(saved.users)
-        ? saved.users.map((user) => ({
-            name: user.name || "",
-            email: user.email || "",
-            password: user.password || "",
-            sizes: normalizeCustomerSizes(user.sizes),
-            savedProducts: Array.isArray(user.savedProducts) ? user.savedProducts : [],
-            orders: Array.isArray(user.orders) ? user.orders : [],
-            createdAt: user.createdAt || "",
-            lastLogin: user.lastLogin || ""
-          }))
+        ? saved.users.map((user) => {
+            const email = String(user.email || "").toLowerCase();
+            if (email && user.password) customerSessionPasswords.set(email, String(user.password));
+            return {
+              name: user.name || "",
+              email,
+              sizes: normalizeCustomerSizes(user.sizes),
+              savedProducts: Array.isArray(user.savedProducts) ? user.savedProducts : [],
+              orders: Array.isArray(user.orders) ? user.orders : [],
+              createdAt: user.createdAt || "",
+              lastLogin: user.lastLogin || ""
+            };
+          })
         : [],
       currentEmail: saved.currentEmail || ""
     };
+    saveCustomerState();
   } catch {
     customerState = { users: [], currentEmail: "" };
   }
@@ -3334,7 +3386,15 @@ function setupNailSizeDropdowns() {
 }
 
 function saveCustomerState() {
-  localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(customerState));
+  const safeState = {
+    ...customerState,
+    users: (customerState.users || []).map(({ password, ...user }) => ({
+      ...user,
+      email: String(user.email || "").toLowerCase(),
+      sizes: normalizeCustomerSizes(user.sizes)
+    }))
+  };
+  localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(safeState));
 }
 
 function loadGuestOrders() {
@@ -3357,13 +3417,13 @@ function currentCustomer() {
 function mergeCustomerIntoLocal(customer = {}, password = "") {
   const email = String(customer.email || "").toLowerCase();
   if (!email) return null;
+  if (password) customerSessionPasswords.set(email, password);
   const existingIndex = customerState.users.findIndex((user) => user.email === email);
   const existing = existingIndex >= 0 ? customerState.users[existingIndex] : {};
   const nextUser = {
     ...existing,
     name: customer.name || existing.name || email.split("@")[0],
     email,
-    password: password || existing.password || "",
     sizes: normalizeCustomerSizes(customer.sizes || existing.sizes),
     savedProducts: Array.isArray(customer.savedProducts) ? customer.savedProducts : existing.savedProducts || [],
     orders: Array.isArray(customer.orders) ? customer.orders : existing.orders || [],
@@ -3378,22 +3438,22 @@ function mergeCustomerIntoLocal(customer = {}, password = "") {
 }
 
 async function customerAccountRequest(action, payload = {}) {
-  const response = await fetch(CUSTOMER_ACCOUNT_ENDPOINT, {
+  const { response, payload: data } = await fetchJsonWithTimeout(CUSTOMER_ACCOUNT_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action, ...payload })
   });
-  const data = await response.json().catch(() => ({}));
   if (!response.ok || data?.ok === false) throw new Error(data.error || "Customer account could not be updated.");
   return data.customer || data;
 }
 
 function syncCurrentCustomerProfile() {
   const user = currentCustomer();
-  if (!user?.email || !user.password) return;
+  const password = customerSessionPasswords.get(String(user?.email || "").toLowerCase());
+  if (!user?.email || !password) return;
   customerAccountRequest("save-profile", {
     email: user.email,
-    password: user.password,
+    password,
     name: user.name,
     sizes: user.sizes,
     savedProducts: user.savedProducts || [],
@@ -3456,7 +3516,7 @@ function renderSavedProducts(user) {
     `;
 }
 
-function renderOrderHistory(user) {
+function renderOrderHistoryBasic(user) {
   const orders = user.orders || [];
   orderHistoryList.innerHTML = orders.length
     ? orders
@@ -3480,12 +3540,45 @@ function renderOrderHistory(user) {
     `;
 }
 
+function renderOrderHistory(user) {
+  const orders = user.orders || [];
+  orderHistoryList.innerHTML = orders.length
+    ? orders
+        .map((order) => {
+          const quoteCents = quoteAmountCents(order);
+          const quoteStatus = order.quoteStatus || (orderHasCustomQuote(order) ? "Waiting for Chey to review" : "");
+          return `
+            <div class="account-list-item${isQuotePayable(order) ? " is-payable-quote" : ""}">
+              <strong>${escapeHTML(order.id)}</strong>
+              <p>${escapeHTML(order.date || orderDateSummary(order))} - ${quoteCents ? `Quote ${formatOrderMoney(quoteCents, order.currency)}` : `$${order.total || 0}`}</p>
+              ${quoteStatus ? `<p><strong>Quote status:</strong> ${escapeHTML(quoteStatus)}</p>` : ""}
+              ${order.quoteMessage ? `<p class="order-request-note"><strong>Message from Chey:</strong> ${escapeHTML(order.quoteMessage)}</p>` : ""}
+              <p>${escapeHTML((order.items || []).map(orderItemSummary).join(", "))}</p>
+              ${orderSizingMarkup(order)}
+              ${orderRequestNotesMarkup(order)}
+              ${isQuotePayable(order) ? `<button type="button" data-pay-quote="${escapeAttribute(order.id)}">Accept Quote & Pay ${formatOrderMoney(quoteCents, order.currency)}</button>` : ""}
+            </div>
+          `;
+        })
+        .join("")
+    : `
+      <div class="account-list-item account-empty-card">
+        <strong>No orders yet</strong>
+        <p>After checkout, your set details and custom request notes will live here.</p>
+      </div>
+    `;
+}
+
 async function registerCustomer() {
   const name = registerName.value.trim();
   const email = registerEmail.value.trim().toLowerCase();
   const password = registerPassword.value;
   if (!name || !email || !password) {
     accountStatus.textContent = "Fill out name, email, and password.";
+    return;
+  }
+  if (password.length < 8) {
+    accountStatus.textContent = "Use at least 8 characters for the account password.";
     return;
   }
   accountStatus.textContent = "Creating your profile...";
@@ -3543,25 +3636,28 @@ async function loginCustomer() {
     return;
   } catch (error) {
     const localUser = customerState.users.find((item) => item.email === email && item.password === password);
-    if (localUser) {
+    const legacyUser = localUser || customerState.users.find((item) => item.email === email);
+    const legacyPassword = customerSessionPasswords.get(email) || localUser?.password || "";
+    if (legacyUser && legacyPassword === password) {
       exitAdminModeForCustomer();
-      localUser.lastLogin = new Date().toLocaleString();
+      customerSessionPasswords.set(email, password);
+      legacyUser.lastLogin = new Date().toLocaleString();
       customerState.currentEmail = email;
       saveCustomerState();
       try {
         await customerAccountRequest("register", {
-          name: localUser.name || email.split("@")[0],
+          name: legacyUser.name || email.split("@")[0],
           email,
           password,
-          sizes: localUser.sizes || normalizeCustomerSizes()
+          sizes: legacyUser.sizes || normalizeCustomerSizes()
         });
         await customerAccountRequest("save-profile", {
           email,
           password,
-          name: localUser.name,
-          sizes: localUser.sizes,
-          savedProducts: localUser.savedProducts || [],
-          orders: localUser.orders || []
+          name: legacyUser.name,
+          sizes: legacyUser.sizes,
+          savedProducts: legacyUser.savedProducts || [],
+          orders: legacyUser.orders || []
         });
       } catch {
         syncCurrentCustomerProfile();
@@ -4019,7 +4115,7 @@ async function startStripeCheckout({ source = "guest", customer = {} } = {}) {
   setCheckoutMessage("Opening secure checkout...");
   try {
     sessionStorage.setItem(CHECKOUT_PENDING_ORDER_KEY, JSON.stringify(pendingCheckoutSnapshot({ ...customer, source })));
-    const response = await fetch(STRIPE_CHECKOUT_ENDPOINT, {
+    const { response, payload: data } = await fetchJsonWithTimeout(STRIPE_CHECKOUT_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -4029,7 +4125,6 @@ async function startStripeCheckout({ source = "guest", customer = {} } = {}) {
         returnBaseUrl: checkoutReturnBaseUrl()
       })
     });
-    const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.url) {
       throw new Error(data.error || "Secure checkout could not start.");
     }
@@ -4040,6 +4135,47 @@ async function startStripeCheckout({ source = "guest", customer = {} } = {}) {
   }
 }
 
+async function payQuoteOrder(orderId) {
+  const user = currentCustomer();
+  const order = user?.orders?.find((item) => item.id === orderId);
+  if (!user || !order) {
+    openAccount("Sign in to the account that requested this quote before paying.");
+    return;
+  }
+  if (!isQuotePayable(order)) {
+    accountStatus.textContent = "This quote is not ready for payment yet.";
+    return;
+  }
+  setCheckoutBusy(true);
+  accountStatus.textContent = "Opening secure quote checkout...";
+  try {
+    sessionStorage.setItem(CHECKOUT_PENDING_ORDER_KEY, JSON.stringify({
+      createdAt: new Date().toISOString(),
+      customer: customerCheckoutPayload(user),
+      items: order.items || [],
+      total: quoteAmountCents(order) / 100,
+      quoteOrderId: order.id
+    }));
+    const { response, payload: data } = await fetchJsonWithTimeout(STRIPE_CHECKOUT_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        quoteOrderId: order.id,
+        customer: customerCheckoutPayload(user),
+        source: "quote",
+        returnBaseUrl: checkoutReturnBaseUrl()
+      })
+    });
+    if (!response.ok || !data.url) {
+      throw new Error(data.error || "Secure quote checkout could not start.");
+    }
+    window.location.assign(data.url);
+  } catch (error) {
+    accountStatus.textContent = error.message || "Secure quote checkout could not start.";
+    setCheckoutBusy(false);
+  }
+}
+
 function localQuoteOrderFromServer(order = {}) {
   return {
     id: order.id || `Quote ${Date.now()}`,
@@ -4047,6 +4183,13 @@ function localQuoteOrderFromServer(order = {}) {
     total: Number(order.total || 0),
     customer: order.customer || {},
     sizing: orderSizingSummary(order),
+    status: order.status || "",
+    paymentStatus: order.paymentStatus || "",
+    fulfillmentStatus: order.fulfillmentStatus || "",
+    quoteAmount: quoteAmountCents(order),
+    quoteStatus: order.quoteStatus || "Needs quote",
+    quoteMessage: order.quoteMessage || "",
+    quoteUpdatedAt: order.quoteUpdatedAt || "",
     items: Array.isArray(order.items)
       ? order.items.map((item) => ({
           ...item,
@@ -4058,7 +4201,7 @@ function localQuoteOrderFromServer(order = {}) {
 }
 
 async function submitQuoteRequestOrder({ source = "account", customer = {} } = {}) {
-  const response = await fetch(CUSTOM_REQUEST_ENDPOINT, {
+  const { response, payload: data } = await fetchJsonWithTimeout(CUSTOM_REQUEST_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -4067,7 +4210,6 @@ async function submitQuoteRequestOrder({ source = "account", customer = {} } = {
       items: quoteRequestLineItems()
     })
   });
-  const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.ok) {
     throw new Error(data.error || "Custom request could not be sent to Chey.");
   }
@@ -4146,6 +4288,13 @@ function localPaidOrderFromServer(order = {}) {
     total: total % 1 === 0 ? String(total) : total.toFixed(2),
     customer: order.customer || {},
     sizing: orderSizingSummary(order),
+    status: order.status || "complete",
+    paymentStatus: order.paymentStatus || "paid",
+    fulfillmentStatus: order.fulfillmentStatus || "Needs review",
+    quoteAmount: quoteAmountCents(order),
+    quoteStatus: order.quoteStatus || (quoteAmountCents(order) ? "Paid" : ""),
+    quoteMessage: order.quoteMessage || "",
+    quoteAcceptedAt: order.quoteAcceptedAt || "",
     items: Array.isArray(order.items)
       ? order.items.map((item) => ({
           name: item.name,
@@ -4217,8 +4366,7 @@ async function handleCheckoutReturn() {
 
   setCheckoutMessage("Confirming payment...");
   try {
-    const response = await fetch(`${STRIPE_CHECKOUT_STATUS_ENDPOINT}?session_id=${encodeURIComponent(sessionId)}`);
-    const data = await response.json().catch(() => ({}));
+    const { response, payload: data } = await fetchJsonWithTimeout(`${STRIPE_CHECKOUT_STATUS_ENDPOINT}?session_id=${encodeURIComponent(sessionId)}`);
     if (!response.ok || !data.ok) {
       throw new Error(data.error || "Payment could not be verified.");
     }
@@ -4340,7 +4488,12 @@ function orderItemWorkflowMarkup(item = {}) {
     : item.customOrder
       ? `<br><span class="admin-reference-photo-missing">No reference photo file was saved with this request.</span>`
     : "";
-  return `<p>${escapeHTML(orderItemWorkflowSummary(item))}${photoLink}</p>`;
+  const note = item.note
+    ? `<span class="admin-customer-request-note"><strong>Customer description:</strong> ${escapeHTML(item.note)}</span>`
+    : item.customOrder
+      ? `<span class="admin-reference-photo-missing">No written custom description was saved with this request.</span>`
+      : "";
+  return `<p>${escapeHTML(orderItemWorkflowSummary(item))}${note}${photoLink}</p>`;
 }
 
 function fulfillmentStatusOptions(selected = "") {
@@ -4349,12 +4502,26 @@ function fulfillmentStatusOptions(selected = "") {
     .join("");
 }
 
+function quoteStatusOptions(selected = "") {
+  const statuses = ["Needs quote", "Quoted", "Accepted", "Paid", "Declined", "Canceled"];
+  const current = selected || "Needs quote";
+  return statuses
+    .map((status) => `<option value="${escapeAttribute(status)}"${status === current ? " selected" : ""}>${escapeHTML(status)}</option>`)
+    .join("");
+}
+
 function orderWorkflowStatus(order = {}) {
   return order.fulfillmentStatus || (order.paymentStatus === "paid" ? "Needs review" : "Payment pending");
 }
 
+function orderDisplayTotalCents(order = {}) {
+  return quoteAmountCents(order) || Number(order.total || order.amountTotal || 0);
+}
+
 function orderPaymentStatusLabel(order = {}) {
   if (order.paymentStatus === "paid") return "Paid";
+  if (orderHasCustomQuote(order) && quoteAmountCents(order) > 0) return "Quote sent";
+  if (orderHasCustomQuote(order)) return "Needs quote";
   if (order.paymentStatus === "unpaid") return "Not paid";
   if (order.paymentStatus === "no_payment_required") return "No payment required";
   return order.paymentStatus ? String(order.paymentStatus) : "Payment pending";
@@ -4435,6 +4602,12 @@ function orderPaymentDetail(order = {}) {
   if (order.paymentStatus === "paid") {
     return order.paidAt ? `Paid ${formatOrderDate(order.paidAt)}` : "Payment confirmed by checkout.";
   }
+  if (orderHasCustomQuote(order) && quoteAmountCents(order) > 0) {
+    return `Quote is ${formatOrderMoney(quoteAmountCents(order), order.currency)}. Customer can accept and pay from their account.`;
+  }
+  if (orderHasCustomQuote(order)) {
+    return "Set a quote price and message before Chey starts making this custom request.";
+  }
   return "Do not make or ship until payment says Paid.";
 }
 
@@ -4468,8 +4641,10 @@ function renderAdminLiveOrders() {
           const paid = order.paymentStatus === "paid";
           const paymentLabel = orderPaymentStatusLabel(order);
           const collapsed = collapsedLiveOrderIds.has(orderId);
+          const quoteOrder = orderHasCustomQuote(order);
+          const quoteCents = quoteAmountCents(order);
           return `
-            <article class="admin-live-order-card ${paid ? "is-paid" : "is-pending"} ${collapsed ? "is-collapsed" : ""}">
+            <article class="admin-live-order-card ${paid ? "is-paid" : "is-pending"} ${quoteOrder ? "is-quote-order" : ""} ${collapsed ? "is-collapsed" : ""}">
               <div class="admin-live-order-head">
                 <div>
                   <span class="payment-pill ${paid ? "is-paid" : "is-pending"}">${escapeHTML(paymentLabel)}</span>
@@ -4477,7 +4652,7 @@ function renderAdminLiveOrders() {
                   <p>${escapeHTML(order.id || "Order")} · ${escapeHTML(orderDateSummary(order))}</p>
                 </div>
                 <div class="admin-live-order-total">
-                  <strong>${formatOrderMoney(order.total || order.amountTotal, order.currency)}</strong>
+                  <strong>${formatOrderMoney(orderDisplayTotalCents(order), order.currency)}</strong>
                   <small>${escapeHTML(status)}</small>
                   <button class="admin-order-collapse" type="button" data-toggle-live-order="${escapeAttribute(orderId)}" aria-expanded="${collapsed ? "false" : "true"}">
                     ${collapsed ? "Open" : "Collapse"}
@@ -4508,6 +4683,14 @@ function renderAdminLiveOrders() {
                     <p><strong>${escapeHTML(paymentLabel)}</strong></p>
                     <p>${escapeHTML(orderPaymentDetail(order))}</p>
                   </section>
+                  ${quoteOrder ? `
+                    <section class="admin-live-order-quote">
+                      <h4>Custom quote</h4>
+                      <p><strong>${quoteCents ? formatOrderMoney(quoteCents, order.currency) : "Needs price"}</strong></p>
+                      <p>${escapeHTML(order.quoteMessage || "Add a quote message for the customer.")}</p>
+                      <p>${escapeHTML(order.quoteStatus || "Needs quote")}</p>
+                    </section>
+                  ` : ""}
                 </div>
                 <div class="admin-live-order-actions">
                   <label>Status
@@ -4515,6 +4698,19 @@ function renderAdminLiveOrders() {
                       ${fulfillmentStatusOptions(status)}
                     </select>
                   </label>
+                  ${quoteOrder ? `
+                    <label>Quote price
+                      <input data-live-order-quote-amount="${escapeAttribute(order.id)}" inputmode="decimal" placeholder="45" value="${escapeAttribute(quoteCents ? centsToDollars(quoteCents) : "")}" />
+                    </label>
+                    <label>Quote status
+                      <select data-live-order-quote-status="${escapeAttribute(order.id)}">
+                        ${quoteStatusOptions(order.quoteStatus)}
+                      </select>
+                    </label>
+                    <label>Customer quote message
+                      <textarea data-live-order-quote-message="${escapeAttribute(order.id)}" placeholder="Example: I can make this as a medium almond set with chrome accents. Accept and pay here when ready.">${escapeTextarea(order.quoteMessage || "")}</textarea>
+                    </label>
+                  ` : ""}
                   <label>Chey notes
                     <textarea data-live-order-note="${escapeAttribute(order.id)}" placeholder="Sizing, make notes, tracking, pickup plan...">${escapeTextarea(order.adminNote || "")}</textarea>
                   </label>
@@ -4580,10 +4776,9 @@ async function fetchAdminLiveOrders({ showStatus = true } = {}) {
   if (!adminLiveOrderList || !isAdminSignedIn()) return;
   if (showStatus) setAdminMessage(liveOrderStatus, "Loading live orders...");
   try {
-    const response = await fetch(ADMIN_ORDERS_ENDPOINT, {
+    const { response, payload } = await fetchJsonWithTimeout(ADMIN_ORDERS_ENDPOINT, {
       headers: adminRemoteWriteHeaders()
     });
-    const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not load live orders.");
     liveOrders = Array.isArray(payload.orders) ? payload.orders : [];
     renderAdminLiveOrders();
@@ -4593,21 +4788,51 @@ async function fetchAdminLiveOrders({ showStatus = true } = {}) {
   }
 }
 
+function shouldRefreshAdminLiveOrders() {
+  const ordersPanel = document.querySelector('[data-admin-view-panel="orders"]');
+  return Boolean(isAdminSignedIn() && adminPage && !adminPage.hidden && ordersPanel && !ordersPanel.hidden && document.visibilityState === "visible");
+}
+
+function refreshAdminLiveOrdersQuietly() {
+  if (shouldRefreshAdminLiveOrders()) fetchAdminLiveOrders({ showStatus: false });
+}
+
+function startAdminLiveOrderAutoRefresh() {
+  if (adminLiveOrderRefreshTimer) return;
+  adminLiveOrderRefreshTimer = window.setInterval(refreshAdminLiveOrdersQuietly, ADMIN_ORDER_REFRESH_MS);
+}
+
+function stopAdminLiveOrderAutoRefresh() {
+  if (!adminLiveOrderRefreshTimer) return;
+  window.clearInterval(adminLiveOrderRefreshTimer);
+  adminLiveOrderRefreshTimer = null;
+}
+
+function syncAdminLiveOrderAutoRefresh() {
+  if (shouldRefreshAdminLiveOrders()) startAdminLiveOrderAutoRefresh();
+  else stopAdminLiveOrderAutoRefresh();
+}
+
 async function saveAdminLiveOrderUpdate(orderId) {
   const statusSelect = adminLiveOrderList?.querySelector(`[data-live-order-status="${CSS.escape(orderId)}"]`);
   const noteField = adminLiveOrderList?.querySelector(`[data-live-order-note="${CSS.escape(orderId)}"]`);
+  const quoteAmountField = adminLiveOrderList?.querySelector(`[data-live-order-quote-amount="${CSS.escape(orderId)}"]`);
+  const quoteStatusField = adminLiveOrderList?.querySelector(`[data-live-order-quote-status="${CSS.escape(orderId)}"]`);
+  const quoteMessageField = adminLiveOrderList?.querySelector(`[data-live-order-quote-message="${CSS.escape(orderId)}"]`);
   setAdminMessage(liveOrderStatus, "Saving order update...");
   try {
-    const response = await fetch(ADMIN_ORDERS_ENDPOINT, {
+    const { response, payload } = await fetchJsonWithTimeout(ADMIN_ORDERS_ENDPOINT, {
       method: "PUT",
       headers: adminRemoteWriteHeaders(),
       body: JSON.stringify({
         orderId,
         fulfillmentStatus: statusSelect?.value || "Needs review",
-        adminNote: noteField?.value || ""
+        adminNote: noteField?.value || "",
+        quoteAmount: quoteAmountField?.value || "",
+        quoteStatus: quoteStatusField?.value || "",
+        quoteMessage: quoteMessageField?.value || ""
       })
     });
-    const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not save order update.");
     liveOrders = liveOrders.map((order) => (order.id === orderId ? payload.order : order));
     renderAdminLiveOrders();
@@ -4623,11 +4848,10 @@ async function deleteAdminLiveOrder(orderId) {
   if (!window.confirm(`Delete this order from Chey's dashboard?\n\n${label}\n\nOnly delete test, duplicate, or canceled orders.`)) return;
   setAdminMessage(liveOrderStatus, "Deleting order...");
   try {
-    const response = await fetch(`${ADMIN_ORDERS_ENDPOINT}?orderId=${encodeURIComponent(orderId)}`, {
+    const { response, payload } = await fetchJsonWithTimeout(`${ADMIN_ORDERS_ENDPOINT}?orderId=${encodeURIComponent(orderId)}`, {
       method: "DELETE",
       headers: adminRemoteWriteHeaders()
     });
-    const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not delete order.");
     liveOrders = liveOrders.filter((item) => item.id !== orderId);
     renderAdminLiveOrders();
@@ -4710,6 +4934,12 @@ savedProductsList.addEventListener("click", (event) => {
     closeAccountPanel();
     addToCart(item.name, item.price, { shape: item.shape });
   }
+});
+
+orderHistoryList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-pay-quote]");
+  if (!button) return;
+  payQuoteOrder(button.dataset.payQuote);
 });
 
 cartItems.addEventListener("click", (event) => {
@@ -5273,6 +5503,11 @@ async function setupAdmin() {
   document.addEventListener("input", handleInlineEditableInput);
   document.addEventListener("blur", handleInlineEditableBlur, true);
   document.addEventListener("keydown", handleInlineEditKeydown, true);
+  window.addEventListener("focus", refreshAdminLiveOrdersQuietly);
+  document.addEventListener("visibilitychange", () => {
+    syncAdminLiveOrderAutoRefresh();
+    refreshAdminLiveOrdersQuietly();
+  });
   document.addEventListener("input", (event) => {
     if (event.target.matches("textarea")) autoGrowTextarea(event.target);
   });
@@ -5287,6 +5522,7 @@ function switchAdminView(view) {
     panel.hidden = panel.dataset.adminViewPanel !== view;
   });
   if (view === "orders") fetchAdminLiveOrders();
+  syncAdminLiveOrderAutoRefresh();
   autoGrowTextareas();
 }
 

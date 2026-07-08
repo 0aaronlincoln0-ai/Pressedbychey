@@ -76,6 +76,7 @@ async function markCheckoutCompleted(session = {}) {
     status: "complete",
     paymentStatus: session.payment_status || "paid",
     fulfillmentStatus: savedOrder?.fulfillmentStatus === "Payment pending" ? "Needs review" : savedOrder?.fulfillmentStatus || "Needs review",
+    quoteStatus: savedOrder?.quoteStatus === "Accepted" ? "Paid" : savedOrder?.quoteStatus || "",
     amountSubtotal: session.amount_subtotal,
     amountTotal: session.amount_total,
     total: savedOrder?.total || session.amount_total || 0,

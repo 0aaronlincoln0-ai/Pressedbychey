@@ -80,7 +80,11 @@ function publicOrder(order = {}) {
     customer: order.customer || {},
     items: Array.isArray(order.items) ? order.items : [],
     total: order.total || 0,
-    currency: order.currency || "usd"
+    currency: order.currency || "usd",
+    quoteAmount: Number(order.quoteAmount || 0),
+    quoteStatus: order.quoteStatus || "",
+    quoteMessage: order.quoteMessage || "",
+    quoteUpdatedAt: order.quoteUpdatedAt || ""
   };
 }
 
@@ -159,7 +163,7 @@ export default async (request) => {
   const order = {
     id: `pbc-${Date.now()}-${randomUUID().slice(0, 8)}`,
     status: "quote_request",
-    paymentStatus: "no_payment_required",
+    paymentStatus: "quote_pending",
     fulfillmentStatus: "Needs review",
     createdAt: now,
     updatedAt: now,
@@ -177,6 +181,9 @@ export default async (request) => {
     items,
     total: 0,
     currency: "usd",
+    quoteAmount: 0,
+    quoteStatus: "Needs quote",
+    quoteMessage: "",
     orderNotificationEmail: process.env.ORDER_NOTIFICATION_EMAIL || process.env.CHEY_SUPPORT_EMAIL || "callison@pressedbychey.com"
   };
 

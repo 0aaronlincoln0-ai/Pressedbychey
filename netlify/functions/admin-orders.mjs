@@ -59,7 +59,12 @@ function publicOrder(order = {}) {
     items: Array.isArray(order.items) ? order.items : [],
     total: order.total || order.amountTotal || 0,
     currency: order.currency || "usd",
-    adminNote: order.adminNote || ""
+    adminNote: order.adminNote || "",
+    quoteAmount: Number(order.quoteAmount || 0),
+    quoteStatus: order.quoteStatus || "",
+    quoteMessage: order.quoteMessage || "",
+    quoteUpdatedAt: order.quoteUpdatedAt || "",
+    quoteAcceptedAt: order.quoteAcceptedAt || ""
   };
 }
 
@@ -77,6 +82,18 @@ function normalizeFulfillmentStatus(value = "") {
   const status = String(value || "").trim();
   const allowed = ["Payment pending", "Needs review", "Needs making", "Making", "Packing", "Ready to ship", "Shipped", "Completed", "Canceled"];
   return allowed.includes(status) ? status : "Needs review";
+}
+
+function moneyToCents(value) {
+  const amount = Number(String(value || "").replace(/[^0-9.]/g, ""));
+  return Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100)) : 0;
+}
+
+function normalizeQuoteStatus(value = "", quoteAmount = 0) {
+  const status = String(value || "").trim();
+  const allowed = ["Needs quote", "Quoted", "Accepted", "Paid", "Declined", "Canceled"];
+  if (allowed.includes(status)) return status;
+  return quoteAmount > 0 ? "Quoted" : "Needs quote";
 }
 
 export default async (request) => {
@@ -111,6 +128,21 @@ export default async (request) => {
       adminNote: String(payload?.adminNote || savedOrder.adminNote || "").slice(0, 600),
       updatedAt: new Date().toISOString()
     };
+    const hasQuoteItems = Array.isArray(savedOrder.items) && savedOrder.items.some((item) => item?.customOrder);
+    if (hasQuoteItems || savedOrder.status === "quote_request" || savedOrder.quoteStatus) {
+      const quoteAmount = Object.prototype.hasOwnProperty.call(payload, "quoteAmount")
+        ? moneyToCents(payload?.quoteAmount)
+        : Math.max(0, Math.round(Number(savedOrder.quoteAmount || 0)));
+      nextOrder.quoteAmount = quoteAmount;
+      nextOrder.quoteStatus = normalizeQuoteStatus(payload?.quoteStatus || savedOrder.quoteStatus, quoteAmount);
+      nextOrder.quoteMessage = String(payload?.quoteMessage || savedOrder.quoteMessage || "").replace(/\s+/g, " ").trim().slice(0, 900);
+      nextOrder.quoteUpdatedAt = new Date().toISOString();
+      if (quoteAmount > 0 && nextOrder.paymentStatus !== "paid") {
+        nextOrder.paymentStatus = "unpaid";
+        nextOrder.status = "quote_sent";
+        if (nextOrder.fulfillmentStatus === "Needs review") nextOrder.fulfillmentStatus = "Payment pending";
+      }
+    }
     await store.setJSON(orderKey(orderId), nextOrder);
     return jsonResponse({ ok: true, order: publicOrder(nextOrder) });
   }

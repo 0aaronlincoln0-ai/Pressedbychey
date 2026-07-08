@@ -3,6 +3,7 @@ import { getStore } from "@netlify/blobs";
 
 const STORE_NAME = "pressed-by-chey";
 const CUSTOMER_PREFIX = "customers";
+const ORDER_PREFIX = "orders";
 const RESET_PREFIX = "customer-password-resets";
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
 const MAX_RESET_ATTEMPTS = 5;
@@ -28,6 +29,10 @@ function normalizeEmail(value = "") {
 
 function customerKey(email) {
   return `${CUSTOMER_PREFIX}/${encodeURIComponent(email)}.json`;
+}
+
+function orderKey(orderId) {
+  return `${ORDER_PREFIX}/${orderId}.json`;
 }
 
 function resetKey(email) {
@@ -126,13 +131,60 @@ async function sendResetEmail({ to, name, code }) {
   return payload;
 }
 
-function publicCustomer(customer = {}) {
+function publicOrder(order = {}) {
+  return {
+    id: order.id || "",
+    status: order.status || "",
+    paymentStatus: order.paymentStatus || "",
+    fulfillmentStatus: order.fulfillmentStatus || "",
+    date: order.createdAt || order.date || "",
+    createdAt: order.createdAt || "",
+    paidAt: order.paidAt || "",
+    customer: order.customer || {},
+    sizing: order.customer?.sizing || order.sizing || "",
+    items: Array.isArray(order.items) ? order.items : [],
+    total: order.total || order.amountTotal || 0,
+    currency: order.currency || "usd",
+    quoteAmount: Number(order.quoteAmount || 0),
+    quoteStatus: order.quoteStatus || "",
+    quoteMessage: order.quoteMessage || "",
+    quoteUpdatedAt: order.quoteUpdatedAt || "",
+    quoteAcceptedAt: order.quoteAcceptedAt || ""
+  };
+}
+
+async function liveOrdersForCustomer(store, email) {
+  const listing = await store.list({ prefix: `${ORDER_PREFIX}/` });
+  const orders = [];
+  for (const entry of listing.blobs || []) {
+    const order = await store.get(entry.key, { type: "json" });
+    const orderEmail = normalizeEmail(order?.customer?.email || order?.customerEmail);
+    if (order && orderEmail === email) orders.push(publicOrder(order));
+  }
+  return orders.sort((a, b) => String(b.createdAt || b.date || b.paidAt).localeCompare(String(a.createdAt || a.date || a.paidAt)));
+}
+
+function mergeOrderLists(savedOrders = [], liveOrders = []) {
+  const merged = [];
+  const seen = new Set();
+  for (const order of [...liveOrders, ...(Array.isArray(savedOrders) ? savedOrders : [])]) {
+    const id = order?.id || "";
+    if (id && seen.has(id)) continue;
+    if (id) seen.add(id);
+    merged.push(order);
+  }
+  return merged.slice(0, 75);
+}
+
+async function publicCustomer(customer = {}, store = null) {
+  const email = normalizeEmail(customer.email);
+  const liveOrders = store && email ? await liveOrdersForCustomer(store, email) : [];
   return {
     name: customer.name || "",
-    email: customer.email || "",
+    email,
     sizes: normalizeSizes(customer.sizes),
     savedProducts: Array.isArray(customer.savedProducts) ? customer.savedProducts : [],
-    orders: Array.isArray(customer.orders) ? customer.orders : [],
+    orders: mergeOrderLists(customer.orders, liveOrders),
     createdAt: customer.createdAt || "",
     lastLogin: customer.lastLogin || ""
   };
@@ -216,7 +268,7 @@ export default async (request) => {
     };
     await store.setJSON(key, nextCustomer);
     await store.delete(resetKey(email));
-    return jsonResponse({ ok: true, customer: publicCustomer(nextCustomer) });
+    return jsonResponse({ ok: true, customer: await publicCustomer(nextCustomer, store) });
   }
 
   const password = String(payload?.password || "");
@@ -225,6 +277,9 @@ export default async (request) => {
   }
 
   if (action === "register") {
+    if (password.length < 8) {
+      return jsonResponse({ error: "Use at least 8 characters for the account password." }, { status: 400 });
+    }
     if (savedCustomer) {
       return jsonResponse({ error: "That email already has an account. Sign in instead." }, { status: 409 });
     }
@@ -240,7 +295,7 @@ export default async (request) => {
       lastLogin: now
     };
     await store.setJSON(key, customer);
-    return jsonResponse({ ok: true, customer: publicCustomer(customer) });
+    return jsonResponse({ ok: true, customer: await publicCustomer(customer, store) });
   }
 
   if (!savedCustomer) {
@@ -253,7 +308,7 @@ export default async (request) => {
   if (action === "login") {
     savedCustomer.lastLogin = new Date().toISOString();
     await store.setJSON(key, savedCustomer);
-    return jsonResponse({ ok: true, customer: publicCustomer(savedCustomer) });
+    return jsonResponse({ ok: true, customer: await publicCustomer(savedCustomer, store) });
   }
 
   if (action === "save-profile") {
@@ -266,7 +321,7 @@ export default async (request) => {
       updatedAt: new Date().toISOString()
     };
     await store.setJSON(key, nextCustomer);
-    return jsonResponse({ ok: true, customer: publicCustomer(nextCustomer) });
+    return jsonResponse({ ok: true, customer: await publicCustomer(nextCustomer, store) });
   }
 
   return jsonResponse({ error: "Unknown account action." }, { status: 400 });

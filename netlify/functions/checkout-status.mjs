@@ -44,7 +44,11 @@ function publicOrder(order = {}, session = {}) {
     total: order.total || session.amount_total || 0,
     customer: order.customer || {},
     items: Array.isArray(order.items) ? order.items : [],
-    stripeSessionId: session.id || order.stripeSessionId || ""
+    stripeSessionId: session.id || order.stripeSessionId || "",
+    quoteAmount: Number(order.quoteAmount || 0),
+    quoteStatus: order.quoteStatus || "",
+    quoteMessage: order.quoteMessage || "",
+    quoteAcceptedAt: order.quoteAcceptedAt || ""
   };
 }
 
@@ -97,6 +101,7 @@ export default async (request) => {
       fulfillmentStatus: session.payment_status === "paid"
         ? (savedOrder?.fulfillmentStatus === "Payment pending" ? "Needs review" : savedOrder?.fulfillmentStatus || "Needs review")
         : savedOrder?.fulfillmentStatus || "Payment pending",
+      quoteStatus: savedOrder?.quoteStatus === "Accepted" && session.payment_status === "paid" ? "Paid" : savedOrder?.quoteStatus || "",
       amountSubtotal: session.amount_subtotal,
       amountTotal: session.amount_total,
       currency: session.currency,
