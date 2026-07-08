@@ -37,8 +37,9 @@ function orderKey(orderId) {
   return `${ORDER_PREFIX}/${orderId}.json`;
 }
 
-function photoUrlForKey(key) {
-  return `/.netlify/functions/custom-request?photo=${encodeURIComponent(key)}`;
+function photoUrlForKey(key, origin = "") {
+  const path = `/.netlify/functions/custom-request?photo=${encodeURIComponent(key)}`;
+  return origin ? `${origin}${path}` : path;
 }
 
 function safePhotoKey(key) {
@@ -48,7 +49,7 @@ function safePhotoKey(key) {
   return value;
 }
 
-async function storeReferencePhoto(store, dataUrl = "") {
+async function storeReferencePhoto(store, dataUrl = "", origin = "") {
   const match = String(dataUrl || "").match(DATA_URL_PATTERN);
   if (!match) return "";
   const [, mimeType, base64] = match;
@@ -63,7 +64,7 @@ async function storeReferencePhoto(store, dataUrl = "") {
       kind: "custom-request"
     }
   });
-  return photoUrlForKey(key);
+  return photoUrlForKey(key, origin);
 }
 
 function publicOrder(order = {}) {
@@ -127,14 +128,19 @@ export default async (request) => {
   for (const item of sourceItems) {
     const name = safeText(item?.name || "Custom request", 120);
     const note = safeText(item?.note, 900);
-    const image = await storeReferencePhoto(store, item?.image);
+    const image = await storeReferencePhoto(store, item?.image, url.origin);
+    const shape = safeText(item?.shape, 80);
+    const length = safeText(item?.length, 80);
+    const sizePreference = safeText(item?.sizePreference, 120);
     items.push({
       name,
       quantity: Math.max(1, Math.min(10, Number(item?.quantity) || 1)),
       unitAmount: 0,
       customOrder: true,
-      category: safeText(item?.category || item?.shape || "custom request", 80),
-      shape: safeText(item?.shape, 80),
+      category: safeText(item?.category || shape || "custom request", 80),
+      shape,
+      length,
+      sizePreference,
       note,
       image
     });

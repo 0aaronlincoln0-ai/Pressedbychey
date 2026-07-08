@@ -31,6 +31,9 @@ const inspirationPreviewImage = inspirationPreview?.querySelector("img");
 const inspirationName = document.querySelector("#inspirationName");
 const removeInspiration = document.querySelector("#removeInspiration");
 const customOrderName = document.querySelector("#customOrderName");
+const customOrderShape = document.querySelector("#customOrderShape");
+const customOrderLength = document.querySelector("#customOrderLength");
+const customOrderSizePreference = document.querySelector("#customOrderSizePreference");
 const customOrderDescription = document.querySelector("#customOrderDescription");
 const customOrderPhoto = document.querySelector("#customOrderPhoto");
 const customOrderPreview = document.querySelector("#customOrderPreview");
@@ -2991,6 +2994,8 @@ function orderItemMeta(item = {}) {
     item.requestTitle || "",
     cartItemQuantity(item) > 1 ? `Quantity ${cartItemQuantity(item)}` : "",
     item.shape || "",
+    item.length || "",
+    item.sizePreference || "",
     item.shade || "",
     item.note ? "Design notes included" : "",
     item.image ? "Reference photo attached" : ""
@@ -3069,7 +3074,25 @@ function clearCustomOrderPhoto() {
 function submitCustomOrderRequest() {
   if (!customOrderDescription || !customOrderStatus) return;
   const requestTitle = customOrderName?.value.trim() || "";
+  const selectedShape = customOrderShape?.value.trim() || "";
+  const selectedLength = customOrderLength?.value.trim() || "";
+  const selectedSizePreference = customOrderSizePreference?.value.trim() || "";
   const description = customOrderDescription.value.trim();
+  if (!selectedShape) {
+    customOrderStatus.textContent = "Choose the nail shape for this custom request.";
+    customOrderShape?.focus();
+    return;
+  }
+  if (!selectedLength) {
+    customOrderStatus.textContent = "Choose the nail length for this custom request.";
+    customOrderLength?.focus();
+    return;
+  }
+  if (!selectedSizePreference) {
+    customOrderStatus.textContent = "Choose the sizing preference for this custom request.";
+    customOrderSizePreference?.focus();
+    return;
+  }
   if (!description) {
     customOrderStatus.textContent = "Add the custom order description first.";
     customOrderDescription.focus();
@@ -3083,11 +3106,18 @@ function submitCustomOrderRequest() {
   addToCart(requestTitle ? `Custom Order - ${requestTitle}` : "Custom Order Request", 0, {
     customOrder: true,
     requestTitle,
+    shape: selectedShape,
+    category: selectedShape,
+    length: selectedLength,
+    sizePreference: selectedSizePreference,
     note: description,
     image: customOrderPhotoDataUrl
   });
   customOrderStatus.textContent = "Custom order request added to your bag. Submit checkout so Chey can review it.";
   if (customOrderName) customOrderName.value = "";
+  if (customOrderShape) customOrderShape.value = "";
+  if (customOrderLength) customOrderLength.value = "";
+  if (customOrderSizePreference) customOrderSizePreference.value = "";
   customOrderDescription.value = "";
   clearCustomOrderPhoto();
 }
@@ -3864,6 +3894,8 @@ function checkoutLineItems() {
     sourceProductIndex: checkoutProductIndex(item.sourceProductIndex),
     category: item.category || "",
     shape: item.shape || "",
+    length: item.length || "",
+    sizePreference: item.sizePreference || "",
     note: item.note || ""
   }));
 }
@@ -3877,6 +3909,8 @@ function quoteRequestLineItems() {
     sourceProductIndex: checkoutProductIndex(item.sourceProductIndex),
     category: item.category || "",
     shape: item.shape || "",
+    length: item.length || "",
+    sizePreference: item.sizePreference || "",
     note: item.note || "",
     image: item.image || ""
   }));
@@ -4205,12 +4239,28 @@ function orderItemWorkflowSummary(item = {}) {
   const unit = Number(item.unitAmount || item.price || 0);
   const unitLabel = item.unitAmount ? formatOrderMoney(unit) : `$${unit}`;
   const qty = Number(item.quantity || 1);
-  return `${item.name || "Product"} x ${qty} (${unitLabel}${item.category ? ` - ${item.category}` : ""})`;
+  const details = [
+    item.category || item.shape ? `Shape: ${item.shape || item.category}` : "",
+    item.length ? `Length: ${item.length}` : "",
+    item.sizePreference ? `Size: ${item.sizePreference}` : ""
+  ].filter(Boolean).join(" - ");
+  return `${item.name || "Product"} x ${qty} (${unitLabel}${details ? ` - ${details}` : ""})`;
+}
+
+function orderReferencePhotoUrl(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw || raw === "Reference photo attached" || raw === "Product photo attached") return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith("/")) return `${window.location.origin}${raw}`;
+  return raw;
 }
 
 function orderItemWorkflowMarkup(item = {}) {
-  const photoLink = item.image
-    ? `<br><a href="${escapeAttribute(item.image)}" target="_blank" rel="noopener">Open reference photo</a>`
+  const photoUrl = orderReferencePhotoUrl(item.image);
+  const photoLink = photoUrl
+    ? `<br><a class="admin-reference-photo-link" href="${escapeAttribute(photoUrl)}" target="_blank" rel="noopener">Open customer reference photo</a>`
+    : item.customOrder
+      ? `<br><span class="admin-reference-photo-missing">No reference photo file was saved with this request.</span>`
     : "";
   return `<p>${escapeHTML(orderItemWorkflowSummary(item))}${photoLink}</p>`;
 }
@@ -4545,6 +4595,11 @@ customOrderPhotoRemove?.addEventListener("click", clearCustomOrderPhoto);
 customOrderSubmit?.addEventListener("click", submitCustomOrderRequest);
 customOrderName?.addEventListener("input", () => {
   if (customOrderStatus) customOrderStatus.textContent = "";
+});
+[customOrderShape, customOrderLength, customOrderSizePreference].forEach((input) => {
+  input?.addEventListener("change", () => {
+    if (customOrderStatus) customOrderStatus.textContent = "";
+  });
 });
 customOrderDescription?.addEventListener("input", () => {
   if (customOrderStatus) customOrderStatus.textContent = "";

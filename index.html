@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260708-new-logo-v1" />
+    <link rel="stylesheet" href="styles.css?v=20260708-custom-order-details-v1" />
   </head>
   <body>
     <div class="scroll-progress" aria-hidden="true"></div>
@@ -230,6 +230,42 @@
                   Request name
                   <input id="customOrderName" type="text" placeholder="Birthday chrome set, vacation aura set..." />
                 </label>
+                <div class="custom-order-choice-grid" aria-label="Custom order nail details">
+                  <label class="custom-order-field">
+                    Nail shape
+                    <select id="customOrderShape">
+                      <option value="">Choose shape</option>
+                      <option value="Almond">Almond</option>
+                      <option value="Square">Square</option>
+                      <option value="Coffin">Coffin</option>
+                      <option value="Oval">Oval</option>
+                      <option value="Stiletto">Stiletto</option>
+                    </select>
+                  </label>
+                  <label class="custom-order-field">
+                    Length
+                    <select id="customOrderLength">
+                      <option value="">Choose length</option>
+                      <option value="Short">Short</option>
+                      <option value="Medium">Medium</option>
+                      <option value="Long">Long</option>
+                      <option value="Extra long">Extra long</option>
+                    </select>
+                  </label>
+                  <label class="custom-order-field">
+                    Size preference
+                    <select id="customOrderSizePreference">
+                      <option value="">Choose sizing</option>
+                      <option value="Use saved profile sizes">Use my saved profile sizes</option>
+                      <option value="XS preset">XS preset</option>
+                      <option value="S preset">S preset</option>
+                      <option value="M preset">M preset</option>
+                      <option value="L preset">L preset</option>
+                      <option value="Custom size / penny reference">Custom size / penny reference</option>
+                      <option value="Need sizing kit">Need sizing kit</option>
+                    </select>
+                  </label>
+                </div>
                 <label class="custom-order-field custom-order-field-wide">
                   Describe your custom order
                   <textarea id="customOrderDescription" rows="4" placeholder="Example: Short almond, pink chrome, pearl charms, glossy finish, with a soft aura fade."></textarea>
@@ -731,6 +767,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260708-customer-password-reset-v1"></script>
+    <script src="script.js?v=20260708-custom-order-details-v1"></script>
   </body>
 </html>
