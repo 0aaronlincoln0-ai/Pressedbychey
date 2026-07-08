@@ -3,6 +3,9 @@ import { getStore } from "@netlify/blobs";
 
 const STORE_NAME = "pressed-by-chey";
 const CUSTOMER_PREFIX = "customers";
+const RESET_PREFIX = "customer-password-resets";
+const RESET_CODE_TTL_MS = 15 * 60 * 1000;
+const MAX_RESET_ATTEMPTS = 5;
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -25,6 +28,10 @@ function normalizeEmail(value = "") {
 
 function customerKey(email) {
   return `${CUSTOMER_PREFIX}/${encodeURIComponent(email)}.json`;
+}
+
+function resetKey(email) {
+  return `${RESET_PREFIX}/${encodeURIComponent(email)}.json`;
 }
 
 function blankHandSizes() {
@@ -55,6 +62,68 @@ function verifyPassword(password, savedHash = "") {
   const expected = Buffer.from(hash, "hex");
   const actual = scryptSync(String(password), salt, 64);
   return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+function createResetCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function genericResetResponse() {
+  return jsonResponse({
+    ok: true,
+    message: "If that email has a customer account, a reset passcode has been sent."
+  });
+}
+
+function resetEmailFromAddress() {
+  return process.env.PASSWORD_RESET_FROM_EMAIL || process.env.CHEY_SUPPORT_EMAIL || "";
+}
+
+function resetReplyToAddress() {
+  return process.env.CHEY_SUPPORT_EMAIL || process.env.ORDER_NOTIFICATION_EMAIL || "callison@pressedbychey.com";
+}
+
+function resetEmailHtml({ name, code }) {
+  const safeName = safeText(name || "there", 80);
+  return `
+    <div style="font-family:Arial,sans-serif;color:#2b1821;line-height:1.5">
+      <h2 style="color:#9b1957">Reset your Pressed by Chey password</h2>
+      <p>Hi ${safeName},</p>
+      <p>Your one-time password reset passcode is:</p>
+      <p style="font-size:28px;font-weight:700;letter-spacing:0.2em;color:#9b1957">${code}</p>
+      <p>This code expires in 15 minutes. If you did not ask for this, you can ignore this email.</p>
+      <p>Pressed by Chey</p>
+    </div>
+  `;
+}
+
+async function sendResetEmail({ to, name, code }) {
+  const apiKey = process.env.RESEND_API_KEY || "";
+  const from = resetEmailFromAddress();
+  if (!apiKey || !from) {
+    throw new Error("Password reset email is not configured yet.");
+  }
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "User-Agent": "pressedbychey-site/1.0"
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      reply_to: resetReplyToAddress(),
+      subject: "Your Pressed by Chey password reset code",
+      html: resetEmailHtml({ name, code }),
+      text: `Your Pressed by Chey password reset code is ${code}. It expires in 15 minutes.`
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.error || "Password reset email could not be sent.");
+  }
+  return payload;
 }
 
 function publicCustomer(customer = {}) {
@@ -92,16 +161,68 @@ export default async (request) => {
 
   const action = safeText(payload?.action, 40);
   const email = normalizeEmail(payload?.email);
-  const password = String(payload?.password || "");
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return jsonResponse({ error: "Enter a valid email address." }, { status: 400 });
-  }
-  if (!password || password.length < 3) {
-    return jsonResponse({ error: "Enter the account password." }, { status: 400 });
   }
 
   const key = customerKey(email);
   const savedCustomer = await store.get(key, { type: "json" });
+
+  if (action === "request-reset") {
+    if (!savedCustomer) return genericResetResponse();
+    const code = createResetCode();
+    const resetRecord = {
+      email,
+      codeHash: hashPassword(code),
+      expiresAt: Date.now() + RESET_CODE_TTL_MS,
+      attempts: 0,
+      createdAt: new Date().toISOString()
+    };
+    await store.setJSON(resetKey(email), resetRecord);
+    try {
+      await sendResetEmail({ to: email, name: savedCustomer.name, code });
+    } catch (error) {
+      await store.delete(resetKey(email));
+      return jsonResponse({ error: error.message || "Password reset email could not be sent." }, { status: 503 });
+    }
+    return genericResetResponse();
+  }
+
+  if (action === "confirm-reset") {
+    const code = safeText(payload?.code, 12);
+    const newPassword = String(payload?.newPassword || "");
+    if (!code || !newPassword || newPassword.length < 8) {
+      return jsonResponse({ error: "Enter the reset code and a new password with at least 8 characters." }, { status: 400 });
+    }
+    const resetRecord = await store.get(resetKey(email), { type: "json" });
+    if (!savedCustomer || !resetRecord || Date.now() > Number(resetRecord.expiresAt || 0)) {
+      await store.delete(resetKey(email));
+      return jsonResponse({ error: "That reset code is invalid or expired. Request a new one." }, { status: 400 });
+    }
+    if (Number(resetRecord.attempts || 0) >= MAX_RESET_ATTEMPTS) {
+      await store.delete(resetKey(email));
+      return jsonResponse({ error: "Too many reset attempts. Request a fresh passcode." }, { status: 429 });
+    }
+    if (!verifyPassword(code, resetRecord.codeHash)) {
+      resetRecord.attempts = Number(resetRecord.attempts || 0) + 1;
+      await store.setJSON(resetKey(email), resetRecord);
+      return jsonResponse({ error: "That reset code does not match." }, { status: 400 });
+    }
+    const nextCustomer = {
+      ...savedCustomer,
+      passwordHash: hashPassword(newPassword),
+      lastLogin: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    await store.setJSON(key, nextCustomer);
+    await store.delete(resetKey(email));
+    return jsonResponse({ ok: true, customer: publicCustomer(nextCustomer) });
+  }
+
+  const password = String(payload?.password || "");
+  if (!password || password.length < 3) {
+    return jsonResponse({ error: "Enter the account password." }, { status: 400 });
+  }
 
   if (action === "register") {
     if (savedCustomer) {

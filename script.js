@@ -3282,7 +3282,7 @@ async function customerAccountRequest(action, payload = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data?.ok === false) throw new Error(data.error || "Customer account could not be updated.");
-  return data.customer;
+  return data.customer || data;
 }
 
 function syncCurrentCustomerProfile() {
@@ -3490,71 +3490,66 @@ function showPasswordReset(show = true) {
   }
 }
 
-function createResetCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-function requestPasswordReset() {
+async function requestPasswordReset() {
   const email = resetEmail.value.trim().toLowerCase();
-  const user = customerState.users.find((item) => item.email === email);
   if (!email) {
     accountStatus.textContent = "Enter the email on the customer account.";
     return;
   }
-  if (!user) {
-    accountStatus.textContent = "If that email has an account, a reset passcode will be sent.";
+  accountStatus.textContent = "Sending reset passcode...";
+  try {
+    const result = await customerAccountRequest("request-reset", { email });
+    passwordResetRequest = {
+      email,
+      expiresAt: Date.now() + 15 * 60 * 1000
+    };
+    resetCodeStep.hidden = false;
+    resetCode.value = "";
+    resetNewPassword.value = "";
+    resetCode.focus();
+    accountStatus.textContent = result.message || "If that email has a customer account, a reset passcode has been sent.";
+  } catch (error) {
     resetCodeStep.hidden = true;
-    return;
+    accountStatus.textContent = error.message || "Password reset email could not be sent.";
   }
-  const code = createResetCode();
-  passwordResetRequest = {
-    email,
-    code,
-    expiresAt: Date.now() + 10 * 60 * 1000
-  };
-  resetCodeStep.hidden = false;
-  resetCode.value = "";
-  resetNewPassword.value = "";
-  resetCode.focus();
-  accountStatus.textContent = `Email passcode created for ${email}. Demo passcode: ${code}. Connect an email provider before saving real card/payment details.`;
 }
 
-function verifyPasswordReset() {
+async function verifyPasswordReset() {
   const code = resetCode.value.trim();
   const newPassword = resetNewPassword.value;
-  if (!passwordResetRequest) {
+  const email = (passwordResetRequest?.email || resetEmail.value || "").trim().toLowerCase();
+  if (!email) {
     accountStatus.textContent = "Request a fresh passcode first.";
     return;
   }
-  if (Date.now() > passwordResetRequest.expiresAt) {
+  if (passwordResetRequest?.expiresAt && Date.now() > passwordResetRequest.expiresAt) {
     passwordResetRequest = null;
     accountStatus.textContent = "That passcode expired. Request a new one.";
     return;
   }
-  if (code !== passwordResetRequest.code) {
-    accountStatus.textContent = "That passcode does not match.";
+  if (!code) {
+    accountStatus.textContent = "Enter the 6-digit passcode from your email.";
     return;
   }
   if (newPassword.length < 8) {
     accountStatus.textContent = "Use at least 8 characters for the new password.";
     return;
   }
-  const user = customerState.users.find((item) => item.email === passwordResetRequest.email);
-  if (!user) {
-    accountStatus.textContent = "Account not found. Request a new code.";
-    return;
+  accountStatus.textContent = "Updating password...";
+  try {
+    const cloudCustomer = await customerAccountRequest("confirm-reset", { email, code, newPassword });
+    mergeCustomerIntoLocal(cloudCustomer, newPassword);
+    passwordResetRequest = null;
+    resetCodeStep.hidden = true;
+    passwordResetCard.hidden = true;
+    loginEmail.value = "";
+    loginPassword.value = "";
+    accountStatus.textContent = "Password updated. You are signed in.";
+    renderAccount();
+    renderCart();
+  } catch (error) {
+    accountStatus.textContent = error.message || "Password could not be reset.";
   }
-  user.password = newPassword;
-  user.lastLogin = new Date().toLocaleString();
-  customerState.currentEmail = user.email;
-  saveCustomerState();
-  passwordResetRequest = null;
-  resetCodeStep.hidden = true;
-  passwordResetCard.hidden = true;
-  loginEmail.value = "";
-  loginPassword.value = "";
-  accountStatus.textContent = "Password updated. You are signed in.";
-  renderAccount();
 }
 
 function logoutCustomer() {

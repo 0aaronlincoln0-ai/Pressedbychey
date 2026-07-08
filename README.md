@@ -67,6 +67,20 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 Paid orders appear in the Admin > Orders tab, where Chey can update fulfillment status from payment pending through making, ready to ship, shipped, or canceled.
 
+## Customer password resets
+
+Customer account password resets use the Netlify `customer-account` function. The function creates a 6-digit one-time passcode, stores only a hashed copy, expires it after 15 minutes, and emails the passcode to the customer.
+
+Set these production environment variables in Netlify before launch:
+
+```text
+RESEND_API_KEY=re_...
+PASSWORD_RESET_FROM_EMAIL=Pressed by Chey <support@pressedbychey.com>
+CHEY_SUPPORT_EMAIL=callison@pressedbychey.com
+```
+
+The `PASSWORD_RESET_FROM_EMAIL` sender must be a verified sender/domain in Resend.
+
 ## Deploy to Netlify
 
 Upload the contents of this folder to Netlify, or use the latest zip artifact in Documents:
@@ -77,4 +91,4 @@ C:\Users\aplin\Documents\UPLOAD-THIS-TO-NETLIFY-LATEST-DESIGN-STUDIO-PHOTO-FIX.z
 
 ## Important note
 
-Admin product, photo, copy, layout, design note, product edits, and paid order workflow are saved to the deployed Netlify website through Netlify Functions backed by Netlify Blobs. Paid product purchases use Stripe Checkout through Netlify Functions. Customer accounts, guest quote requests, saved sizes, saved products, and local order history still use browser storage unless a full customer database is added.
+Admin product, photo, copy, layout, design note, product edits, customer accounts, password resets, custom quote requests, and paid order workflow are saved to the deployed Netlify website through Netlify Functions backed by Netlify Blobs. Paid product purchases use Stripe Checkout through Netlify Functions.
