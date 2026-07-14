@@ -84,11 +84,19 @@ The `PASSWORD_RESET_FROM_EMAIL` sender must be a verified sender/domain in Resen
 
 ## Deploy to Netlify
 
-Upload the contents of this folder to Netlify, or use the latest zip artifact in Documents:
+Deploy this site from the connected GitHub repository, not drag-and-drop, because checkout, customer accounts, admin saves, and paid orders require `netlify/functions`.
+
+Recommended Netlify settings:
 
 ```text
-C:\Users\aplin\Documents\UPLOAD-THIS-TO-NETLIFY-LATEST-DESIGN-STUDIO-PHOTO-FIX.zip
+Repository: 0aaronlincoln0-ai/Pressedbychey
+Production branch: main
+Build command: npm install
+Publish directory: .
+Functions directory: netlify/functions
 ```
+
+After each change, commit and push to `main`; Netlify should automatically build and publish the site. If it does not, open Netlify > pressedbychey > Site configuration > Build & deploy and confirm continuous deployment is connected to the GitHub repository above.
 
 ## Important note
 
