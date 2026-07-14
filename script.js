@@ -4697,6 +4697,110 @@ function orderItemWorkflowSummary(item = {}) {
   return `${item.name || "Product"} x ${qty} (${unitLabel}${details ? ` - ${details}` : ""})`;
 }
 
+function dollarsToCents(value) {
+  const cleaned = String(value || "").replace(/[^0-9.]/g, "");
+  const amount = Number(cleaned);
+  return Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100)) : 0;
+}
+
+function localOrderTotalCents(order = {}) {
+  if (order.amountTotal) return Math.max(0, Math.round(Number(order.amountTotal) || 0));
+  if (order.quoteAmount) return Math.max(0, Math.round(Number(order.quoteAmount) || 0));
+  return dollarsToCents(order.total);
+}
+
+function localOrderItemForAdmin(item = {}) {
+  const unitAmount = item.unitAmount
+    ? Math.max(0, Math.round(Number(item.unitAmount) || 0))
+    : dollarsToCents(item.price);
+  return {
+    ...item,
+    name: item.name || "Pressed by Chey order item",
+    quantity: cartItemQuantity(item),
+    unitAmount,
+    category: item.category || item.shape || "",
+    image: item.image || "",
+    note: item.note || "",
+    customOrder: Boolean(item.customOrder)
+  };
+}
+
+function localAccountOrderForAdmin(order = {}, user = {}) {
+  const createdAt = order.createdAt || order.paidAt || order.updatedAt || order.date || new Date().toISOString();
+  const paid = order.paymentStatus === "paid" || /^paid\b|^order\b/i.test(order.id || "");
+  return {
+    ...order,
+    id: order.id || `local-${user.email || "customer"}-${createdAt}`,
+    status: order.status || (paid ? "complete" : "local_saved"),
+    paymentStatus: order.paymentStatus || (paid ? "paid" : "saved"),
+    fulfillmentStatus: order.fulfillmentStatus || (paid ? "Needs review" : "Payment pending"),
+    createdAt,
+    paidAt: order.paidAt || (paid ? createdAt : ""),
+    customer: {
+      ...(order.customer || {}),
+      name: order.customer?.name || user.name || order.customerName || "Customer",
+      email: order.customer?.email || user.email || order.customerEmail || "",
+      phone: order.customer?.phone || order.customerPhone || "",
+      sizing: order.customer?.sizing || order.sizing || customerSizesSummary(user) || ""
+    },
+    customerEmail: order.customerEmail || user.email || order.customer?.email || "",
+    customerName: order.customerName || user.name || order.customer?.name || "Customer",
+    items: Array.isArray(order.items) ? order.items.map(localOrderItemForAdmin) : [],
+    total: localOrderTotalCents(order),
+    currency: order.currency || "usd",
+    adminNote: order.adminNote || "Recovered from customer account order history.",
+    localSource: "customer account"
+  };
+}
+
+function localGuestOrderForAdmin(order = {}) {
+  const createdAt = order.createdAt || order.paidAt || order.updatedAt || order.date || new Date().toISOString();
+  const paid = order.paymentStatus === "paid" || /^paid\b|^guest\b/i.test(order.id || "");
+  return {
+    ...order,
+    id: order.id || `local-guest-${createdAt}`,
+    status: order.status || (paid ? "complete" : "guest_saved"),
+    paymentStatus: order.paymentStatus || (paid ? "paid" : "saved"),
+    fulfillmentStatus: order.fulfillmentStatus || (paid ? "Needs review" : "Payment pending"),
+    createdAt,
+    paidAt: order.paidAt || (paid ? createdAt : ""),
+    customer: {
+      ...(order.customer || {}),
+      name: order.customer?.name || order.name || "Guest customer",
+      email: order.customer?.email || order.email || "",
+      phone: order.customer?.phone || order.phone || "",
+      sizing: order.customer?.sizing || order.sizing || ""
+    },
+    customerEmail: order.customerEmail || order.email || order.customer?.email || "",
+    customerName: order.customerName || order.name || order.customer?.name || "Guest customer",
+    items: Array.isArray(order.items) ? order.items.map(localOrderItemForAdmin) : [],
+    total: localOrderTotalCents(order),
+    currency: order.currency || "usd",
+    adminNote: order.adminNote || order.notes || "Recovered from guest checkout history.",
+    localSource: "guest checkout"
+  };
+}
+
+function localOrdersForAdminDashboard() {
+  const accountOrders = customerState.users.flatMap((user) => (user.orders || []).map((order) => localAccountOrderForAdmin(order, user)));
+  const guestDashboardOrders = guestOrders.map(localGuestOrderForAdmin);
+  return [...accountOrders, ...guestDashboardOrders];
+}
+
+function mergeAdminOrderSources(remoteOrders = []) {
+  const merged = new Map();
+  [...remoteOrders, ...localOrdersForAdminDashboard()].forEach((order) => {
+    const key = String(order.id || "").trim();
+    if (!key || merged.has(key)) return;
+    merged.set(key, order);
+  });
+  return [...merged.values()].sort((a, b) => {
+    const left = orderDateForFiltering(a)?.getTime() || 0;
+    const right = orderDateForFiltering(b)?.getTime() || 0;
+    return right - left;
+  });
+}
+
 function orderReferencePhotoUrl(value = "") {
   const raw = String(value || "").trim();
   if (!raw || raw === "Reference photo attached" || raw === "Product photo attached") return "";
@@ -4874,6 +4978,7 @@ function renderAdminLiveOrders() {
                 <div>
                   <span class="payment-pill ${paid ? "is-paid" : "is-pending"}">${escapeHTML(paymentLabel)}</span>
                   ${quoteSentFeedback ? `<span class="quote-sent-confirmation">Quote accepted and sent</span>` : ""}
+                  ${order.localSource ? `<span class="quote-sent-confirmation">Recovered from ${escapeHTML(order.localSource)}</span>` : ""}
                   <strong>${escapeHTML(orderCustomerName(order))}</strong>
                   <p>${escapeHTML(order.id || "Order")} · ${escapeHTML(orderDateSummary(order))}</p>
                 </div>
@@ -5007,11 +5112,14 @@ async function fetchAdminLiveOrders({ showStatus = true } = {}) {
       headers: adminRemoteWriteHeaders()
     });
     if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not load live orders.");
-    liveOrders = Array.isArray(payload.orders) ? payload.orders : [];
+    liveOrders = mergeAdminOrderSources(Array.isArray(payload.orders) ? payload.orders : []);
     renderAdminLiveOrders();
     if (showStatus) setLiveOrderFilterStatus("Loaded");
   } catch (error) {
-    setAdminMessage(liveOrderStatus, error.message || "Could not load live orders.");
+    liveOrders = mergeAdminOrderSources([]);
+    renderAdminLiveOrders();
+    const recovered = liveOrders.length ? ` Showing ${liveOrders.length} recovered account/guest order${liveOrders.length === 1 ? "" : "s"}.` : "";
+    setAdminMessage(liveOrderStatus, `${error.message || "Could not load live orders."}${recovered}`);
   }
 }
 
