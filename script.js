@@ -183,6 +183,7 @@ let inlineEditSaveTimer = null;
 let inlineImageEditTarget = null;
 let adminEditToolbar = null;
 let adminEditToggle = null;
+let adminEditCollapse = null;
 let adminEditStatus = null;
 let adminToolbarResizeObserver = null;
 let adminInlineImageInput = null;
@@ -219,6 +220,7 @@ const ADMIN_PASSWORD = "chey2026";
 const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
 const ADMIN_SESSION_KEY = "pressedByCheyAdminSession";
 const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const ADMIN_TOOLBAR_COLLAPSED_KEY = "pressedByCheyAdminToolbarCollapsed";
 const IS_ADMIN_PAGE = /(^|\/)admin\.html$/i.test(window.location.pathname);
 const ADMIN_STORAGE_KEY = "pressedByCheyEdits";
 const ADMIN_REMOTE_STATE_ENDPOINT = "/.netlify/functions/admin-state";
@@ -1925,10 +1927,22 @@ function logoutAdmin() {
 function closeAdmin() {}
 
 function syncAdminViewportChrome() {
-  const toolbarHeight = adminEditToolbar && !adminEditToolbar.hidden
-    ? Math.ceil(adminEditToolbar.getBoundingClientRect().height) + 24
-    : 0;
-  document.documentElement.style.setProperty("--admin-toolbar-offset", `${toolbarHeight}px`);
+  document.documentElement.style.setProperty("--admin-toolbar-offset", "0px");
+}
+
+function isAdminToolbarCollapsed() {
+  return localStorage.getItem(ADMIN_TOOLBAR_COLLAPSED_KEY) === "true";
+}
+
+function setAdminToolbarCollapsed(collapsed) {
+  localStorage.setItem(ADMIN_TOOLBAR_COLLAPSED_KEY, collapsed ? "true" : "false");
+  adminEditToolbar?.classList.toggle("is-collapsed", collapsed);
+  if (adminEditCollapse) {
+    adminEditCollapse.setAttribute("aria-expanded", String(!collapsed));
+    adminEditCollapse.setAttribute("title", collapsed ? "Expand admin tools" : "Collapse admin tools");
+    adminEditCollapse.querySelector(".admin-edit-collapse-text").textContent = collapsed ? "Open" : "Hide";
+  }
+  syncAdminViewportChrome();
 }
 
 function ensureAdminEditToolbar() {
@@ -1937,6 +1951,11 @@ function ensureAdminEditToolbar() {
   adminEditToolbar.className = "admin-edit-toolbar";
   adminEditToolbar.hidden = true;
   adminEditToolbar.innerHTML = `
+    <button class="admin-edit-collapse" type="button" id="adminEditCollapse" aria-expanded="true" title="Collapse admin tools">
+      <span class="admin-edit-collapse-icon" aria-hidden="true"></span>
+      <span class="admin-edit-collapse-text">Hide</span>
+    </button>
+    <strong class="admin-edit-toolbar-mini">Admin</strong>
     <div class="admin-edit-toolbar-copy">
       <strong>Admin edit mode</strong>
       <span id="adminEditStatus">Press Click To Edit Site, then edit the page right where customers see it.</span>
@@ -1958,7 +1977,9 @@ function ensureAdminEditToolbar() {
     adminToolbarResizeObserver.observe(adminEditToolbar);
   }
   adminEditToggle = adminEditToolbar.querySelector("#adminEditToggle");
+  adminEditCollapse = adminEditToolbar.querySelector("#adminEditCollapse");
   adminEditStatus = adminEditToolbar.querySelector("#adminEditStatus");
+  adminEditCollapse.addEventListener("click", () => setAdminToolbarCollapsed(!adminEditToolbar.classList.contains("is-collapsed")));
   adminEditToolbar.querySelector("#adminEditBack").addEventListener("click", handleAdminToolbarBack);
   adminEditToggle.addEventListener("click", toggleTextEditMode);
   adminEditToolbar.querySelector("#adminEditInventory").addEventListener("click", openAdminInventoryShelf);
@@ -1972,6 +1993,7 @@ function ensureAdminEditToolbar() {
     });
   });
   adminEditToolbar.querySelector("#adminEditLogout").addEventListener("click", logoutAdmin);
+  setAdminToolbarCollapsed(isAdminToolbarCollapsed());
 }
 
 function handleAdminToolbarBack() {

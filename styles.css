@@ -8417,11 +8417,136 @@ body.admin-inventory-open {
     padding: 0;
   }
 
-  .admin-edit-toolbar button,
-  .admin-edit-toolbar a {
-    min-height: 38px;
-    padding: 0.48rem 0.55rem;
-    font-size: 0.78rem;
-    white-space: nowrap;
+.admin-edit-toolbar button,
+.admin-edit-toolbar a {
+  min-height: 38px;
+  padding: 0.48rem 0.55rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+}
+
+/* Left-side collapsible admin rail */
+.admin-edit-toolbar {
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: max(10px, env(safe-area-inset-left, 0px));
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  width: 176px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100svh - 32px);
+  overflow: hidden auto;
+  gap: 0.45rem;
+  padding: 0.5rem;
+  border-radius: 18px;
+  transform: translateY(-50%);
+  scrollbar-width: thin;
+}
+
+.admin-edit-collapse {
+  width: 100%;
+  min-height: 32px;
+  padding: 0.35rem 0.45rem;
+}
+
+.admin-edit-collapse-icon::before {
+  content: "<";
+  margin-right: 0.25rem;
+  font-weight: 900;
+}
+
+.admin-edit-toolbar-mini {
+  display: none;
+  color: white;
+  font-size: 0.68rem;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.admin-edit-toolbar-copy {
+  gap: 0.1rem;
+}
+
+.admin-edit-toolbar-copy strong {
+  font-size: 0.76rem;
+}
+
+.admin-edit-toolbar-copy span {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.admin-edit-toolbar-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.32rem;
+  justify-content: stretch;
+  overflow: visible;
+  padding: 0;
+}
+
+.admin-edit-toolbar button,
+.admin-edit-toolbar a {
+  width: 100%;
+  min-height: 34px;
+  padding: 0.4rem 0.45rem;
+  border-radius: 12px;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  white-space: normal;
+}
+
+.admin-edit-toolbar.is-collapsed {
+  width: 54px;
+  overflow: visible;
+  padding: 0.38rem;
+}
+
+.admin-edit-toolbar.is-collapsed .admin-edit-toolbar-copy,
+.admin-edit-toolbar.is-collapsed .admin-edit-toolbar-actions {
+  display: none;
+}
+
+.admin-edit-toolbar.is-collapsed .admin-edit-toolbar-mini {
+  display: block;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  margin: 0.2rem auto;
+  text-transform: uppercase;
+}
+
+.admin-edit-toolbar.is-collapsed .admin-edit-collapse {
+  aspect-ratio: 1;
+  min-height: 36px;
+  padding: 0;
+}
+
+.admin-edit-toolbar.is-collapsed .admin-edit-collapse-text {
+  display: none;
+}
+
+.admin-edit-toolbar.is-collapsed .admin-edit-collapse-icon::before {
+  content: ">";
+  margin-right: 0;
+}
+
+@media (max-width: 760px) {
+  .admin-edit-toolbar {
+    top: auto;
+    bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    left: 10px;
+    width: min(176px, calc(100vw - 20px));
+    max-height: min(72svh, 560px);
+    transform: none;
+  }
+
+  .admin-edit-toolbar.is-collapsed {
+    width: 52px;
   }
 }
