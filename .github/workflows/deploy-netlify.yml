@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NETLIFY_SITE_ID: 48e55beb-4ad4-4878-b5c9-fff74133490a
-      HAS_NETLIFY_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN != '' }}
 
     steps:
       - name: Check out repository
@@ -24,18 +23,9 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        if: env.HAS_NETLIFY_TOKEN == 'true'
         run: npm install
 
       - name: Deploy to Netlify production
-        if: env.HAS_NETLIFY_TOKEN == 'true'
         run: npx netlify deploy --prod --build --site "$NETLIFY_SITE_ID"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-
-      - name: Require Netlify token
-        if: env.HAS_NETLIFY_TOKEN != 'true'
-        run: |
-          echo "::error::Netlify deploy stopped because the NETLIFY_AUTH_TOKEN repository secret is not set."
-          echo "Add that secret in GitHub, or use Netlify built-in GitHub continuous deployment."
-          exit 1
