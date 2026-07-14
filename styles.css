@@ -3799,6 +3799,42 @@ figcaption {
   gap: 1rem;
 }
 
+.admin-dedicated-page .site-shell main,
+.admin-dedicated-page .cart-button {
+  display: none;
+}
+
+.admin-dedicated-page .nav {
+  margin-bottom: 1rem;
+}
+
+.admin-dedicated-page .admin-page {
+  width: min(1320px, calc(100% - 32px));
+  min-height: calc(100vh - 120px);
+  padding-top: 1rem;
+}
+
+.admin-dedicated-page .admin-editor {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.admin-dedicated-page .admin-header {
+  grid-column: 1 / -1;
+}
+
+.admin-dedicated-page .admin-view-tabs {
+  position: sticky;
+  top: 92px;
+  grid-template-columns: 1fr;
+}
+
+.admin-dedicated-page .admin-view-panel {
+  min-width: 0;
+}
+
 .dashboard-hero {
   padding: 1rem;
   border: 1px solid rgba(203, 46, 114, 0.16);
@@ -7996,6 +8032,15 @@ body.admin-inventory-open {
   .admin-live-order-head,
   .admin-live-order-grid,
   .admin-live-order-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-dedicated-page .admin-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-dedicated-page .admin-view-tabs {
+    position: static;
     grid-template-columns: 1fr;
   }
 

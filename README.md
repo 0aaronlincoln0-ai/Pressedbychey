@@ -17,6 +17,7 @@ Luxury press-on nail website for Pressed by Chey.
 
 - Username: `admin`
 - Password: `chey2026`
+- Dedicated admin page: `admin.html`
 
 ## Run locally
 

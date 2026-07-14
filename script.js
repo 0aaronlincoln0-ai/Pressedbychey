@@ -219,6 +219,7 @@ const ADMIN_PASSWORD = "chey2026";
 const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
 const ADMIN_SESSION_KEY = "pressedByCheyAdminSession";
 const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const IS_ADMIN_PAGE = /(^|\/)admin\.html$/i.test(window.location.pathname);
 const ADMIN_STORAGE_KEY = "pressedByCheyEdits";
 const ADMIN_REMOTE_STATE_ENDPOINT = "/.netlify/functions/admin-state";
 const ADMIN_REMOTE_PHOTO_ENDPOINT = `${ADMIN_REMOTE_STATE_ENDPOINT}?photo=upload`;
@@ -1820,17 +1821,25 @@ function startAdminSession() {
     authenticatedAt: now,
     expiresAt: now + ADMIN_SESSION_TTL_MS
   };
-  sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(adminSession));
   localStorage.removeItem(ADMIN_SESSION_KEY);
 }
 
 function isAdminSignedIn() {
   localStorage.removeItem(ADMIN_SESSION_KEY);
-  sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  if (!adminSession) {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || "null");
+      if (saved?.authenticated === true) adminSession = saved;
+    } catch {
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    }
+  }
   if (adminSession?.authenticated === true && Number(adminSession.expiresAt) > Date.now()) {
     return true;
   }
   adminSession = null;
+  sessionStorage.removeItem(ADMIN_SESSION_KEY);
   return false;
 }
 
@@ -1852,17 +1861,18 @@ function showAdminPage() {
   }
   closeCartDrawer();
   closeAccountPanel();
-  if (window.location.hash !== "#adminPage") {
+  if (!IS_ADMIN_PAGE && window.location.hash !== "#adminPage") {
     history.replaceState(null, "", "#adminPage");
   }
   adminPage.hidden = false;
-  showSitePage("home", { updateHash: false, force: true });
+  if (!IS_ADMIN_PAGE) showSitePage("home", { updateHash: false, force: true });
   renderAdminVisibility();
   adminPage.hidden = false;
   switchAdminView("orders");
   syncAdminLiveOrderAutoRefresh();
   requestAnimationFrame(() => {
-    adminPage.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (IS_ADMIN_PAGE) window.scrollTo({ top: 0, behavior: "smooth" });
+    else adminPage.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   setInlineEditStatus("Admin dashboard is open. Use Products for shop items or Site Editor for page edits.");
 }
@@ -1873,8 +1883,9 @@ function showAdminOrdersPage() {
 
 function renderAdminVisibility() {
   const signedIn = isAdminSignedIn();
-  adminNav.hidden = !signedIn;
-  adminPage.hidden = !signedIn || window.location.hash !== "#adminPage";
+  if (IS_ADMIN_PAGE) body.classList.add("admin-dedicated-page");
+  adminNav.hidden = IS_ADMIN_PAGE ? false : !signedIn;
+  adminPage.hidden = !signedIn || (!IS_ADMIN_PAGE && window.location.hash !== "#adminPage");
   if (!signedIn && textEditMode) {
     textEditMode = false;
   }
@@ -1891,6 +1902,10 @@ function logoutAdmin() {
   stopAdminLiveOrderAutoRefresh();
   showPasswordReset(false);
   renderAdminVisibility();
+  if (IS_ADMIN_PAGE) {
+    window.location.href = "index.html#home";
+    return;
+  }
   showSitePage("home", { updateHash: true, force: true });
   openAccount("You're signed out.");
 }
@@ -3803,6 +3818,10 @@ async function loginCustomer() {
     renderAdminVisibility();
     closeAccountPanel();
     textEditMode = false;
+    if (!IS_ADMIN_PAGE) {
+      window.location.href = "admin.html";
+      return;
+    }
     showAdminPage();
     renderCustomProducts();
     syncInlineEditMode();
@@ -5703,15 +5722,18 @@ async function setupAdmin() {
   }
 
   adminNav.addEventListener("click", (event) => {
-    event.preventDefault();
-    window.location.hash = "adminPage";
-    showAdminPage();
+    if (IS_ADMIN_PAGE) {
+      event.preventDefault();
+      showAdminPage();
+    }
   });
   adminLogout.addEventListener("click", logoutAdmin);
   adminViewButtons.forEach((button) => {
     button.addEventListener("click", () => switchAdminView(button.dataset.adminView));
   });
-  if (window.location.hash === "#adminPage") {
+  if (IS_ADMIN_PAGE) {
+    showAdminPage();
+  } else if (window.location.hash === "#adminPage") {
     showSitePage("home", { updateHash: true, force: true });
   } else {
     const productIndex = productIndexFromHash();
