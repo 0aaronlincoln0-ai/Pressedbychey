@@ -3799,18 +3799,30 @@ figcaption {
   gap: 1rem;
 }
 
+.admin-dedicated-page .site-shell {
+  display: contents;
+}
+
 .admin-dedicated-page .site-shell main,
-.admin-dedicated-page .cart-button {
+.admin-dedicated-page .account-panel,
+.admin-dedicated-page .cart-drawer,
+.admin-dedicated-page .cart-button,
+.admin-dedicated-page .account-button {
   display: none;
 }
 
 .admin-dedicated-page .nav {
+  position: sticky;
+  top: 0;
+  width: 100%;
   margin-bottom: 1rem;
+  z-index: 40;
 }
 
 .admin-dedicated-page .admin-page {
   width: min(1320px, calc(100% - 32px));
   min-height: calc(100vh - 120px);
+  margin: 0 auto clamp(2rem, 4vw, 4rem);
   padding-top: 1rem;
 }
 

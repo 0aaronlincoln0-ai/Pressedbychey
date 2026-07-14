@@ -228,6 +228,7 @@ const ADMIN_REMOTE_SAVE_DEBOUNCE_MS = 700;
 const ADMIN_REMOTE_RETRY_DELAY_MS = 4000;
 const ADMIN_LIVE_SAVE_FAILURE_MESSAGE = "Saved on this device. Live site sync is pending and will retry automatically.";
 const ADMIN_LIVE_SAVE_SUCCESS_MESSAGE = "Saved to the live website.";
+const ADMIN_LIVE_LOADING_MESSAGE = "Opening dashboard. Syncing latest live website data...";
 const CUSTOMER_STORAGE_KEY = "pressedByCheyCustomers";
 const GUEST_ORDER_STORAGE_KEY = "pressedByCheyGuestOrders";
 const STRIPE_CHECKOUT_ENDPOINT = "/.netlify/functions/create-checkout-session";
@@ -241,8 +242,8 @@ const sizeFingerKeys = ["thumb", "index", "middle", "ring", "pinky"];
 const sizeHandKeys = ["left", "right"];
 const CUSTOM_ORDER_MAX_PHOTO_SIZE = 1600;
 const LIVE_REQUEST_TIMEOUT_MS = 18000;
-const ADMIN_ORDER_REFRESH_MS = 30000;
-const CUSTOMER_QUOTE_REFRESH_MS = 6000;
+const ADMIN_ORDER_REFRESH_MS = 10000;
+const CUSTOMER_QUOTE_REFRESH_MS = 5000;
 let customerState = {
   users: [],
   currentEmail: ""
@@ -1335,6 +1336,10 @@ function liveSaveFailureMessage(error) {
   return error ? `${ADMIN_LIVE_SAVE_FAILURE_MESSAGE} (${error})` : ADMIN_LIVE_SAVE_FAILURE_MESSAGE;
 }
 
+function liveSyncSuccessMessage(label = "Live website") {
+  return `${label} synced with Netlify at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`;
+}
+
 function setAdminSaveMessage(target, message) {
   if (target) {
     setAdminMessage(target, message);
@@ -1856,6 +1861,10 @@ function exitAdminModeForCustomer() {
 
 function showAdminPage() {
   if (!isAdminSignedIn()) {
+    if (IS_ADMIN_PAGE) {
+      window.location.href = "index.html#account";
+      return;
+    }
     openAccount("Please sign in to continue.");
     return;
   }
@@ -1871,7 +1880,10 @@ function showAdminPage() {
   switchAdminView("orders");
   syncAdminLiveOrderAutoRefresh();
   requestAnimationFrame(() => {
-    if (IS_ADMIN_PAGE) window.scrollTo({ top: 0, behavior: "smooth" });
+    if (IS_ADMIN_PAGE) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+      adminPage.focus?.({ preventScroll: true });
+    }
     else adminPage.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   setInlineEditStatus("Admin dashboard is open. Use Products for shop items or Site Editor for page edits.");
@@ -3490,18 +3502,32 @@ async function customerAccountRequest(action, payload = {}) {
   return data.customer || data;
 }
 
-function syncCurrentCustomerProfile() {
+async function syncCurrentCustomerProfile(options = {}) {
   const user = currentCustomer();
   const password = customerSessionPasswords.get(String(user?.email || "").toLowerCase());
-  if (!user?.email || !password) return;
-  customerAccountRequest("save-profile", {
-    email: user.email,
-    password,
-    name: user.name,
-    sizes: user.sizes,
-    savedProducts: user.savedProducts || [],
-    orders: user.orders || []
-  }).catch(() => {});
+  if (!user?.email || !password) return { ok: false, skipped: true };
+  try {
+    const cloudCustomer = await customerAccountRequest("save-profile", {
+      email: user.email,
+      password,
+      name: user.name,
+      sizes: user.sizes,
+      savedProducts: user.savedProducts || [],
+      orders: user.orders || []
+    });
+    mergeCustomerIntoLocal(cloudCustomer, password);
+    if (options.render !== false) {
+      renderAccount();
+      renderCustomerAccountPage();
+      renderAdminUsers();
+    }
+    return { ok: true, customer: cloudCustomer };
+  } catch (error) {
+    const message = `Saved on this device. Live account sync will retry when Netlify responds. (${error.message || "network error"})`;
+    if (accountStatus && customerAccountViewIsOpen()) accountStatus.textContent = message;
+    if (customerAccountPageStatus && customerAccountViewIsOpen()) customerAccountPageStatus.textContent = message;
+    return { ok: false, error: error.message || "network error" };
+  }
 }
 
 function accountPanelIsOpen() {
@@ -5805,6 +5831,11 @@ async function setupAdmin() {
   renderAdminLiveOrders();
   renderIdeas();
 
+  if (IS_ADMIN_PAGE) {
+    showAdminPage();
+    setAdminSaveMessage(adminContentStatus, ADMIN_LIVE_LOADING_MESSAGE);
+  }
+
   const hadPendingRemoteState = Boolean(loadPendingRemoteAdminStateRecord());
   const flushedPendingState = hadPendingRemoteState
     ? await flushPendingRemoteAdminState({ statusTarget: adminContentStatus, showSuccess: true })
@@ -5821,6 +5852,10 @@ async function setupAdmin() {
     renderAdminProducts();
     renderAdminLookPhotos();
     renderIdeas();
+    if (IS_ADMIN_PAGE) {
+      switchAdminView("orders");
+      setAdminSaveMessage(adminContentStatus, liveSyncSuccessMessage());
+    }
   } else if (hadPendingRemoteState) {
     setAdminSaveMessage(adminContentStatus, ADMIN_LIVE_SAVE_FAILURE_MESSAGE);
     schedulePendingRemoteAdminStateFlush({
@@ -5839,7 +5874,7 @@ async function setupAdmin() {
   adminViewButtons.forEach((button) => {
     button.addEventListener("click", () => switchAdminView(button.dataset.adminView));
   });
-  if (IS_ADMIN_PAGE) {
+  if (IS_ADMIN_PAGE && adminPage.hidden) {
     showAdminPage();
   } else if (window.location.hash === "#adminPage") {
     showSitePage("home", { updateHash: true, force: true });
