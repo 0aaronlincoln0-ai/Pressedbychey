@@ -1,0 +1,40 @@
+name: Deploy to Netlify
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Publish production site
+    runs-on: ubuntu-latest
+    env:
+      NETLIFY_SITE_ID: 48e55beb-4ad4-4878-b5c9-fff74133490a
+      HAS_NETLIFY_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN != '' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        if: env.HAS_NETLIFY_TOKEN == 'true'
+        run: npm install
+
+      - name: Deploy to Netlify production
+        if: env.HAS_NETLIFY_TOKEN == 'true'
+        run: npx netlify deploy --prod --build --site "$NETLIFY_SITE_ID"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+
+      - name: Explain skipped deploy
+        if: env.HAS_NETLIFY_TOKEN != 'true'
+        run: |
+          echo "Netlify deploy skipped because the NETLIFY_AUTH_TOKEN repository secret is not set."
+          echo "Add that secret in GitHub, or use Netlify built-in GitHub continuous deployment."

@@ -98,6 +98,8 @@ Functions directory: netlify/functions
 
 After each change, commit and push to `main`; Netlify should automatically build and publish the site. If it does not, open Netlify > pressedbychey > Site configuration > Build & deploy and confirm continuous deployment is connected to the GitHub repository above.
 
+This repo also includes a GitHub Actions fallback at `.github/workflows/deploy-netlify.yml`. To use it, add a GitHub repository secret named `NETLIFY_AUTH_TOKEN` from Netlify > User settings > Applications > Personal access tokens. The workflow already targets the `pressedbychey` Netlify site id.
+
 ## Important note
 
 Admin product, photo, copy, layout, design note, product edits, customer accounts, password resets, custom quote requests, and paid order workflow are saved to the deployed Netlify website through Netlify Functions backed by Netlify Blobs. Paid product purchases use Stripe Checkout through Netlify Functions.
