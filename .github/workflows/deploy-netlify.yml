@@ -33,8 +33,9 @@ jobs:
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
 
-      - name: Explain skipped deploy
+      - name: Require Netlify token
         if: env.HAS_NETLIFY_TOKEN != 'true'
         run: |
-          echo "Netlify deploy skipped because the NETLIFY_AUTH_TOKEN repository secret is not set."
+          echo "::error::Netlify deploy stopped because the NETLIFY_AUTH_TOKEN repository secret is not set."
           echo "Add that secret in GitHub, or use Netlify built-in GitHub continuous deployment."
+          exit 1
