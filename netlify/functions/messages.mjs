@@ -1,10 +1,9 @@
 import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { getStore } from "@netlify/blobs";
+import { verifyAdminRequest } from "./_shared/admin-auth.mjs";
 
 const STORE_NAME = "pressed-by-chey";
 const MESSAGE_PREFIX = "messages";
-const DEFAULT_ADMIN_PASSWORD = "chey2026";
-const DEFAULT_ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
 const MAX_MESSAGE_LENGTH = 2400;
 const MAX_MESSAGES_PER_CONVERSATION = 300;
 const MAX_CONVERSATIONS = 1000;
@@ -32,20 +31,8 @@ function conversationKey(email) {
   return `${MESSAGE_PREFIX}/${encodeURIComponent(email)}.json`;
 }
 
-function adminEmails() {
-  return (process.env.CHEY_ADMIN_EMAILS || DEFAULT_ADMIN_EMAILS.join(","))
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function adminPassword() {
-  return process.env.CHEY_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
-}
-
 function isAuthorizedAdmin(request) {
-  const email = normalizeEmail(request.headers.get("x-admin-email"));
-  return adminEmails().includes(email) && request.headers.get("x-admin-password") === adminPassword();
+  return Boolean(verifyAdminRequest(request));
 }
 
 function customerKey(email) {

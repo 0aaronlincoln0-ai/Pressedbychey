@@ -3,6 +3,8 @@ import { getStore } from "@netlify/blobs";
 
 const STORE_NAME = "pressed-by-chey";
 const ORDER_PREFIX = "orders";
+const EVENT_PREFIX = "stripe-events";
+const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -24,25 +26,33 @@ function webhookSecret() {
 }
 
 function parseStripeSignature(header = "") {
-  return Object.fromEntries(
-    String(header)
-      .split(",")
-      .map((part) => part.split("="))
-      .filter(([key, value]) => key && value)
-      .map(([key, value]) => [key.trim(), value.trim()])
-  );
+  const values = {};
+  for (const part of String(header).split(",")) {
+    const separator = part.indexOf("=");
+    if (separator <= 0) continue;
+    const key = part.slice(0, separator).trim();
+    const value = part.slice(separator + 1).trim();
+    if (!key || !value) continue;
+    values[key] = values[key] || [];
+    values[key].push(value);
+  }
+  return values;
 }
 
-function verifySignature(rawBody, signatureHeader, secret) {
+export function verifySignature(rawBody, signatureHeader, secret, now = Date.now()) {
   if (!secret) return false;
   const parsed = parseStripeSignature(signatureHeader);
-  const timestamp = parsed.t;
-  const signature = parsed.v1;
-  if (!timestamp || !signature) return false;
+  const timestamp = Number(parsed.t?.[0]);
+  const signatures = parsed.v1 || [];
+  if (!Number.isFinite(timestamp) || !signatures.length) return false;
+  if (Math.abs(Math.floor(now / 1000) - timestamp) > SIGNATURE_TOLERANCE_SECONDS) return false;
   const expected = createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
   const left = Buffer.from(expected, "hex");
-  const right = Buffer.from(signature, "hex");
-  return left.length === right.length && timingSafeEqual(left, right);
+  return signatures.some((signature) => {
+    if (!/^[a-f0-9]{64}$/i.test(signature)) return false;
+    const right = Buffer.from(signature, "hex");
+    return left.length === right.length && timingSafeEqual(left, right);
+  });
 }
 
 function publicCustomerFromSession(session = {}, saved = {}) {
@@ -93,6 +103,11 @@ async function markCheckoutCompleted(session = {}) {
   return { updated: true, orderId };
 }
 
+export function eventKey(eventId = "") {
+  const safeId = String(eventId || "").trim();
+  return /^evt_[a-zA-Z0-9_]+$/.test(safeId) ? `${EVENT_PREFIX}/${safeId}.json` : "";
+}
+
 export default async (request) => {
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, { status: 405 });
@@ -112,10 +127,24 @@ export default async (request) => {
     return jsonResponse({ error: "Invalid webhook event." }, { status: 400 });
   }
 
+  const store = getStore({ name: STORE_NAME, consistency: "strong" });
+  const processedKey = eventKey(event.id);
+  if (!processedKey) return jsonResponse({ error: "Invalid webhook event id." }, { status: 400 });
+  if (await store.get(processedKey, { type: "json" })) {
+    return jsonResponse({ received: true, duplicate: true });
+  }
+
   if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
-    const result = await markCheckoutCompleted(event.data?.object || {});
+    const session = event.data?.object || {};
+    if (session.payment_status !== "paid") {
+      await store.setJSON(processedKey, { processedAt: new Date().toISOString(), type: event.type, paid: false });
+      return jsonResponse({ received: true, updated: false, reason: "Payment is not paid" });
+    }
+    const result = await markCheckoutCompleted(session);
+    await store.setJSON(processedKey, { processedAt: new Date().toISOString(), type: event.type, orderId: result.orderId || "" });
     return jsonResponse({ received: true, ...result });
   }
 
+  await store.setJSON(processedKey, { processedAt: new Date().toISOString(), type: event.type || "unknown", ignored: true });
   return jsonResponse({ received: true, ignored: event.type || "unknown" });
 };

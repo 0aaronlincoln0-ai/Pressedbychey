@@ -1,4 +1,4 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { getStore } from "@netlify/blobs";
 
 const STORE_NAME = "pressed-by-chey";
@@ -6,6 +6,7 @@ const CUSTOMER_PREFIX = "customers";
 const ORDER_PREFIX = "orders";
 const RESET_PREFIX = "customer-password-resets";
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
+const RESET_REQUEST_COOLDOWN_MS = 60 * 1000;
 const MAX_RESET_ATTEMPTS = 5;
 
 function jsonResponse(body, init = {}) {
@@ -55,13 +56,13 @@ function normalizeSizes(sizes = {}) {
   return next;
 }
 
-function hashPassword(password) {
+export function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
   const hash = scryptSync(String(password), salt, 64).toString("hex");
   return `${salt}:${hash}`;
 }
 
-function verifyPassword(password, savedHash = "") {
+export function verifyPassword(password, savedHash = "") {
   const [salt, hash] = String(savedHash).split(":");
   if (!salt || !hash) return false;
   const expected = Buffer.from(hash, "hex");
@@ -70,7 +71,7 @@ function verifyPassword(password, savedHash = "") {
 }
 
 function createResetCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(randomInt(100000, 1000000));
 }
 
 function genericResetResponse() {
@@ -223,12 +224,17 @@ export default async (request) => {
 
   if (action === "request-reset") {
     if (!savedCustomer) return genericResetResponse();
+    const existingReset = await store.get(resetKey(email), { type: "json" });
+    if (existingReset && Date.now() - Number(existingReset.requestedAt || 0) < RESET_REQUEST_COOLDOWN_MS) {
+      return genericResetResponse();
+    }
     const code = createResetCode();
     const resetRecord = {
       email,
       codeHash: hashPassword(code),
       expiresAt: Date.now() + RESET_CODE_TTL_MS,
       attempts: 0,
+      requestedAt: Date.now(),
       createdAt: new Date().toISOString()
     };
     await store.setJSON(resetKey(email), resetRecord);
@@ -300,14 +306,11 @@ export default async (request) => {
     return jsonResponse({ ok: true, customer: await publicCustomer(customer, store) });
   }
 
-  if (!savedCustomer) {
-    return jsonResponse({ error: "No account found with that email. Create a profile first." }, { status: 404 });
+  if (!savedCustomer || !verifyPassword(password, savedCustomer.passwordHash)) {
+    return jsonResponse({ error: "Email or password is incorrect." }, { status: 401 });
   }
   if (["paused", "blocked"].includes(String(savedCustomer.accountStatus || "active").toLowerCase())) {
     return jsonResponse({ error: "This customer account is temporarily unavailable. Please contact Chey for help." }, { status: 403 });
-  }
-  if (!verifyPassword(password, savedCustomer.passwordHash)) {
-    return jsonResponse({ error: "That password does not match this account." }, { status: 401 });
   }
 
   if (action === "login") {
@@ -326,7 +329,7 @@ export default async (request) => {
       name: safeText(payload?.name || savedCustomer.name, 100),
       sizes: normalizeSizes(payload?.sizes || savedCustomer.sizes),
       savedProducts: Array.isArray(payload?.savedProducts) ? payload.savedProducts.slice(0, 50) : savedCustomer.savedProducts || [],
-      orders: Array.isArray(payload?.orders) ? payload.orders.slice(0, 50) : savedCustomer.orders || [],
+      orders: savedCustomer.orders || [],
       updatedAt: new Date().toISOString()
     };
     await store.setJSON(key, nextCustomer);

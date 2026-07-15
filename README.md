@@ -10,27 +10,33 @@ Luxury press-on nail website for Pressed by Chey.
 - Admin sign-in through the account panel.
 - Admin product/photo editor.
 - Design Studio with a nail canvas, aura tools, nail brush, French tip, glitter, chrome, and movable 3D objects.
-- Local-only demo storage using browser `localStorage`.
-- Netlify-ready static files.
+- Netlify Blobs-backed customer, inventory, message, note, and order storage.
+- Netlify-ready static files and serverless functions.
 
 ## Admin login
 
-- Username: `admin`
-- Password: `chey2026`
-- Dedicated admin page: `admin.html`
+The dedicated admin page is `admin.html`. Admin credentials and session signing are configured only in Netlify environment variables; there is no admin password in the public source code.
+
+```text
+CHEY_ADMIN_PASSWORD=<a unique password of at least 12 characters>
+CHEY_ADMIN_SESSION_SECRET=<at least 32 random characters>
+CHEY_ADMIN_EMAILS=callison@pressedbychey.com,chey@pressedbychey.com
+```
+
+Changing `CHEY_ADMIN_SESSION_SECRET` signs out existing admin sessions. Keep both secret values out of GitHub and browser code.
 
 ## Run locally
 
-This is a static site. From this folder, run:
+Install dependencies and use Netlify Dev so the serverless functions are available:
 
 ```powershell
-python -m http.server 4173 --bind 127.0.0.1
+netlify dev
 ```
 
 Then open:
 
 ```text
-http://127.0.0.1:4173/
+http://localhost:8888/
 ```
 
 ## Project structure
@@ -64,6 +70,7 @@ ORDER_NOTIFICATION_EMAIL=callison@pressedbychey.com
 CHEY_SUPPORT_EMAIL=callison@pressedbychey.com
 CHEY_SUPPORT_PHONE=9893922012
 STRIPE_WEBHOOK_SECRET=whsec_...
+CHECKOUT_RETURN_ORIGINS=https://www.pressedbychey.com
 ```
 
 Paid orders appear in the Admin > Orders tab, where Chey can update fulfillment status from payment pending through making, ready to ship, shipped, or canceled.
@@ -98,8 +105,10 @@ Functions directory: netlify/functions
 
 After each change, commit and push to `main`; Netlify should automatically build and publish the site. If it does not, open Netlify > pressedbychey > Site configuration > Build & deploy and confirm continuous deployment is connected to the GitHub repository above.
 
-This repo also includes a GitHub Actions fallback at `.github/workflows/deploy-netlify.yml`. To use it, add a GitHub repository secret named `NETLIFY_AUTH_TOKEN` from Netlify > User settings > Applications > Personal access tokens. The workflow already targets the `pressedbychey` Netlify site id.
+Run `npm test` before pushing changes. This repository does not store deployment tokens or production secrets.
 
 ## Important note
 
 Admin product, photo, copy, layout, design note, product edits, customer accounts, password resets, custom quote requests, and paid order workflow are saved to the deployed Netlify website through Netlify Functions backed by Netlify Blobs. Paid product purchases use Stripe Checkout through Netlify Functions.
+
+Do not test destructive admin, order, or payment actions against production. Use a Netlify deploy preview with test Stripe and Resend credentials.

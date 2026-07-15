@@ -1,9 +1,8 @@
 import { getStore } from "@netlify/blobs";
+import { verifyAdminRequest } from "./_shared/admin-auth.mjs";
 
 const STORE_NAME = "pressed-by-chey";
 const ORDER_PREFIX = "orders";
-const DEFAULT_ADMIN_PASSWORD = "chey2026";
-const DEFAULT_ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -16,21 +15,8 @@ function jsonResponse(body, init = {}) {
   });
 }
 
-function adminEmails() {
-  return (process.env.CHEY_ADMIN_EMAILS || DEFAULT_ADMIN_EMAILS.join(","))
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function adminPassword() {
-  return process.env.CHEY_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
-}
-
 function isAuthorized(request) {
-  const email = (request.headers.get("x-admin-email") || "").trim().toLowerCase();
-  const password = request.headers.get("x-admin-password") || "";
-  return adminEmails().includes(email) && password === adminPassword();
+  return Boolean(verifyAdminRequest(request));
 }
 
 function safeOrderId(value = "") {
@@ -70,11 +56,12 @@ function publicOrder(order = {}) {
 
 async function listOrders(store) {
   const listing = await store.list({ prefix: `${ORDER_PREFIX}/` });
-  const orders = [];
-  for (const entry of listing.blobs || []) {
-    const order = await store.get(entry.key, { type: "json" });
-    if (order) orders.push(publicOrder(order));
-  }
+  const orders = (await Promise.all(
+    (listing.blobs || []).map(async (entry) => {
+      const order = await store.get(entry.key, { type: "json" });
+      return order ? publicOrder(order) : null;
+    })
+  )).filter(Boolean);
   return orders.sort((a, b) => String(b.createdAt || b.paidAt).localeCompare(String(a.createdAt || a.paidAt)));
 }
 
@@ -151,6 +138,11 @@ export default async (request) => {
     const url = new URL(request.url);
     const orderId = safeOrderId(url.searchParams.get("orderId"));
     if (!orderId) return jsonResponse({ error: "Valid order ID is required." }, { status: 400 });
+    const savedOrder = await store.get(orderKey(orderId), { type: "json" });
+    if (!savedOrder) return jsonResponse({ error: "Order not found." }, { status: 404 });
+    if (savedOrder.paymentStatus === "paid" || savedOrder.paidAt) {
+      return jsonResponse({ error: "Paid transactions cannot be deleted. Mark the order canceled or completed instead." }, { status: 409 });
+    }
     await store.delete(orderKey(orderId));
     return jsonResponse({ ok: true, deleted: orderId });
   }

@@ -1,9 +1,8 @@
 import { getStore } from "@netlify/blobs";
+import { verifyAdminRequest } from "./_shared/admin-auth.mjs";
 
 const STORE_NAME = "pressed-by-chey";
 const CUSTOMER_PREFIX = "customers";
-const DEFAULT_ADMIN_PASSWORD = "chey2026";
-const DEFAULT_ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
 const ALLOWED_STATUSES = ["active", "paused", "blocked"];
 const MAX_CUSTOMERS = 2000;
 
@@ -30,17 +29,8 @@ function customerKey(email) {
   return `${CUSTOMER_PREFIX}/${encodeURIComponent(email)}.json`;
 }
 
-function adminEmails() {
-  return (process.env.CHEY_ADMIN_EMAILS || DEFAULT_ADMIN_EMAILS.join(","))
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 function isAuthorizedAdmin(request) {
-  const email = normalizeEmail(request.headers.get("x-admin-email"));
-  const password = request.headers.get("x-admin-password") || "";
-  return adminEmails().includes(email) && password === (process.env.CHEY_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD);
+  return Boolean(verifyAdminRequest(request));
 }
 
 function blankHandSizes() {

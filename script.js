@@ -287,13 +287,13 @@ const presetAura = {
   y: 310,
   radius: 210
 };
-const ADMIN_PASSWORD = "chey2026";
 const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
 const ADMIN_SESSION_KEY = "pressedByCheyAdminSession";
 const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const ADMIN_TOOLBAR_COLLAPSED_KEY = "pressedByCheyAdminToolbarCollapsed";
 const IS_ADMIN_PAGE = /(^|\/)admin\.html$/i.test(window.location.pathname);
 const ADMIN_STORAGE_KEY = "pressedByCheyEdits";
+const ADMIN_AUTH_ENDPOINT = "/.netlify/functions/admin-auth";
 const ADMIN_REMOTE_STATE_ENDPOINT = "/.netlify/functions/admin-state";
 const ADMIN_REMOTE_PHOTO_ENDPOINT = `${ADMIN_REMOTE_STATE_ENDPOINT}?photo=upload`;
 const ADMIN_PENDING_REMOTE_STATE_KEY = "pressedByCheyPendingAdminRemoteState";
@@ -1492,8 +1492,7 @@ function clearPendingRemoteAdminState() {
 function adminRemoteWriteHeaders() {
   return {
     "Content-Type": "application/json",
-    "x-admin-email": ADMIN_EMAILS[0],
-    "x-admin-password": ADMIN_PASSWORD
+    Authorization: `Bearer ${adminSession?.token || ""}`
   };
 }
 
@@ -1532,7 +1531,10 @@ async function fetchRemoteAdminState() {
   try {
     const response = await fetch(ADMIN_REMOTE_STATE_ENDPOINT, {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        ...(isAdminSignedIn() ? adminRemoteWriteHeaders() : {})
+      },
       cache: "no-store"
     });
     if (response.status === 404 || response.status === 405 || response.status >= 500) return null;
@@ -1990,8 +1992,8 @@ function closeAccountPanel() {
   syncCustomerQuoteRefresh();
 }
 
-function isAdminLogin(email, password) {
-  return ADMIN_EMAILS.includes(email.trim().toLowerCase()) && password === ADMIN_PASSWORD;
+function isAdminEmail(email) {
+  return ADMIN_EMAILS.includes(String(email || "").trim().toLowerCase());
 }
 
 function clearAdminSession() {
@@ -2000,44 +2002,51 @@ function clearAdminSession() {
   localStorage.removeItem(ADMIN_SESSION_KEY);
 }
 
-function startAdminSession() {
-  const now = Date.now();
+function startAdminSession(session = {}) {
+  const expiresAt = Number(session.expiresAt || 0);
+  if (!session.token || expiresAt <= Date.now()) throw new Error("Admin session could not be started.");
   adminSession = {
     authenticated: true,
-    authenticatedAt: now,
-    expiresAt: now + ADMIN_SESSION_TTL_MS
+    email: String(session.email || "").toLowerCase(),
+    token: String(session.token),
+    expiresAt: Math.min(expiresAt, Date.now() + ADMIN_SESSION_TTL_MS)
   };
   const serializedSession = JSON.stringify(adminSession);
   sessionStorage.setItem(ADMIN_SESSION_KEY, serializedSession);
-  // The dedicated dashboard can be opened in a new tab, so keep the same
-  // time-limited session available to that tab as well.
-  localStorage.setItem(ADMIN_SESSION_KEY, serializedSession);
+  localStorage.removeItem(ADMIN_SESSION_KEY);
 }
 
 function isAdminSignedIn() {
   if (!adminSession) {
     try {
       const saved = JSON.parse(
-        sessionStorage.getItem(ADMIN_SESSION_KEY)
-        || localStorage.getItem(ADMIN_SESSION_KEY)
-        || "null"
+        sessionStorage.getItem(ADMIN_SESSION_KEY) || "null"
       );
-      if (saved?.authenticated === true) adminSession = saved;
+      if (saved?.authenticated === true && saved?.token) adminSession = saved;
     } catch {
       sessionStorage.removeItem(ADMIN_SESSION_KEY);
       localStorage.removeItem(ADMIN_SESSION_KEY);
     }
   }
-  if (adminSession?.authenticated === true && Number(adminSession.expiresAt) > Date.now()) {
-    const serializedSession = JSON.stringify(adminSession);
-    sessionStorage.setItem(ADMIN_SESSION_KEY, serializedSession);
-    localStorage.setItem(ADMIN_SESSION_KEY, serializedSession);
+  if (adminSession?.authenticated === true && adminSession?.token && Number(adminSession.expiresAt) > Date.now()) {
     return true;
   }
   adminSession = null;
   sessionStorage.removeItem(ADMIN_SESSION_KEY);
   localStorage.removeItem(ADMIN_SESSION_KEY);
   return false;
+}
+
+async function requestAdminSession(email, password) {
+  const { response, payload } = await fetchJsonWithTimeout(ADMIN_AUTH_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+  if (!response.ok || !payload?.session?.token) {
+    throw new Error(payload?.error || "Admin sign in failed.");
+  }
+  return payload.session;
 }
 
 function exitAdminModeForCustomer() {
@@ -3550,7 +3559,7 @@ function renderCart() {
     const price = Number(item.price) || 0;
     row.innerHTML = `
       <div class="cart-thumb-wrap">
-        ${cartImage ? `<img class="cart-thumb" src="${cartImage}" alt="Inspiration for ${escapeHTML(item.name)}" />` : `<span class="cart-thumb-fallback" aria-hidden="true"></span>`}
+        ${cartImage ? `<img class="cart-thumb" src="${escapeAttribute(cartImage)}" alt="Inspiration for ${escapeAttribute(item.name)}" />` : `<span class="cart-thumb-fallback" aria-hidden="true"></span>`}
       </div>
       <div class="cart-item-copy">
         <span class="cart-item-number">Set ${index + 1}</span>
@@ -4507,25 +4516,31 @@ async function registerCustomer() {
 async function loginCustomer() {
   const email = loginEmail.value.trim().toLowerCase();
   const password = loginPassword.value;
-  if (isAdminLogin(email, password)) {
-    startAdminSession();
-    customerState.currentEmail = "";
-    saveCustomerState();
-    accountStatus.textContent = "";
-    loginEmail.value = "";
-    loginPassword.value = "";
-    renderAccount();
-    renderAdminVisibility();
-    closeAccountPanel();
-    textEditMode = false;
-    if (!IS_ADMIN_PAGE) {
-      window.location.href = "admin.html";
-      return;
+  if (isAdminEmail(email)) {
+    accountStatus.textContent = "Checking secure admin access...";
+    try {
+      startAdminSession(await requestAdminSession(email, password));
+      customerState.currentEmail = "";
+      saveCustomerState();
+      accountStatus.textContent = "";
+      loginEmail.value = "";
+      loginPassword.value = "";
+      renderAccount();
+      renderAdminVisibility();
+      closeAccountPanel();
+      textEditMode = false;
+      if (!IS_ADMIN_PAGE) {
+        window.location.href = "admin.html";
+        return;
+      }
+      showAdminPage();
+      renderCustomProducts();
+      syncInlineEditMode();
+      setInlineEditStatus("Admin is signed in. Use the Admin Dashboard tabs to edit the site or view orders.");
+    } catch (error) {
+      clearAdminSession();
+      accountStatus.textContent = error.message || "Admin sign in failed.";
     }
-    showAdminPage();
-    renderCustomProducts();
-    syncInlineEditMode();
-    setInlineEditStatus("Admin is signed in. Use the Admin Dashboard tabs to edit the site or view orders.");
     return;
   }
   accountStatus.textContent = "Checking your profile...";

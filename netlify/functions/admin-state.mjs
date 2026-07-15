@@ -1,13 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
 import { getStore } from "@netlify/blobs";
+import { verifyAdminRequest } from "./_shared/admin-auth.mjs";
 
 const STORE_NAME = "pressed-by-chey";
 const STATE_KEY = "admin-state";
 const PHOTO_PREFIX = "photos";
-const DEFAULT_ADMIN_PASSWORD = "chey2026";
-const DEFAULT_ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
 const DATA_URL_PATTERN = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_STATE_BYTES = 4 * 1024 * 1024;
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -58,8 +60,6 @@ function isDataUrl(value) {
 function imageExtension(mimeType) {
   if (mimeType === "image/png") return "png";
   if (mimeType === "image/webp") return "webp";
-  if (mimeType === "image/gif") return "gif";
-  if (mimeType === "image/svg+xml") return "svg";
   return "jpg";
 }
 
@@ -89,9 +89,15 @@ async function storePhotoDataUrl(store, dataUrl, kind = "upload") {
   }
 
   const [, mimeType, base64] = match;
+  if (!ALLOWED_IMAGE_TYPES.has(mimeType.toLowerCase())) {
+    throw new Error("Only JPG, PNG, and WebP images are allowed");
+  }
   const bytes = Buffer.from(base64.replace(/\s/g, ""), "base64");
   if (!bytes.length) {
     throw new Error("Image data was empty");
+  }
+  if (bytes.length > MAX_IMAGE_BYTES) {
+    throw new Error("Image must be 5 MB or smaller");
   }
 
   const safeKind = sanitizePhotoKind(kind);
@@ -171,21 +177,29 @@ function normalizeAdminState(saved = {}) {
   return nextState;
 }
 
-function adminEmails() {
-  return (process.env.CHEY_ADMIN_EMAILS || DEFAULT_ADMIN_EMAILS.join(","))
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
+function withoutPrivateNotes(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const { notes, adminNote, privateNotes, ...publicValue } = value;
+  return publicValue;
 }
 
-function adminPassword() {
-  return process.env.CHEY_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+export function publicAdminState(state) {
+  return {
+    ...state,
+    customProducts: (state.customProducts || []).map(withoutPrivateNotes),
+    lookDetails: Object.fromEntries(
+      Object.entries(state.lookDetails || {}).map(([key, value]) => [key, withoutPrivateNotes(value)])
+    ),
+    products: Object.fromEntries(
+      Object.entries(state.products || {}).map(([key, value]) => [key, withoutPrivateNotes(value)])
+    ),
+    ideas: [],
+    proNotes: []
+  };
 }
 
 function isAuthorized(request) {
-  const email = (request.headers.get("x-admin-email") || "").trim().toLowerCase();
-  const password = request.headers.get("x-admin-password") || "";
-  return adminEmails().includes(email) && password === adminPassword();
+  return Boolean(verifyAdminRequest(request));
 }
 
 export default async (request) => {
@@ -203,10 +217,16 @@ export default async (request) => {
       return jsonResponse({ error: "Photo not found" }, { status: 404 });
     }
 
+    const contentType = String(entry.metadata?.contentType || "").toLowerCase();
+    if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
+      return jsonResponse({ error: "Unsupported photo type" }, { status: 415 });
+    }
+
     return new Response(entry.data, {
       headers: {
-        "Content-Type": entry.metadata?.contentType || "image/jpeg",
-        "Cache-Control": "public, max-age=31536000, immutable"
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff"
       }
     });
   }
@@ -240,7 +260,7 @@ export default async (request) => {
     if (await externalizeStatePhotos(store, normalizedState)) {
       await store.setJSON(STATE_KEY, normalizedState);
     }
-    return jsonResponse({ state: normalizedState });
+    return jsonResponse({ state: isAuthorized(request) ? normalizedState : publicAdminState(normalizedState) });
   }
 
   if (request.method === "PUT") {
@@ -257,6 +277,10 @@ export default async (request) => {
 
     if (!payload?.state || typeof payload.state !== "object") {
       return jsonResponse({ error: "State payload is required" }, { status: 400 });
+    }
+
+    if (Buffer.byteLength(JSON.stringify(payload.state), "utf8") > MAX_STATE_BYTES) {
+      return jsonResponse({ error: "State payload is too large" }, { status: 413 });
     }
 
     const normalizedState = normalizeAdminState(payload.state);

@@ -6,6 +6,8 @@ const STORE_NAME = "pressed-by-chey";
 const ORDER_PREFIX = "orders";
 const PHOTO_PREFIX = "request-photos";
 const DATA_URL_PATTERN = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -29,7 +31,6 @@ function normalizeEmail(value = "") {
 function imageExtension(mimeType) {
   if (mimeType === "image/png") return "png";
   if (mimeType === "image/webp") return "webp";
-  if (mimeType === "image/gif") return "gif";
   return "jpg";
 }
 
@@ -51,13 +52,20 @@ function safePhotoKey(key) {
 
 async function storeReferencePhoto(store, dataUrl = "", origin = "") {
   const raw = String(dataUrl || "").trim();
-  if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith("/.netlify/functions/custom-request?photo=")) return origin ? `${origin}${raw}` : raw;
+  try {
+    const existing = new URL(raw, origin || "http://localhost");
+    if (existing.origin === origin && existing.pathname === "/.netlify/functions/custom-request" && existing.searchParams.has("photo")) {
+      return existing.toString();
+    }
+  } catch {
+    // Continue to data URL validation.
+  }
   const match = raw.match(DATA_URL_PATTERN);
   if (!match) return "";
   const [, mimeType, base64] = match;
+  if (!ALLOWED_IMAGE_TYPES.has(mimeType.toLowerCase())) return "";
   const bytes = Buffer.from(base64.replace(/\s/g, ""), "base64");
-  if (!bytes.length) return "";
+  if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) return "";
   const key = `${PHOTO_PREFIX}/${Date.now()}-${randomUUID()}.${imageExtension(mimeType)}`;
   const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   await store.set(key, arrayBuffer, {
@@ -97,10 +105,15 @@ export default async (request) => {
     if (!photoKey) return jsonResponse({ error: "Invalid photo key" }, { status: 400 });
     const entry = await store.getWithMetadata(photoKey, { type: "arrayBuffer" });
     if (!entry?.data) return jsonResponse({ error: "Photo not found" }, { status: 404 });
+    const contentType = String(entry.metadata?.contentType || "").toLowerCase();
+    if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
+      return jsonResponse({ error: "Unsupported photo type" }, { status: 415 });
+    }
     return new Response(entry.data, {
       headers: {
-        "Content-Type": entry.metadata?.contentType || "image/jpeg",
-        "Cache-Control": "public, max-age=31536000, immutable"
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff"
       }
     });
   }

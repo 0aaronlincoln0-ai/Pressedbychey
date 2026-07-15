@@ -74,17 +74,26 @@ function absoluteUrl(pathOrUrl, origin) {
   const value = String(pathOrUrl || "").trim();
   if (!value) return "";
   try {
-    return new URL(value, origin).toString();
+    const url = new URL(value, origin);
+    return url.origin === origin && ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
   } catch {
     return "";
   }
 }
 
-function safeReturnBaseUrl(value, requestUrl) {
-  const fallback = new URL(requestUrl).origin;
+export function safeReturnBaseUrl(value, requestUrl) {
+  const requestOrigin = new URL(requestUrl).origin;
+  const fallback = `${requestOrigin}/`;
+  const allowedOrigins = new Set([
+    requestOrigin,
+    ...(process.env.CHECKOUT_RETURN_ORIGINS || "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  ]);
   try {
     const url = new URL(value || fallback);
-    if (!["http:", "https:"].includes(url.protocol)) return fallback;
+    if (!["http:", "https:"].includes(url.protocol) || !allowedOrigins.has(url.origin)) return fallback;
     return `${url.origin}${url.pathname}`;
   } catch {
     return fallback;
@@ -145,7 +154,7 @@ function findLiveProduct(item, liveProducts) {
   return { product: null, index: -1 };
 }
 
-function validateLineItems(items, liveProducts, origin) {
+export function validateLineItems(items, liveProducts, origin) {
   if (!Array.isArray(items) || !items.length) {
     throw new Error("Your bag is empty.");
   }
@@ -162,7 +171,7 @@ function validateLineItems(items, liveProducts, origin) {
     if (!product) {
       throw new Error(`${safeText(item.name, "This item")} needs a current live product listing before payment.`);
     }
-    if (/sold\s*out|unavailable/i.test(product.stock || "")) {
+    if (/sold\s*out|out\s*of\s*stock|unavailable/i.test(product.stock || "")) {
       throw new Error(`${safeText(product.name, "This item")} is not available for checkout right now.`);
     }
 
@@ -176,11 +185,20 @@ function validateLineItems(items, liveProducts, origin) {
       throw new Error(`${safeText(product.name, "This item")} changed price. Refresh the shop and try again.`);
     }
 
+    const quantity = safeQuantity(item.quantity);
+    const hasInventoryLimit = product.inventoryCount !== null
+      && product.inventoryCount !== undefined
+      && String(product.inventoryCount).trim() !== "";
+    const inventoryCount = hasInventoryLimit ? Math.max(0, Math.floor(Number(product.inventoryCount) || 0)) : null;
+    if (inventoryCount !== null && quantity > inventoryCount) {
+      throw new Error(`${safeText(product.name, "This item")} only has ${inventoryCount} available.`);
+    }
+
     return {
       name: safeText(product.name, "Pressed by Chey nail set", 120),
       description: safeText(product.description || product.tag || "Handmade press-on nail set.", "", 240),
       unitAmount,
-      quantity: safeQuantity(item.quantity),
+      quantity,
       image: absoluteUrl(product.image, origin),
       sourceProductIndex: index,
       category: safeText(product.category || item.category || "", "", 80),
@@ -189,7 +207,7 @@ function validateLineItems(items, liveProducts, origin) {
   });
 }
 
-function validateQuoteCheckout({ quoteOrder, customer }) {
+export function validateQuoteCheckout({ quoteOrder, customer }) {
   if (!quoteOrder) throw new Error("Quote order was not found.");
   if (quoteOrder.paymentStatus === "paid") throw new Error("This quote is already paid.");
   if (/declined|canceled/i.test(quoteOrder.quoteStatus || "")) throw new Error("This quote is no longer active.");
