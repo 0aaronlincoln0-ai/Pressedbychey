@@ -1088,6 +1088,26 @@ h3 {
   text-transform: uppercase;
 }
 
+.admin-hot-drop-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--berry);
+  font-weight: 800;
+}
+
+.admin-hot-drop-toggle input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--berry);
+}
+
+.admin-hot-drop-toggle small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .shop-collection-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

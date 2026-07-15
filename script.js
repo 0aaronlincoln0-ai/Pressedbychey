@@ -1457,7 +1457,8 @@ function normalizeAdminState(saved = {}) {
     return [index, {
       ...safeDetail,
       sku: safeDetail.sku || `PBC-${String(Number(index) + 1).padStart(3, "0")}`,
-      inventoryCount: normalizeInventoryCount(safeDetail.inventoryCount, defaultInventoryCountForStock(safeDetail.stock))
+      inventoryCount: normalizeInventoryCount(safeDetail.inventoryCount, defaultInventoryCountForStock(safeDetail.stock)),
+      hotDrop: Boolean(safeDetail.hotDrop)
     }];
   }));
   const nextState = {
@@ -1479,6 +1480,7 @@ function normalizeAdminState(saved = {}) {
           sku: product.sku || `PBC-${String(index + 1).padStart(3, "0")}`,
           inventoryCount: normalizeInventoryCount(product.inventoryCount, defaultInventoryCountForStock(product.stock)),
           collection: productCollectionFor(product),
+          hotDrop: Boolean(product.hotDrop),
           imageFit: sanitizePhotoFit(product.imageFit),
           imagePosition: sanitizePhotoPosition(product.imagePosition),
           imageZoom: sanitizePhotoZoom(product.imageZoom),
@@ -2008,7 +2010,7 @@ function showSitePage(pageKey, options = {}) {
   }
 
   const performScroll = () => {
-    const shopSection = resolvedKey === "shop" && ["fresh-drops", "inventory"].includes(shopDestination)
+    const shopSection = resolvedKey === "shop" && ["hot-drop", "fresh-drops", "inventory"].includes(shopDestination)
       ? document.getElementById(`shop-${shopDestination}`)
       : null;
     const top = shopSection
@@ -7487,6 +7489,7 @@ function readLookData(index) {
     discount: detail.discount && detail.discount.trim() ? detail.discount.trim() : "",
     stock: detail.stock && detail.stock.trim() ? detail.stock.trim() : "",
     collection: productCollectionFor(detail.collection || sourceProduct?.collection),
+    hotDrop: detail.hotDrop !== undefined ? Boolean(detail.hotDrop) : Boolean(sourceProduct?.hotDrop),
     sku: detail.sku && detail.sku.trim() ? detail.sku.trim() : "",
     inventoryCount: normalizeInventoryCount(detail.inventoryCount, defaultInventoryCountForStock(detail.stock)),
     tag: detail.tag && detail.tag.trim() ? detail.tag.trim() : "New from Chey",
@@ -8914,6 +8917,7 @@ function productFromLook(look) {
     sku,
     inventoryCount: inventoryCountFor(look),
     collection: productCollectionFor(look),
+    hotDrop: Boolean(look.hotDrop),
     category: look.finish || "custom",
     image: look.photo,
     imageFit: look.photoFit,
@@ -8934,6 +8938,7 @@ const productToLookFieldMap = {
   sku: "sku",
   inventoryCount: "inventoryCount",
   collection: "collection",
+  hotDrop: "hotDrop",
   category: "finish",
   description: "copy",
   notes: "notes",
@@ -9158,7 +9163,8 @@ function writeProductToInventory(product, index, options = {}) {
     copy: product.description || "",
     notes: product.notes || "",
     tag: product.tag || "New from Chey",
-    collection: productCollectionFor(product)
+    collection: productCollectionFor(product),
+    hotDrop: Boolean(product.hotDrop)
   };
   if (options.publishedAt || product.publishedAt) {
     adminState.lookDetails[index].publishedAt = options.publishedAt || product.publishedAt;
@@ -9389,6 +9395,7 @@ function renderAdminLookPhotos() {
             ${productCollectionOptionsMarkup(look.collection)}
           </select>
         </label>
+        <label class="admin-hot-drop-toggle"><input type="checkbox" data-look-detail="${index}" data-look-field="hotDrop"${look.hotDrop ? " checked" : ""} /> Post to Hot Drop <small>Spotlight this set until you remove it.</small></label>
         <label>Description <textarea data-look-detail="${index}" data-look-field="copy" placeholder="Tell customers about the shape, finish, color, charms, and vibe.">${escapeTextarea((adminState.lookDetails[index] && adminState.lookDetails[index].copy) || "")}</textarea></label>
         <details class="admin-optional">
           <summary>Optional product details</summary>
@@ -9518,7 +9525,9 @@ function renderAdminLookPhotos() {
       const index = field.dataset.lookDetail;
       const key = field.dataset.lookField;
       adminState.lookDetails[index] = adminState.lookDetails[index] || {};
-      const value = key === "price"
+      const value = field.type === "checkbox"
+        ? field.checked
+        : key === "price"
         ? normalizeMoneyValue(field.value)
         : key === "inventoryCount"
           ? normalizeInventoryCount(field.value, null)
@@ -9610,6 +9619,7 @@ function renderAdminProducts() {
             ${productCollectionOptionsMarkup(product.collection)}
           </select>
         </label>
+        <label class="admin-hot-drop-toggle"><input type="checkbox" data-custom-product="${index}" data-field="hotDrop"${product.hotDrop ? " checked" : ""} /> Post to Hot Drop <small>Spotlight this set until you remove it.</small></label>
         <label>Description <textarea data-custom-product="${index}" data-field="description">${escapeTextarea(product.description)}</textarea></label>
         <label>Maker notes <textarea data-custom-product="${index}" data-field="notes" placeholder="Private notes: polish colors, pigments, charms, sizing, timing, or customer preferences.">${escapeTextarea(product.notes || "")}</textarea></label>
         <details class="admin-optional">
@@ -11211,7 +11221,9 @@ function updateInlineProductFormField(event) {
   const field = input.dataset.inlineProductInput;
   const product = adminState.customProducts[index];
   if (!product || !field) return;
-  const value = field === "price" || field === "salePrice"
+  const value = input.type === "checkbox"
+    ? input.checked
+    : field === "price" || field === "salePrice"
     ? normalizeMoneyValue(input.value)
     : field === "inventoryCount"
       ? normalizeInventoryCount(input.value, null)
@@ -11234,6 +11246,29 @@ function updateInlineProductFormField(event) {
   queueInlineAdminSave("Saving product details...");
 }
 
+function bindRenderedCustomProductCard(article, index) {
+  article.querySelector("[data-name]")?.addEventListener("click", (event) => {
+    addToCart(event.currentTarget.dataset.name, event.currentTarget.dataset.price, {
+      image: adminState.customProducts[index]?.image || "",
+      shape: productShapeCustomerValue(adminState.customProducts[index] || {}),
+      category: productCategoryValue(adminState.customProducts[index] || {}),
+      productNumber: productNumberFor(adminState.customProducts[index] || {}, index),
+      inventoryCount: inventoryCountFor(adminState.customProducts[index] || {}),
+      sourceProductIndex: index
+    });
+  });
+  article.addEventListener("click", (event) => {
+    if (event.target.closest("button, a, input, select, textarea, label, [contenteditable='true']")) return;
+    if (adminInlineEditingActive()) return;
+    openProductDetail(index);
+  });
+  article.addEventListener("keydown", (event) => {
+    if (event.target !== article || !["Enter", " "].includes(event.key) || adminInlineEditingActive()) return;
+    event.preventDefault();
+    openProductDetail(index);
+  });
+}
+
 function renderCustomProducts() {
   productGrid.innerHTML = "";
   const canInlineEdit = adminInlineEditingActive();
@@ -11241,18 +11276,19 @@ function renderCustomProducts() {
     productGrid.insertAdjacentHTML("beforeend", inlineProductAddCardMarkup());
   }
   const collectionSections = new Map();
-  ["fresh-drops", "inventory"].forEach((collection) => {
+  ["hot-drop", "fresh-drops", "inventory"].forEach((collection) => {
     const section = document.createElement("section");
     section.className = `shop-collection shop-collection-${collection}`;
     section.id = `shop-${collection}`;
     section.dataset.collectionSection = collection;
+    const isHotDrop = collection === "hot-drop";
     const isFreshDrop = collection === "fresh-drops";
     section.innerHTML = `
       <div class="shop-collection-heading">
         <div>
-          <p class="eyebrow">${isFreshDrop ? "Just released" : "Shop the full catalog"}</p>
-          <h3>${isFreshDrop ? "Fresh Drops" : "STORE"}</h3>
-          <p>${isFreshDrop ? "Small-batch sets Chey has chosen to spotlight right now." : "Every available set in the Pressed by Chey store."}</p>
+          <p class="eyebrow">${isHotDrop ? "Spotlighted now" : isFreshDrop ? "Just released" : "Shop the full catalog"}</p>
+          <h3>${isHotDrop ? "Hot Drop" : isFreshDrop ? "Fresh Drops" : "STORE"}</h3>
+          <p>${isHotDrop ? "Chey's current favorites before they move into the regular catalog." : isFreshDrop ? "Small-batch sets Chey has chosen to spotlight right now." : "Every available set in the Pressed by Chey store."}</p>
         </div>
         <span class="shop-collection-count">0 sets</span>
       </div>
@@ -11264,6 +11300,10 @@ function renderCustomProducts() {
   if (filterRow) filterRow.hidden = !adminState.customProducts.length;
   if (!adminState.customProducts.length) {
     collectionSections.forEach((section) => {
+      if (section.dataset.collectionSection === "hot-drop") {
+        section.hidden = true;
+        return;
+      }
       section.querySelector("[data-collection-grid]").innerHTML = `
         <article class="store-empty-state">
           <strong>${section.dataset.collectionSection === "fresh-drops" ? "Fresh Drops are coming soon." : "New sets are being uploaded."}</strong>
@@ -11339,6 +11379,7 @@ function renderCustomProducts() {
                 ${productCollectionOptionsMarkup(product.collection)}
               </select>
             </label>
+            <label class="admin-hot-drop-toggle"><input type="checkbox" data-inline-product-index="${index}" data-inline-product-input="hotDrop"${product.hotDrop ? " checked" : ""} /> Post to Hot Drop <small>Spotlight this set until you remove it.</small></label>
             <label>Private notes
               <textarea data-inline-product-index="${index}" data-inline-product-input="notes" placeholder="Polish colors, charms, sizing notes, timing...">${escapeTextarea(product.notes || "")}</textarea>
             </label>
@@ -11350,32 +11391,28 @@ function renderCustomProducts() {
         ` : ""}
       </div>
     `;
-    article.querySelector("[data-name]").addEventListener("click", (event) => {
-      addToCart(event.currentTarget.dataset.name, event.currentTarget.dataset.price, {
-        image: product.image || "",
-        shape: productShapeCustomerValue(product),
-        category: productCategoryValue(product),
-        productNumber: productNumberFor(product, index),
-        inventoryCount: inventoryCountFor(product),
-        sourceProductIndex: index
-      });
-    });
-    article.addEventListener("click", (event) => {
-      if (event.target.closest("button, a, input, select, textarea, label, [contenteditable='true']")) return;
-      if (adminInlineEditingActive()) return;
-      openProductDetail(index);
-    });
-    article.addEventListener("keydown", (event) => {
-      if (event.target !== article || !["Enter", " "].includes(event.key) || adminInlineEditingActive()) return;
-      event.preventDefault();
-      openProductDetail(index);
-    });
+    bindRenderedCustomProductCard(article, index);
     const collectionGrid = productGrid.querySelector(`[data-collection-grid="${productCollectionFor(product)}"]`) || productGrid;
     collectionGrid.appendChild(article);
     const count = collectionGrid.parentElement?.querySelector(".shop-collection-count");
     if (count) {
       const total = collectionGrid.querySelectorAll(".product").length;
       count.textContent = `${total} set${total === 1 ? "" : "s"}`;
+    }
+    if (product.hotDrop) {
+      const hotGrid = productGrid.querySelector('[data-collection-grid="hot-drop"]');
+      if (hotGrid) {
+        const hotArticle = article.cloneNode(true);
+        hotArticle.dataset.hotDropCopy = "true";
+        hotArticle.setAttribute("aria-label", `View Hot Drop details for ${product.name || "this product"}`);
+        bindRenderedCustomProductCard(hotArticle, index);
+        hotGrid.appendChild(hotArticle);
+        const hotCount = hotGrid.parentElement?.querySelector(".shop-collection-count");
+        if (hotCount) {
+          const total = hotGrid.querySelectorAll(".product").length;
+          hotCount.textContent = `${total} set${total === 1 ? "" : "s"}`;
+        }
+      }
     }
   });
   if (canInlineEdit) {
