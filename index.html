@@ -783,15 +783,27 @@
                 <button type="button" id="refreshAdminMessages">Refresh Messages</button>
               </div>
             </div>
-            <div class="admin-message-recipient-tools">
-              <label>Message a customer
-                <select id="adminMessageCustomerSelect"><option value="">Choose a customer...</option></select>
-              </label>
-              <button type="button" id="adminStartCustomerMessage">Start Conversation</button>
-            </div>
             <p class="admin-status" id="adminMessagesStatus" role="status"></p>
             <div class="admin-message-layout">
-              <aside class="admin-conversation-list" id="adminConversationList" aria-label="Customer conversations"></aside>
+              <aside class="admin-conversation-column">
+                <div class="admin-message-recipient-tools">
+                  <div class="admin-message-recipient-heading">
+                    <span class="chat-avatar chat-avatar-customer" aria-hidden="true">+</span>
+                    <div>
+                      <strong>Live Inbox</strong>
+                      <span>Choose a customer to start a new chat.</span>
+                    </div>
+                  </div>
+                  <button class="chat-new-message-button" type="button" id="adminNewCustomerMessage" aria-label="New message" aria-expanded="false" title="New message"><span aria-hidden="true">+</span></button>
+                  <div class="admin-message-recipient-picker" id="adminMessageRecipientPicker" hidden>
+                    <label>To
+                      <select id="adminMessageCustomerSelect"><option value="">Choose a customer...</option></select>
+                    </label>
+                    <button type="button" id="adminStartCustomerMessage">Start Conversation</button>
+                  </div>
+                </div>
+                <div class="admin-conversation-list" id="adminConversationList" aria-label="Customer conversations"></div>
+              </aside>
               <section class="admin-conversation-panel chat-surface" aria-label="Selected conversation">
                 <div class="admin-conversation-heading" id="adminConversationHeading">
                   <strong>Select a customer</strong>

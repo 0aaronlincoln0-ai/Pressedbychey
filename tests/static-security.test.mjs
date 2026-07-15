@@ -104,7 +104,11 @@ test("admin messages provide a direct customer picker", async () => {
   const styles = await source("styles.css");
   assert.match(adminHtml, /id="adminMessageCustomerSelect"/);
   assert.match(adminHtml, /id="adminStartCustomerMessage"/);
+  assert.match(adminHtml, /id="adminNewCustomerMessage"/);
+  assert.match(adminHtml, /id="adminMessageRecipientPicker"/);
   assert.match(client, /function fetchAdminMessageRecipients\(/);
   assert.match(client, /function startAdminCustomerMessage\(/);
+  assert.match(client, /function toggleAdminMessageRecipientPicker\(/);
   assert.match(styles, /\.admin-message-recipient-tools/);
+  assert.match(styles, /\.chat-new-message-button/);
 });

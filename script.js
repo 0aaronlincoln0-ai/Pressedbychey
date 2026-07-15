@@ -154,6 +154,8 @@ const adminMessagesStatus = document.querySelector("#adminMessagesStatus");
 const refreshAdminMessagesButton = document.querySelector("#refreshAdminMessages");
 const adminMessageCustomerSelect = document.querySelector("#adminMessageCustomerSelect");
 const adminStartCustomerMessage = document.querySelector("#adminStartCustomerMessage");
+const adminNewCustomerMessage = document.querySelector("#adminNewCustomerMessage");
+const adminMessageRecipientPicker = document.querySelector("#adminMessageRecipientPicker");
 const adminConversationList = document.querySelector("#adminConversationList");
 const adminConversationHeading = document.querySelector("#adminConversationHeading");
 const adminMessageThread = document.querySelector("#adminMessageThread");
@@ -4372,6 +4374,16 @@ async function startAdminCustomerMessage() {
     return;
   }
   await fetchAdminConversation(email);
+  if (adminMessageRecipientPicker) adminMessageRecipientPicker.hidden = true;
+  adminNewCustomerMessage?.setAttribute("aria-expanded", "false");
+}
+
+function toggleAdminMessageRecipientPicker() {
+  if (!adminMessageRecipientPicker || !adminNewCustomerMessage) return;
+  const open = adminMessageRecipientPicker.hidden;
+  adminMessageRecipientPicker.hidden = !open;
+  adminNewCustomerMessage.setAttribute("aria-expanded", String(open));
+  if (open) fetchAdminMessageRecipients();
 }
 
 function renderAdminMessageList() {
@@ -4381,7 +4393,7 @@ function renderAdminMessageList() {
     conversations: adminConversations.map((conversation) => [conversation.email, conversation.name, conversation.updatedAt, conversation.adminUnread, conversation.customerOnline, conversation.lastMessage?.body || ""])
   });
   if (adminConversationList.dataset.renderKey !== listKey) {
-    const conversationListIntro = `<div class="admin-conversation-list-intro"><strong>Choose a customer</strong><span>Click a conversation below to open the chat. To start a new one, use <b>Message Customer</b> from the Customers tab.</span></div>`;
+    const conversationListIntro = `<div class="admin-conversation-list-intro"><strong>Choose a customer</strong><span>Click a conversation below to open the chat, or use the plus button above to start a new one.</span></div>`;
     adminConversationList.innerHTML = conversationListIntro + (adminConversations.length
       ? adminConversations.map((conversation) => `
         <button class="admin-conversation-item ${conversation.email === activeAdminMessageEmail ? "is-active" : ""}" type="button" data-admin-conversation-email="${escapeAttribute(conversation.email)}" aria-label="Open conversation with ${escapeAttribute(conversation.name || conversation.email)}" aria-pressed="${conversation.email === activeAdminMessageEmail ? "true" : "false"}">
@@ -7045,6 +7057,7 @@ adminConversationHeading?.addEventListener("click", (event) => {
 });
 refreshAdminMessagesButton?.addEventListener("click", () => fetchAdminMessages({ showStatus: true }));
 adminStartCustomerMessage?.addEventListener("click", startAdminCustomerMessage);
+adminNewCustomerMessage?.addEventListener("click", toggleAdminMessageRecipientPicker);
 adminConversationList?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-admin-conversation-email]");
   if (button) fetchAdminConversation(button.dataset.adminConversationEmail);
