@@ -408,7 +408,7 @@ const quickContentFields = [
   { key: "footer-description", label: "Footer description", selector: ".footer p", multiline: true }
 ];
 const layoutSectionMeta = [
-  { key: "home", label: "Home", selector: '[data-page-panel="home"]', note: "Hero, fit guide, trend strip, and welcome content" },
+  { key: "home", label: "Home", selector: '[data-page-panel="home"]', note: "Hero, fit guide, and welcome content" },
   { key: "shop", label: "Shop", selector: '[data-page-panel="shop"]', note: "Product grid and shopping page" },
   { key: "reviews", label: "Reviews", selector: '[data-page-panel="reviews"]', note: "Customer social proof page" }
 ];
@@ -2704,22 +2704,16 @@ async function createInventoryDraft() {
 }
 
 function renderAdminEditToolbar() {
-  ensureAdminEditToolbar();
-  const signedIn = isAdminSignedIn();
-  adminEditToolbar.hidden = !signedIn;
-  body.classList.toggle("admin-signed-in", signedIn);
-  if (!signedIn) {
-    syncAdminViewportChrome();
-    return;
+  if (adminToolbarResizeObserver) {
+    adminToolbarResizeObserver.disconnect();
+    adminToolbarResizeObserver = null;
   }
-  adminEditToolbar.classList.toggle("is-editing", textEditMode);
-  adminEditToggle.classList.toggle("active", textEditMode);
-  adminEditToggle.textContent = textEditMode ? "Stop Editing" : "Click To Edit Site";
-  if (adminEditStatus && !inlineEditSaveTimer) {
-    adminEditStatus.textContent = textEditMode
-      ? "Click text to type, use x buttons to delete writing, or add products, sections, and pages."
-      : "Press Click To Edit Site, then edit the page right where customers see it.";
-  }
+  adminEditToolbar?.remove();
+  adminEditToolbar = null;
+  adminEditToggle = null;
+  adminEditCollapse = null;
+  adminEditStatus = null;
+  body.classList.remove("admin-signed-in");
   syncAdminViewportChrome();
 }
 
