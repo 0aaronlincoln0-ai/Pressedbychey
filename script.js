@@ -11457,11 +11457,11 @@ const SIZER_WASM_PATH = "/assets/mediapipe/wasm";
 const SIZER_FINGER_STEPS = sizeHandKeys.flatMap((hand) => sizeFingerKeys.map((finger) => ({ hand, finger })));
 const SIZER_DEFAULT_FINGER_MM = { thumb: 16.5, index: 13.5, middle: 14.5, ring: 13, pinky: 10.5 };
 const SIZER_FINGER_LANDMARKS = {
-  thumb: { tip: 4, dip: 3 },
-  index: { tip: 8, dip: 7 },
-  middle: { tip: 12, dip: 11 },
-  ring: { tip: 16, dip: 15 },
-  pinky: { tip: 20, dip: 19 }
+  thumb: { tip: 4, dip: 3, base: 2 },
+  index: { tip: 8, dip: 7, base: 5 },
+  middle: { tip: 12, dip: 11, base: 9 },
+  ring: { tip: 16, dip: 15, base: 13 },
+  pinky: { tip: 20, dip: 19, base: 17 }
 };
 
 const sizerOverlay = document.querySelector("#sizerOverlay");
@@ -11477,6 +11477,8 @@ const sizerSteps = {
 };
 const sizerCameraVideo = document.querySelector("#sizerCameraVideo");
 const sizerCameraStatus = document.querySelector("#sizerCameraStatus");
+const sizerPhotoInput = document.querySelector("#sizerPhotoInput");
+const sizerChoosePhoto = document.querySelector("#sizerChoosePhoto");
 const sizerCameraImage = document.querySelector("#sizerCameraImage");
 const sizerCameraCardGuideLeft = document.querySelector("#sizerCameraCardGuideLeft");
 const sizerCameraCardGuideRight = document.querySelector("#sizerCameraCardGuideRight");
@@ -11514,6 +11516,7 @@ const sizerState = {
   cameraImageHeight: 0,
   cameraScanReady: false,
   cameraScanStepIndex: -1,
+  cameraAnalysisId: 0,
   measurements: { left: {}, right: {} }
 };
 
@@ -11581,11 +11584,27 @@ function sizerDistance(a, b) {
 
 function sizerSelectDetectedHand(result, step) {
   const hands = Array.isArray(result?.landmarks) ? result.landmarks : [];
-  if (!hands.length) return null;
+  if (hands.length !== 1) return null;
   const desired = step.hand === "left" ? "left" : "right";
-  const matchingIndex = hands.findIndex((_, index) => String(result.handedness?.[index]?.[0]?.categoryName || "").toLowerCase() === desired);
-  const index = matchingIndex >= 0 ? matchingIndex : 0;
-  return { landmarks: hands[index], handedness: result.handedness?.[index]?.[0]?.categoryName || "hand" };
+  const handedness = String(result.handedness?.[0]?.[0]?.categoryName || "").toLowerCase();
+  return { landmarks: hands[0], handedness: handedness || desired };
+}
+
+function sizerFingerIsExtended(landmarks, finger) {
+  const indexes = SIZER_FINGER_LANDMARKS[finger];
+  const wrist = landmarks[0];
+  const tip = landmarks[indexes?.tip];
+  const joint = landmarks[indexes?.dip];
+  const base = landmarks[indexes?.base];
+  if (!wrist || !tip || !joint || !base) return false;
+  const tipDistance = sizerDistance(tip, wrist);
+  const jointDistance = sizerDistance(joint, wrist);
+  const baseDistance = sizerDistance(base, wrist);
+  return sizerDistance(base, tip) > 0.08 && tipDistance > jointDistance * 1.06 && tipDistance > baseDistance * 1.04;
+}
+
+function sizerVisibleFingers(landmarks) {
+  return Object.keys(SIZER_FINGER_LANDMARKS).filter((finger) => sizerFingerIsExtended(landmarks, finger));
 }
 
 function sizerSamplePixel(data, width, height, x, y) {
@@ -11694,8 +11713,20 @@ function sizerImagePointToStage(point) {
 async function sizerAnalyzeCapturedFrame(canvas, step) {
   const handLandmarker = await sizerLoadHandLandmarker();
   const result = handLandmarker.detect(canvas);
+  if (Array.isArray(result?.landmarks) && result.landmarks.length > 1) {
+    throw new Error("Keep one hand and one finger in the frame, then retake the scan.");
+  }
   const hand = sizerSelectDetectedHand(result, step);
-  if (!hand) throw new Error("No hand detected. Place one nail and the card fully inside the frame, then retake the scan.");
+  if (!hand) throw new Error("No single finger detected. Place one finger and the card fully inside the frame, then retake the scan.");
+  const visibleFingers = sizerVisibleFingers(hand.landmarks);
+  if (visibleFingers.length !== 1) {
+    throw new Error(visibleFingers.length > 1
+      ? "Only one finger can be measured at a time. Move the other fingers out of the frame and retake the scan."
+      : "The selected finger was not clear enough. Place one finger flat and retake the scan.");
+  }
+  if (visibleFingers[0] !== step.finger) {
+    throw new Error(`The scan found the ${visibleFingers[0]} finger. Place your ${step.finger} finger inside the frame and retake it.`);
+  }
   const geometry = sizerEstimateNailGeometry(canvas, hand.landmarks, step);
   if (!geometry) throw new Error("The selected finger was not clear enough to measure. Keep it flat and retake the scan.");
   return { ...geometry, handedness: hand.handedness };
@@ -11724,10 +11755,12 @@ function sizerShowStep(name) {
   Object.entries(sizerSteps).forEach(([key, section]) => {
     if (section) section.hidden = key !== name;
   });
+  sizerOverlay?.classList.toggle("is-camera-step", name === "camera");
   if (sizerProgress) sizerProgress.hidden = !["camera", "measure"].includes(name);
   if (name !== "camera") sizerStopCamera();
   if (name === "calibrate") sizerRenderCardBox();
   if (name === "camera") {
+    sizerState.cameraAnalysisId += 1;
     sizerState.cameraImageSrc = "";
     sizerState.cameraScanReady = false;
     sizerState.cameraScanStepIndex = -1;
@@ -11868,6 +11901,7 @@ function sizerCameraErrorMessage(error) {
 async function sizerStartCamera() {
   if (!sizerCameraVideo || sizerSteps.camera?.hidden) return;
   sizerStopCamera();
+  sizerCameraStatus?.classList.remove("is-error");
   const requestId = sizerState.cameraRequestId;
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
     if (sizerCameraStatus) sizerCameraStatus.textContent = sizerCameraErrorMessage();
@@ -11901,6 +11935,77 @@ async function sizerSwitchCamera() {
   await sizerStartCamera();
 }
 
+async function sizerPhotoToCanvas(file) {
+  const maxDimension = 2200;
+  const drawSource = (source, width, height, closeSource = false) => {
+    const scale = Math.min(1, maxDimension / Math.max(width, height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("This photo could not be opened on your device.");
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    if (closeSource) source.close?.();
+    return canvas;
+  };
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+      return drawSource(bitmap, bitmap.width, bitmap.height, true);
+    } catch {
+      /* Fall back to an Image for browsers without EXIF-aware bitmap options. */
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => {
+      try {
+        resolve(drawSource(image, image.naturalWidth, image.naturalHeight));
+      } catch (error) {
+        reject(error);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("This photo could not be opened on your device."));
+    };
+    image.src = url;
+  });
+}
+
+async function sizerProcessCapturedCanvas(canvas, step, sourceLabel) {
+  const analysisId = ++sizerState.cameraAnalysisId;
+  sizerState.cameraImageSrc = canvas.toDataURL("image/jpeg", 0.92);
+  sizerState.cameraImageWidth = canvas.width;
+  sizerState.cameraImageHeight = canvas.height;
+  sizerState.cameraScanReady = false;
+  sizerState.cameraScanStepIndex = sizerState.stepIndex;
+  sizerStopCamera();
+  sizerShowStep("measure");
+  sizerSetScanStatus(`Checking ${sourceLabel} for one clear finger...`);
+  try {
+    const analysis = await sizerAnalyzeCapturedFrame(canvas, step);
+    if (analysisId !== sizerState.cameraAnalysisId) return;
+    const point = sizerImagePointToStage(analysis.center);
+    const stageWidth = sizerMeasureStage?.getBoundingClientRect().width || 320;
+    const scaledWidth = Math.min(stageWidth - 20, analysis.widthPx * point.scale);
+    sizerState.cameraNailLeftPx = point.x - scaledWidth / 2;
+    sizerState.cameraNailRightPx = point.x + scaledWidth / 2;
+    sizerState.guideLeftPx = sizerState.cameraNailLeftPx;
+    sizerState.guideRightPx = sizerState.cameraNailRightPx;
+    sizerState.cameraScanReady = true;
+    sizerSetScanStatus(`One ${step.finger} finger found. Align the white lines to the card edges, then confirm the pink lines at the nail's widest point.`);
+    sizerRenderGuides();
+  } catch (error) {
+    if (analysisId !== sizerState.cameraAnalysisId) return;
+    sizerSetScanStatus(error.message || "The scanner could not find one clear finger. Retake the photo with only the selected finger visible.", true);
+  }
+}
+
 async function sizerCaptureCamera() {
   if (!sizerCameraVideo || !sizerState.cameraStream || sizerCameraVideo.readyState < 2) {
     if (sizerCameraStatus) sizerCameraStatus.textContent = "Wait for the live preview, then capture again.";
@@ -11912,29 +12017,28 @@ async function sizerCaptureCamera() {
   const context = canvas.getContext("2d");
   if (!context) return;
   context.drawImage(sizerCameraVideo, 0, 0, canvas.width, canvas.height);
-  const step = sizerCurrentStep();
-  sizerState.cameraImageSrc = canvas.toDataURL("image/jpeg", 0.92);
-  sizerState.cameraImageWidth = canvas.width;
-  sizerState.cameraImageHeight = canvas.height;
+  await sizerProcessCapturedCanvas(canvas, sizerCurrentStep(), "the camera frame");
+}
+
+async function sizerChoosePhotoFile(file) {
+  if (!file || !file.type.startsWith("image/")) {
+    if (sizerCameraStatus) sizerCameraStatus.textContent = "Choose an image from your camera roll, then try again.";
+    return;
+  }
+  sizerState.mode = "camera";
+  sizerState.cameraImageSrc = "";
   sizerState.cameraScanReady = false;
-  sizerState.cameraScanStepIndex = sizerState.stepIndex;
   sizerStopCamera();
-  sizerShowStep("measure");
-  sizerSetScanStatus("Scanning the selected finger on this device...");
+  if (sizerCameraStatus) sizerCameraStatus.textContent = "Opening your photo...";
   try {
-    const analysis = await sizerAnalyzeCapturedFrame(canvas, step);
-    const point = sizerImagePointToStage(analysis.center);
-    const stageWidth = sizerMeasureStage?.getBoundingClientRect().width || 320;
-    const scaledWidth = Math.min(stageWidth - 20, analysis.widthPx * point.scale);
-    sizerState.cameraNailLeftPx = point.x - scaledWidth / 2;
-    sizerState.cameraNailRightPx = point.x + scaledWidth / 2;
-    sizerState.guideLeftPx = sizerState.cameraNailLeftPx;
-    sizerState.guideRightPx = sizerState.cameraNailRightPx;
-    sizerState.cameraScanReady = true;
-    sizerSetScanStatus(`AI found the ${step.finger} finger. Align the white lines to the card edges, then confirm the pink lines at the nail's widest point.`);
-    sizerRenderGuides();
+    const canvas = await sizerPhotoToCanvas(file);
+    await sizerProcessCapturedCanvas(canvas, sizerCurrentStep(), "the uploaded photo");
   } catch (error) {
-    sizerSetScanStatus(error.message || "The scanner could not find a clear hand. Retake the photo with one nail and the card fully visible.", true);
+    sizerShowStep("camera");
+    if (sizerCameraStatus) {
+      sizerCameraStatus.textContent = error.message || "That photo could not be opened. Choose another image.";
+      sizerCameraStatus.classList.add("is-error");
+    }
   }
 }
 
@@ -12078,6 +12182,12 @@ function setupNailSizer() {
   });
   document.querySelector("#sizerCameraSwitch")?.addEventListener("click", sizerSwitchCamera);
   document.querySelector("#sizerCameraCapture")?.addEventListener("click", sizerCaptureCamera);
+  sizerChoosePhoto?.addEventListener("click", () => sizerPhotoInput?.click());
+  sizerPhotoInput?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    await sizerChoosePhotoFile(file);
+  });
   document.querySelector("#sizerCameraUseScreen")?.addEventListener("click", () => {
     sizerState.mode = "screen";
     sizerState.cameraImageSrc = "";

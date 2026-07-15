@@ -231,8 +231,13 @@ test("admin exposes the nail size finder tool", async () => {
   assert.match(client, /facingMode: \{ ideal: sizerState\.cameraFacingMode \}/);
   assert.match(client, /function sizerStopCamera\(\)/);
   assert.match(client, /canvas\.toDataURL\("image\/jpeg", 0\.92\)/);
+  assert.match(client, /function sizerPhotoToCanvas\(file\)/);
+  assert.match(client, /function sizerChoosePhotoFile\(file\)/);
+  assert.match(client, /function sizerVisibleFingers\(landmarks\)/);
   assert.match(adminHtml, /id="sizerStepCamera"/);
   assert.match(adminHtml, /id="sizerCameraCapture"/);
+  assert.match(adminHtml, /id="sizerPhotoInput"/);
+  assert.match(adminHtml, /id="sizerChoosePhoto"/);
   assert.match(styles, /grid-template-columns: repeat\(10, minmax\(0, 1fr\)/);
   assert.match(styles, /\.admin-sizing-overview\s*\{/);
 });
@@ -247,7 +252,9 @@ test("size finder and product photos support real mobile capture flows", async (
   assert.match(client, /import\("\.\/assets\/mediapipe\/vision_bundle\.mjs"\)/);
   assert.match(client, /function sizerAnalyzeCapturedFrame\(canvas, step\)/);
   assert.match(client, /cameraScanReady/);
-  assert.match(client, /AI found the \$\{step\.finger\} finger/);
+  assert.match(client, /Only one finger can be measured at a time/);
+  assert.match(client, /is-camera-step/);
+  assert.doesNotMatch(await source("styles.css"), /\.sizer-camera-stage::after/);
 });
 
 test("account hero uses a restrained studio treatment", async () => {

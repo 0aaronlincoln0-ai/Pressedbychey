@@ -632,10 +632,10 @@
         <h3>Measure every nail with your phone</h3>
         <ol class="sizer-intro-list">
           <li>Calibrate your screen with any standard card (bank, gift, or ID card).</li>
-          <li>Rest each finger on the screen and match the lines to the nail.</li>
+          <li>Camera mode measures one finger per photo; the guide lets you adjust each nail.</li>
           <li>Use the results to update the customer's saved sizing record.</li>
         </ol>
-        <p class="sizer-note">AI camera scan finds the selected finger on your device. Keep a standard card beside it for real millimeter scale; the on-screen guide is the fallback.</p>
+        <p class="sizer-note">AI camera and photo scans reject extra fingers. Keep one selected finger and a standard card side by side for real millimeter scale.</p>
         <div class="sizer-mode-actions">
           <button class="button primary" type="button" id="sizerUseCamera">Use Live Camera</button>
           <button class="button secondary" type="button" id="sizerStart">Use On-Screen Guide</button>
@@ -643,18 +643,20 @@
       </section>
 
       <section class="sizer-step" id="sizerStepCamera" hidden>
-        <h3 id="sizerCameraTitle">Camera measurement</h3>
-        <p>Place one nail and the short edge of a standard card side by side, flat and in the same plane. The scanner needs both fully inside the frame.</p>
+        <h3 id="sizerCameraTitle">Single-finger scan</h3>
+        <p>Place one finger and the short edge of a standard card side by side, flat and in the same plane. Keep every other finger out of the frame.</p>
         <div class="sizer-camera-stage">
           <video id="sizerCameraVideo" autoplay muted playsinline></video>
-          <span class="sizer-camera-frame-hint">One nail + card</span>
-          <span class="sizer-camera-target" aria-hidden="true">Place one nail and the card inside the frame</span>
+          <span class="sizer-camera-frame-hint">One finger only</span>
+          <span class="sizer-camera-target" aria-hidden="true">Place one finger and the card inside the frame</span>
         </div>
-        <p class="sizer-status" id="sizerCameraStatus" role="status">Camera permission is requested only after you choose Live Camera.</p>
+        <p class="sizer-status" id="sizerCameraStatus" role="status">The scanner will reject a frame when it sees more than one extended finger.</p>
         <div class="sizer-camera-actions">
           <button class="button secondary" type="button" id="sizerCameraSwitch">Switch Camera</button>
           <button class="button primary" type="button" id="sizerCameraCapture">Capture Nail</button>
         </div>
+        <input class="hidden-file-input" id="sizerPhotoInput" type="file" accept="image/*" />
+        <button class="button secondary wide" type="button" id="sizerChoosePhoto">Choose a Photo</button>
         <button class="button secondary wide" type="button" id="sizerCameraUseScreen">Use On-Screen Guide Instead</button>
       </section>
 
@@ -1421,6 +1423,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260715-ai-sizer"></script>
+    <script src="script.js?v=20260715-ai-sizer-v2"></script>
   </body>
 </html>

@@ -12110,16 +12110,6 @@ body.sizer-open {
   object-fit: cover;
 }
 
-.sizer-camera-stage::after {
-  position: absolute;
-  inset: 12% 8%;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 16px;
-  box-shadow: 0 0 0 999px rgba(18, 8, 13, 0.2);
-  content: "";
-  pointer-events: none;
-}
-
 .sizer-camera-frame-hint {
   position: absolute;
   right: 1rem;
@@ -12144,6 +12134,7 @@ body.sizer-open {
   padding: 1rem;
   border: 1px dashed rgba(255, 255, 255, 0.78);
   border-radius: 16px;
+  box-shadow: 0 0 0 999px rgba(18, 8, 13, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.16);
   color: rgba(255, 255, 255, 0.92);
   font-size: clamp(0.8rem, 2vw, 1rem);
   font-weight: 800;
@@ -12410,6 +12401,28 @@ body.sizer-open {
 
   .sizer-measure-stage {
     height: min(38dvh, 300px);
+  }
+
+  .sizer-overlay.is-camera-step {
+    gap: 0.45rem;
+    overflow: hidden;
+    padding-top: calc(0.6rem + env(safe-area-inset-top, 0px));
+  }
+
+  .sizer-overlay.is-camera-step .sizer-step {
+    min-height: 0;
+    flex: 1;
+  }
+
+  .sizer-overlay.is-camera-step .sizer-camera-stage {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .sizer-overlay.is-camera-step .sizer-camera-stage video {
+    min-height: 0;
+    height: 100%;
   }
 }
 
