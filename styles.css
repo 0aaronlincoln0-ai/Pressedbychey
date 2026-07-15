@@ -11021,3 +11021,124 @@ body.admin-inventory-open {
     animation: none;
   }
 }
+
+/* Keep labels accessible without allowing them to occupy the composer layout. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Use dependable system cursors so the pointer remains visible over light text and glass surfaces. */
+@media (hover: hover) and (pointer: fine) {
+  a[href],
+  button:not(:disabled):not([data-studio-handle]),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="link"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  details > summary:not([aria-disabled="true"]),
+  label[for] {
+    cursor: pointer;
+  }
+
+  input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+  textarea,
+  [contenteditable="true"] {
+    cursor: text;
+  }
+
+  button:disabled,
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.chat-composer textarea {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  caret-color: #0a84ff;
+}
+
+.header-messages-button {
+  position: relative;
+  display: inline-grid;
+  width: 2.45rem;
+  height: 2.45rem;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(143, 29, 81, 0.18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--berry);
+  box-shadow: 0 8px 18px rgba(143, 29, 81, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  font-size: 1.15rem;
+  line-height: 1;
+  transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.header-messages-button:hover,
+.header-messages-button:focus-visible {
+  transform: translateY(-1px);
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(143, 29, 81, 0.18), 0 0 0 4px rgba(216, 79, 136, 0.12);
+}
+
+.header-messages-icon {
+  display: block;
+  transform: translateY(-1px);
+}
+
+.header-messages-button strong {
+  position: absolute;
+  top: -0.28rem;
+  right: -0.28rem;
+  display: grid;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  place-items: center;
+  padding: 0 0.2rem;
+  border: 2px solid #fff8fb;
+  border-radius: 999px;
+  background: #d93673;
+  color: white;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.admin-conversation-list-intro {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.35rem 0.35rem 0.65rem;
+  border-bottom: 1px solid rgba(143, 29, 81, 0.1);
+}
+
+.admin-conversation-list-intro strong {
+  color: var(--berry);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.admin-conversation-list-intro span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.admin-conversation-list-intro b {
+  color: var(--berry);
+}

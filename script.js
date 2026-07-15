@@ -137,6 +137,8 @@ const adminOpenOrders = document.querySelector("#adminOpenOrders");
 const adminExitMode = document.querySelector("#adminExitMode");
 const messagesNav = document.querySelector("#messagesNav");
 const messagesNavBadge = document.querySelector("#messagesNavBadge");
+const headerMessagesButton = document.querySelector("#headerMessagesButton");
+const headerMessagesBadge = document.querySelector("#headerMessagesBadge");
 const messageBubble = document.querySelector("#messageBubble");
 const messageBubbleBadge = document.querySelector("#messageBubbleBadge");
 const customerMessagesStatus = document.querySelector("#customerMessagesStatus");
@@ -3940,8 +3942,15 @@ function messageCountLabel(count = 0) {
 
 function renderMessageChrome() {
   const signedCustomer = Boolean(currentCustomer() && !isAdminSignedIn());
+  const signedAdmin = Boolean(isAdminSignedIn());
   const unread = Math.max(0, Number(customerConversation?.customerUnread || 0));
+  const headerUnread = signedAdmin ? adminUnreadMessageCount() : unread;
   const showCustomerMessageControls = signedCustomer && !IS_ADMIN_PAGE;
+  if (headerMessagesButton) headerMessagesButton.hidden = !(signedCustomer || signedAdmin);
+  if (headerMessagesBadge) {
+    headerMessagesBadge.hidden = headerUnread === 0;
+    headerMessagesBadge.textContent = headerUnread > 99 ? "99+" : String(headerUnread);
+  }
   if (messagesNav) messagesNav.hidden = !showCustomerMessageControls;
   if (messageBubble) messageBubble.hidden = !showCustomerMessageControls;
   [messagesNavBadge, messageBubbleBadge].forEach((badge) => {
@@ -4084,6 +4093,15 @@ function openCustomerMessages() {
     document.querySelector("#customerMessagesSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
     refreshCustomerMessages({ silent: false });
   });
+}
+
+function openHeaderMessages() {
+  if (isAdminSignedIn()) {
+    showAdminPage();
+    switchAdminView("messages");
+    return;
+  }
+  openCustomerMessages();
 }
 
 async function sendCustomerMessage(event) {
@@ -4230,16 +4248,17 @@ function renderAdminMessageList() {
     conversations: adminConversations.map((conversation) => [conversation.email, conversation.name, conversation.updatedAt, conversation.adminUnread, conversation.lastMessage?.body || ""])
   });
   if (adminConversationList.dataset.renderKey !== listKey) {
-    adminConversationList.innerHTML = adminConversations.length
+    const conversationListIntro = `<div class="admin-conversation-list-intro"><strong>Choose a customer</strong><span>Click a conversation below to open the chat. To start a new one, use <b>Message Customer</b> from the Customers tab.</span></div>`;
+    adminConversationList.innerHTML = conversationListIntro + (adminConversations.length
       ? adminConversations.map((conversation) => `
-        <button class="admin-conversation-item ${conversation.email === activeAdminMessageEmail ? "is-active" : ""}" type="button" data-admin-conversation-email="${escapeAttribute(conversation.email)}">
+        <button class="admin-conversation-item ${conversation.email === activeAdminMessageEmail ? "is-active" : ""}" type="button" data-admin-conversation-email="${escapeAttribute(conversation.email)}" aria-label="Open conversation with ${escapeAttribute(conversation.name || conversation.email)}" aria-pressed="${conversation.email === activeAdminMessageEmail ? "true" : "false"}">
           <span class="admin-conversation-item-head"><strong>${escapeHTML(conversation.name || conversation.email)}</strong>${conversation.adminUnread ? `<b>${conversation.adminUnread > 99 ? "99+" : conversation.adminUnread}</b>` : ""}</span>
           <small>${escapeHTML(conversation.email)}</small>
           <p>${escapeHTML(conversation.lastMessage?.body || "No messages yet")}</p>
           <time>${escapeHTML(messageDateLabel(conversation.updatedAt))}</time>
         </button>
       `).join("")
-      : `<div class="message-thread-empty"><strong>No customer conversations yet</strong><span>New customer messages will appear here.</span></div>`;
+      : `<div class="message-thread-empty"><strong>No conversations yet</strong><span>Open the Customers tab and choose Message Customer to start one.</span></div>`);
     adminConversationList.dataset.renderKey = listKey;
   }
   if (adminMessagesTabBadge) {
@@ -4247,6 +4266,7 @@ function renderAdminMessageList() {
     adminMessagesTabBadge.hidden = unread === 0;
     adminMessagesTabBadge.textContent = unread > 99 ? "99+" : String(unread);
   }
+  renderMessageChrome();
 }
 
 function renderAdminMessageThread() {
@@ -4262,9 +4282,12 @@ function renderAdminMessageThread() {
       adminMessageThread.innerHTML = `<div class="message-thread-empty"><strong>Your customer-care inbox is ready</strong><span>Select a conversation to reply with fit help, order updates, or design guidance.</span></div>`;
       adminMessageThread.dataset.renderKey = emptyKey;
     }
-    if (adminMessageInput) adminMessageInput.disabled = true;
+    if (adminMessageInput) {
+      adminMessageInput.disabled = false;
+      adminMessageInput.placeholder = "Select a conversation to send...";
+    }
     if (adminMessageSend) adminMessageSend.disabled = true;
-    if (adminMessageCount) adminMessageCount.textContent = "0/2400";
+    if (adminMessageCount) adminMessageCount.textContent = `${String(adminMessageInput?.value || "").length}/2400`;
     return;
   }
   const headingKey = `${activeAdminMessageEmail}|${activeAdminConversation.name || ""}`;
@@ -4313,9 +4336,10 @@ async function fetchAdminMessages({ showStatus = true } = {}) {
   try {
     const data = await adminMessagesRequest("list");
     adminConversations = Array.isArray(data.conversations) ? data.conversations : [];
-    const nextEmail = adminConversations.some((conversation) => conversation.email === activeAdminMessageEmail)
-      ? activeAdminMessageEmail
-      : (adminConversations.find((conversation) => conversation.adminUnread > 0)?.email || adminConversations[0]?.email || "");
+    const nextEmail = activeAdminMessageEmail
+      || adminConversations.find((conversation) => conversation.adminUnread > 0)?.email
+      || adminConversations[0]?.email
+      || "";
     renderAdminMessageList();
     if (nextEmail) await fetchAdminConversation(nextEmail, { showStatus });
     else {
@@ -4334,7 +4358,11 @@ async function fetchAdminMessages({ showStatus = true } = {}) {
 async function sendAdminMessage(event) {
   event.preventDefault();
   const body = adminMessageInput?.value.trim() || "";
-  if (!body || !activeAdminMessageEmail) return;
+  if (!activeAdminMessageEmail) {
+    if (adminMessagesStatus) adminMessagesStatus.textContent = "Select a customer before replying.";
+    return;
+  }
+  if (!body) return;
   if (adminMessageSend) adminMessageSend.disabled = true;
   adminMessageSend?.classList.add("is-sending");
   try {
@@ -6376,8 +6404,7 @@ function stopAdminLiveOrderAutoRefresh() {
 function syncAdminLiveOrderAutoRefresh() {
   if (shouldRefreshAdminLiveOrders()) startAdminLiveOrderAutoRefresh();
   else stopAdminLiveOrderAutoRefresh();
-  const messagesPanel = document.querySelector('[data-admin-view-panel="messages"]');
-  const shouldRefreshMessages = Boolean(isAdminSignedIn() && adminPage && !adminPage.hidden && messagesPanel && !messagesPanel.hidden && document.visibilityState === "visible");
+  const shouldRefreshMessages = Boolean(isAdminSignedIn() && adminPage && !adminPage.hidden && document.visibilityState === "visible");
   if (shouldRefreshMessages) {
     if (!adminMessageRefreshTimer) {
       adminMessageRefreshTimer = window.setInterval(() => fetchAdminMessages({ showStatus: false }), CUSTOMER_MESSAGE_REFRESH_MS);
@@ -6606,6 +6633,7 @@ customerLogout.addEventListener("click", logoutCustomer);
 adminContinueEditing?.addEventListener("click", showAdminPage);
 adminOpenOrders?.addEventListener("click", showAdminOrdersPage);
 adminExitMode?.addEventListener("click", logoutAdmin);
+headerMessagesButton?.addEventListener("click", openHeaderMessages);
 messageBubble?.addEventListener("click", openCustomerMessages);
 customerMessageForm?.addEventListener("submit", sendCustomerMessage);
 adminMessageForm?.addEventListener("submit", sendAdminMessage);

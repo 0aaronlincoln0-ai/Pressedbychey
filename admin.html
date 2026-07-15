@@ -37,6 +37,10 @@
           <a href="index.html#account" id="messagesNav" data-open-messages hidden>Messages <span class="messages-nav-badge" id="messagesNavBadge" hidden>0</span></a>
           <a href="admin.html" id="adminNav">Admin</a>
         </nav>
+        <button class="header-messages-button" id="headerMessagesButton" type="button" aria-label="Open messages" title="Open messages" hidden>
+          <span class="header-messages-icon" aria-hidden="true">&#9993;</span>
+          <strong id="headerMessagesBadge" aria-live="polite" hidden>0</strong>
+        </button>
         <button class="account-button" type="button">Log In</button>
         <button class="cart-button" type="button" aria-label="Open cart">
           <span class="cart-icon" aria-hidden="true">&hearts;</span>
@@ -714,7 +718,7 @@
                 <div class="admin-message-thread chat-thread" id="adminMessageThread" aria-live="polite" aria-label="Customer conversation"></div>
                 <form class="admin-message-form chat-composer" id="adminMessageForm">
                   <label class="sr-only" for="adminMessageInput">Message customer</label>
-                  <textarea id="adminMessageInput" maxlength="2400" rows="1" placeholder="Reply..." required disabled></textarea>
+                  <textarea id="adminMessageInput" maxlength="2400" rows="1" placeholder="Reply..." required></textarea>
                   <div class="admin-message-form-footer chat-composer-footer">
                     <div class="chat-composer-tools">
                       <button class="chat-emoji-button" type="button" id="adminEmojiButton" aria-label="Add emoji" aria-haspopup="true" aria-expanded="false"><span aria-hidden="true">&#9786;</span></button>
