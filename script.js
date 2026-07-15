@@ -2049,6 +2049,27 @@ async function requestAdminSession(email, password) {
   return payload.session;
 }
 
+async function completeAdminLogin(email, password) {
+  startAdminSession(await requestAdminSession(email, password));
+  customerState.currentEmail = "";
+  saveCustomerState();
+  accountStatus.textContent = "";
+  loginEmail.value = "";
+  loginPassword.value = "";
+  renderAccount();
+  renderAdminVisibility();
+  closeAccountPanel();
+  textEditMode = false;
+  if (!IS_ADMIN_PAGE) {
+    window.location.href = "admin.html";
+    return;
+  }
+  showAdminPage();
+  renderCustomProducts();
+  syncInlineEditMode();
+  setInlineEditStatus("Admin is signed in. Use the Admin Dashboard tabs to edit the site or view orders.");
+}
+
 function exitAdminModeForCustomer() {
   clearAdminSession();
   textEditMode = false;
@@ -4516,27 +4537,10 @@ async function registerCustomer() {
 async function loginCustomer() {
   const email = loginEmail.value.trim().toLowerCase();
   const password = loginPassword.value;
-  if (isAdminEmail(email)) {
+  if (IS_ADMIN_PAGE && isAdminEmail(email)) {
     accountStatus.textContent = "Checking secure admin access...";
     try {
-      startAdminSession(await requestAdminSession(email, password));
-      customerState.currentEmail = "";
-      saveCustomerState();
-      accountStatus.textContent = "";
-      loginEmail.value = "";
-      loginPassword.value = "";
-      renderAccount();
-      renderAdminVisibility();
-      closeAccountPanel();
-      textEditMode = false;
-      if (!IS_ADMIN_PAGE) {
-        window.location.href = "admin.html";
-        return;
-      }
-      showAdminPage();
-      renderCustomProducts();
-      syncInlineEditMode();
-      setInlineEditStatus("Admin is signed in. Use the Admin Dashboard tabs to edit the site or view orders.");
+      await completeAdminLogin(email, password);
     } catch (error) {
       clearAdminSession();
       accountStatus.textContent = error.message || "Admin sign in failed.";
@@ -4557,6 +4561,14 @@ async function loginCustomer() {
     showSitePage("account", { updateHash: true, behavior: "smooth", force: true });
     return;
   } catch (error) {
+    if (isAdminEmail(email)) {
+      try {
+        await completeAdminLogin(email, password);
+        return;
+      } catch {
+        clearAdminSession();
+      }
+    }
     const localUser = customerState.users.find((item) => item.email === email && item.password === password);
     const legacyUser = localUser || customerState.users.find((item) => item.email === email);
     const legacyPassword = customerSessionPasswords.get(email) || localUser?.password || "";
