@@ -11795,9 +11795,9 @@ function renderCustomProducts() {
     section.innerHTML = `
       <div class="shop-collection-heading">
         <div>
-          <p class="eyebrow">${isHotDrop ? "Spotlighted now" : isFreshDrop ? "Just released" : "Shop the full catalog"}</p>
+          ${(isHotDrop || isFreshDrop) ? `<p class="eyebrow">${isHotDrop ? "Spotlighted now" : "Just released"}</p>` : ""}
           <h3>${isHotDrop ? "Hot Drop" : isFreshDrop ? "Fresh Drops" : "STORE"}</h3>
-          <p>${isHotDrop ? "Chey's current favorites before they move into the regular catalog." : isFreshDrop ? "Small-batch sets Chey has chosen to spotlight right now." : "Every available set in the Pressed by Chey store."}</p>
+          ${(isHotDrop || isFreshDrop) ? `<p>${isHotDrop ? "Chey's current favorites before they move into the regular catalog." : "Small-batch sets Chey has chosen to spotlight right now."}</p>` : ""}
         </div>
         <span class="shop-collection-count">0 sets</span>
       </div>

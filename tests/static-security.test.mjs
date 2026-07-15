@@ -297,6 +297,8 @@ test("shop separates fresh drops from the complete inventory", async () => {
   assert.doesNotMatch(indexHtml, /View Main Inventory/);
   assert.match(indexHtml, /data-shop-destination="inventory"/);
   assert.match(client, /Shop placement/);
+  assert.doesNotMatch(client, /Shop the full catalog/);
+  assert.doesNotMatch(client, /Every available set in the Pressed by Chey store/);
   assert.match(styles, /\.shop-collection-grid\s*\{/);
 });
 
