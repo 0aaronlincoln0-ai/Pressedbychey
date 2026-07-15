@@ -5762,12 +5762,26 @@ function localOrderItemForAdmin(item = {}) {
   };
 }
 
-function localAccountOrderForAdmin(order = {}, user = {}) {
+function localAdminOrderId(order = {}, prefix = "local", owner = "", index = 0) {
+  const existingId = String(order.id || "").trim();
+  if (existingId) return existingId;
+  const createdAt = order.createdAt || order.paidAt || order.updatedAt || order.date || "";
+  const slug = [owner, createdAt, order.name, order.email, order.total, index]
+    .filter(Boolean)
+    .join("-")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 150);
+  return `${prefix}-${slug || "order"}`;
+}
+
+function localAccountOrderForAdmin(order = {}, user = {}, index = 0) {
   const createdAt = order.createdAt || order.paidAt || order.updatedAt || order.date || new Date().toISOString();
   const paid = order.paymentStatus === "paid" || /^paid\b|^order\b/i.test(order.id || "");
   return {
     ...order,
-    id: order.id || `local-${user.email || "customer"}-${createdAt}`,
+    id: localAdminOrderId(order, "local-account", user.email || "customer", index),
     status: order.status || (paid ? "complete" : "local_saved"),
     paymentStatus: order.paymentStatus || (paid ? "paid" : "saved"),
     fulfillmentStatus: order.fulfillmentStatus || (paid ? "Needs review" : "Payment pending"),
@@ -5790,12 +5804,12 @@ function localAccountOrderForAdmin(order = {}, user = {}) {
   };
 }
 
-function localGuestOrderForAdmin(order = {}) {
+function localGuestOrderForAdmin(order = {}, index = 0) {
   const createdAt = order.createdAt || order.paidAt || order.updatedAt || order.date || new Date().toISOString();
   const paid = order.paymentStatus === "paid" || /^paid\b|^guest\b/i.test(order.id || "");
   return {
     ...order,
-    id: order.id || `local-guest-${createdAt}`,
+    id: localAdminOrderId(order, "local-guest", "guest", index),
     status: order.status || (paid ? "complete" : "guest_saved"),
     paymentStatus: order.paymentStatus || (paid ? "paid" : "saved"),
     fulfillmentStatus: order.fulfillmentStatus || (paid ? "Needs review" : "Payment pending"),
@@ -5819,7 +5833,7 @@ function localGuestOrderForAdmin(order = {}) {
 }
 
 function localOrdersForAdminDashboard() {
-  const accountOrders = customerState.users.flatMap((user) => (user.orders || []).map((order) => localAccountOrderForAdmin(order, user)));
+  const accountOrders = customerState.users.flatMap((user) => (user.orders || []).map((order, index) => localAccountOrderForAdmin(order, user, index)));
   const guestDashboardOrders = guestOrders.map(localGuestOrderForAdmin);
   return [...accountOrders, ...guestDashboardOrders];
 }
@@ -6524,12 +6538,57 @@ function applyLocalAdminOrderUpdate(orderId, update = {}) {
   return updatedOrder || liveOrders.find((order) => String(order.id || "") === String(orderId)) || null;
 }
 
+function isPaidOrderRecord(order = {}) {
+  return order.paymentStatus === "paid" || Boolean(order.paidAt);
+}
+
+function isRecoveredLocalOrder(orderId, order = {}) {
+  return Boolean(order.localSource) || !/^pbc-\d+-[a-z0-9-]+$/i.test(String(orderId || ""));
+}
+
+function deleteLocalAdminOrder(orderId) {
+  let changed = false;
+  const nextGuestOrders = guestOrders.filter((order, index) => {
+    const matches = localAdminOrderId(order, "local-guest", "guest", index) === String(orderId || "");
+    if (matches) changed = true;
+    return !matches;
+  });
+  if (changed) {
+    guestOrders = nextGuestOrders;
+    saveGuestOrders();
+    renderAdminGuestOrders();
+  }
+
+  let changedCustomerOrders = false;
+  customerState.users.forEach((user) => {
+    const nextOrders = (user.orders || []).filter((order, index) => {
+      const matches = localAdminOrderId(order, "local-account", user.email || "customer", index) === String(orderId || "");
+      if (matches) changedCustomerOrders = true;
+      return !matches;
+    });
+    user.orders = nextOrders;
+  });
+  if (changedCustomerOrders) {
+    saveCustomerState();
+    renderAdminUsers();
+    renderAccount();
+    renderCustomerAccountPage();
+  }
+
+  if (!changed && !changedCustomerOrders) return false;
+  liveOrders = liveOrders.filter((order) => String(order.id || "") !== String(orderId || ""));
+  collapsedLiveOrderIds.delete(String(orderId || ""));
+  quoteSentFeedbackOrderIds.delete(String(orderId || ""));
+  renderAdminLiveOrders();
+  return true;
+}
+
 async function saveAdminLiveOrderUpdate(orderId, { quoteSent = false } = {}) {
   const update = orderUpdateFromForm(orderId);
   const order = liveOrders.find((item) => String(item.id || "") === String(orderId));
-  const isRecoveredLocalOrder = Boolean(order?.localSource) || !/^pbc-\d+-[a-z0-9-]+$/i.test(String(orderId || ""));
+  const recoveredLocalOrder = isRecoveredLocalOrder(orderId, order);
   setAdminMessage(liveOrderStatus, "Saving order update...");
-  if (isRecoveredLocalOrder) {
+  if (recoveredLocalOrder) {
     const localOrder = applyLocalAdminOrderUpdate(orderId, update);
     if (localOrder) {
       renderAdminLiveOrders();
@@ -6583,10 +6642,22 @@ function sendAdminLiveQuote(orderId) {
 }
 
 async function deleteAdminLiveOrder(orderId) {
-  const order = liveOrders.find((item) => item.id === orderId);
+  const order = liveOrders.find((item) => String(item.id || "") === String(orderId || ""));
+  if (isPaidOrderRecord(order)) {
+    setAdminMessage(liveOrderStatus, "Paid orders are protected. Mark this order Canceled or Completed instead of deleting it.");
+    return;
+  }
   const label = order ? `${orderCustomerName(order)} - ${formatOrderMoney(order.total || order.amountTotal, order.currency)}` : orderId;
   if (!window.confirm(`Delete this order from Chey's dashboard?\n\n${label}\n\nOnly delete test, duplicate, or canceled orders.`)) return;
   setAdminMessage(liveOrderStatus, "Deleting order...");
+  if (isRecoveredLocalOrder(orderId, order)) {
+    if (deleteLocalAdminOrder(orderId)) {
+      setAdminMessage(liveOrderStatus, "Recovered order deleted from this device.");
+      return;
+    }
+    setAdminMessage(liveOrderStatus, "This recovered order is no longer available on this device.");
+    return;
+  }
   try {
     const { response, payload } = await fetchJsonWithTimeout(`${ADMIN_ORDERS_ENDPOINT}?orderId=${encodeURIComponent(orderId)}`, {
       method: "DELETE",

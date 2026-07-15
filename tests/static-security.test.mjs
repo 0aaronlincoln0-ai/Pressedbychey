@@ -34,3 +34,13 @@ test("public page exposes basic search and sharing metadata", async () => {
   assert.match(html, /rel="canonical"/);
   assert.match(html, /property="og:title"/);
 });
+
+test("admin order deletion handles recovered orders without weakening paid protection", async () => {
+  const client = await source("script.js");
+  const ordersFunction = await source("netlify/functions/admin-orders.mjs");
+  assert.match(client, /function deleteLocalAdminOrder\(/);
+  assert.match(client, /isRecoveredLocalOrder\(orderId, order\)/);
+  assert.match(client, /Paid orders are protected/);
+  assert.match(ordersFunction, /verifyAdminRequest\(request\)/);
+  assert.match(ordersFunction, /Paid transactions cannot be deleted/);
+});
