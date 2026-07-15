@@ -237,6 +237,19 @@ test("admin exposes the nail size finder tool", async () => {
   assert.match(styles, /\.admin-sizing-overview\s*\{/);
 });
 
+test("size finder and product photos support real mobile capture flows", async () => {
+  const indexHtml = await source("index.html");
+  const adminHtml = await source("admin.html");
+  const client = await source("script.js");
+  assert.doesNotMatch(indexHtml, /capture=/);
+  assert.doesNotMatch(adminHtml, /capture=/);
+  assert.doesNotMatch(client, /setAttribute\("capture"/);
+  assert.match(client, /import\("\.\/assets\/mediapipe\/vision_bundle\.mjs"\)/);
+  assert.match(client, /function sizerAnalyzeCapturedFrame\(canvas, step\)/);
+  assert.match(client, /cameraScanReady/);
+  assert.match(client, /AI found the \$\{step\.finger\} finger/);
+});
+
 test("account hero uses a restrained studio treatment", async () => {
   const styles = await source("styles.css");
   assert.match(styles, /\.account-auth-hero::before\s*\{/);

@@ -651,7 +651,7 @@
           <li>Rest each finger on the screen and match the lines to your nail.</li>
           <li>Save the sizes straight to your nail profile for Chey.</li>
         </ol>
-        <p class="sizer-note">Camera mode is best when you have a standard card nearby. The on-screen guide is the quickest fallback.</p>
+        <p class="sizer-note">AI camera scan finds the selected finger on your device. Keep a standard card beside it for real millimeter scale; the on-screen guide is the fallback.</p>
         <div class="sizer-mode-actions">
           <button class="button primary" type="button" id="sizerUseCamera">Use Live Camera</button>
           <button class="button secondary" type="button" id="sizerStart">Use On-Screen Guide</button>
@@ -660,10 +660,11 @@
 
       <section class="sizer-step" id="sizerStepCamera" hidden>
         <h3 id="sizerCameraTitle">Camera measurement</h3>
-        <p>Place one nail and the short edge of a standard card side by side, flat and in the same plane. Keep both fully inside the frame.</p>
+        <p>Place one nail and the short edge of a standard card side by side, flat and in the same plane. The scanner needs both fully inside the frame.</p>
         <div class="sizer-camera-stage">
           <video id="sizerCameraVideo" autoplay muted playsinline></video>
-          <span class="sizer-camera-frame-hint">Card + nail</span>
+          <span class="sizer-camera-frame-hint">One nail + card</span>
+          <span class="sizer-camera-target" aria-hidden="true">Place one nail and the card inside the frame</span>
         </div>
         <p class="sizer-status" id="sizerCameraStatus" role="status">Camera permission is requested only after you choose Live Camera.</p>
         <div class="sizer-camera-actions">
@@ -692,6 +693,7 @@
       <section class="sizer-step" id="sizerStepMeasure" hidden>
         <h3 id="sizerFingerLabel">Left thumb</h3>
         <p class="sizer-measure-help">Rest this nail flat on the box below, then drag each pink handle until the lines just touch the <strong>widest part of your nail</strong>.</p>
+        <p class="sizer-status" id="sizerScanStatus" role="status" hidden></p>
         <div class="sizer-measure-stage" id="sizerMeasureStage">
           <img id="sizerCameraImage" alt="Captured card and nail reference" hidden />
           <div class="sizer-readout" id="sizerReadout" aria-live="polite">
@@ -1390,6 +1392,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260715-nail-size-finder"></script>
+    <script src="script.js?v=20260715-ai-sizer"></script>
   </body>
 </html>

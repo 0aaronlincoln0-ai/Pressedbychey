@@ -11963,6 +11963,9 @@ input:not(:disabled):not([type="button"]):not([type="submit"]):not([type="reset"
 .sizer-overlay {
   position: fixed;
   inset: 0;
+  box-sizing: border-box;
+  height: 100dvh;
+  max-height: 100dvh;
   z-index: 240;
   display: flex;
   flex-direction: column;
@@ -12130,6 +12133,24 @@ body.sizer-open {
   font-weight: 850;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.sizer-camera-target {
+  position: absolute;
+  inset: 12% 8%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  border: 1px dashed rgba(255, 255, 255, 0.78);
+  border-radius: 16px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 
 .sizer-note {
@@ -12357,6 +12378,10 @@ body.sizer-open {
   font-weight: 700;
 }
 
+.sizer-status.is-error {
+  color: #a3264f;
+}
+
 @media (min-width: 720px) {
   .sizer-overlay {
     padding: 2rem clamp(2rem, 20vw, 18rem);
@@ -12371,7 +12396,20 @@ body.sizer-open {
 
   .sizer-camera-stage,
   .sizer-camera-stage video {
-    min-height: min(54dvh, 390px);
+    min-height: min(46dvh, 330px);
+  }
+
+  .sizer-overlay {
+    gap: 0.65rem;
+    padding: 0.75rem 0.8rem calc(0.85rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .sizer-step {
+    gap: 0.6rem;
+  }
+
+  .sizer-measure-stage {
+    height: min(38dvh, 300px);
   }
 }
 

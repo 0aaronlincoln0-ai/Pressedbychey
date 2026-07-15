@@ -1278,7 +1278,7 @@ function ensurePhotoStudio() {
           </label>
           <label class="photo-studio-replace">
             Replace With New Photo
-            <input data-studio-replace type="file" accept="image/*" capture="environment" />
+            <input data-studio-replace type="file" accept="image/*" />
           </label>
           <div class="photo-studio-actions">
             <button class="button secondary" type="button" data-studio-choose>Choose Different Photo</button>
@@ -2419,7 +2419,6 @@ function ensureAdminInventoryPhotoInput() {
   adminInventoryPhotoInput = document.createElement("input");
   adminInventoryPhotoInput.type = "file";
   adminInventoryPhotoInput.accept = "image/*";
-  adminInventoryPhotoInput.setAttribute("capture", "environment");
   adminInventoryPhotoInput.className = "hidden-file-input";
   document.body.appendChild(adminInventoryPhotoInput);
   adminInventoryPhotoInput.addEventListener("change", handleAdminInventoryPhotoUpload);
@@ -3194,7 +3193,6 @@ function ensureInlineImageInput() {
   adminInlineImageInput = document.createElement("input");
   adminInlineImageInput.type = "file";
   adminInlineImageInput.accept = "image/*";
-  adminInlineImageInput.setAttribute("capture", "environment");
   adminInlineImageInput.className = "hidden-file-input";
   document.body.appendChild(adminInlineImageInput);
   adminInlineImageInput.addEventListener("change", handleInlineImageUpload);
@@ -3205,7 +3203,6 @@ function ensureInlineProductInput() {
   adminInlineProductInput = document.createElement("input");
   adminInlineProductInput.type = "file";
   adminInlineProductInput.accept = "image/*";
-  adminInlineProductInput.setAttribute("capture", "environment");
   adminInlineProductInput.className = "hidden-file-input";
   document.body.appendChild(adminInlineProductInput);
   adminInlineProductInput.addEventListener("change", handleInlineProductAddPhoto);
@@ -8577,7 +8574,6 @@ function renderAdminImages() {
     input.className = "hidden-file-input";
     input.type = "file";
     input.accept = "image/*";
-    input.setAttribute("capture", "environment");
     const uploadLabel = document.createElement("label");
     uploadLabel.className = "professional-upload-zone";
     uploadLabel.htmlFor = inputId;
@@ -9422,7 +9418,7 @@ function renderAdminLookPhotos() {
           ${look.active ? `<button class="button danger subtle-danger" type="button" data-delete-inventory-look="${index}">Delete From Inventory</button>` : ""}
         </div>
         <small class="look-extract-note" data-look-status>${look.photo ? (look.published ? "This design is live in the Shop." : "Photo framed. Add a price, then publish it to the Shop.") : "Take a nail photo, upload it here, then publish it as a product."}</small>
-        <input class="hidden-file-input" id="lookPhoto-${index}" type="file" accept="image/*" capture="environment" data-look-photo="${index}" />
+        <input class="hidden-file-input" id="lookPhoto-${index}" type="file" accept="image/*" data-look-photo="${index}" />
       </div>
       </div>
     `;
@@ -11456,8 +11452,17 @@ const SIZER_SIZE_ZERO_MM = 18.1;
 const SIZER_MM_PER_SIZE = 0.7;
 const SIZER_MIN_MM = 4;
 const SIZER_MAX_MM = 26;
+const SIZER_HAND_MODEL_PATH = "/assets/mediapipe/hand_landmarker.task";
+const SIZER_WASM_PATH = "/assets/mediapipe/wasm";
 const SIZER_FINGER_STEPS = sizeHandKeys.flatMap((hand) => sizeFingerKeys.map((finger) => ({ hand, finger })));
 const SIZER_DEFAULT_FINGER_MM = { thumb: 16.5, index: 13.5, middle: 14.5, ring: 13, pinky: 10.5 };
+const SIZER_FINGER_LANDMARKS = {
+  thumb: { tip: 4, dip: 3 },
+  index: { tip: 8, dip: 7 },
+  middle: { tip: 12, dip: 11 },
+  ring: { tip: 16, dip: 15 },
+  pinky: { tip: 20, dip: 19 }
+};
 
 const sizerOverlay = document.querySelector("#sizerOverlay");
 const sizerProgress = document.querySelector("#sizerProgress");
@@ -11486,6 +11491,7 @@ const sizerReadoutMm = document.querySelector("#sizerReadoutMm");
 const sizerReadoutSize = document.querySelector("#sizerReadoutSize");
 const sizerResultsGrid = document.querySelector("#sizerResultsGrid");
 const sizerStatus = document.querySelector("#sizerStatus");
+const sizerScanStatus = document.querySelector("#sizerScanStatus");
 const sizerSaveProfile = document.querySelector("#sizerSaveProfile");
 const sizerRetakeCamera = document.querySelector("#sizerRetakeCamera");
 
@@ -11504,8 +11510,43 @@ const sizerState = {
   cameraCardRightPx: 0,
   cameraNailLeftPx: 0,
   cameraNailRightPx: 0,
+  cameraImageWidth: 0,
+  cameraImageHeight: 0,
+  cameraScanReady: false,
+  cameraScanStepIndex: -1,
   measurements: { left: {}, right: {} }
 };
+
+let sizerVisionPromise = null;
+
+function sizerSetScanStatus(message, isError = false) {
+  if (!sizerScanStatus) return;
+  sizerScanStatus.hidden = !message;
+  sizerScanStatus.textContent = message || "";
+  sizerScanStatus.classList.toggle("is-error", Boolean(isError));
+}
+
+async function sizerLoadHandLandmarker() {
+  if (!sizerVisionPromise) {
+    sizerVisionPromise = import("./assets/mediapipe/vision_bundle.mjs")
+      .then(async ({ FilesetResolver, HandLandmarker }) => {
+        const vision = await FilesetResolver.forVisionTasks(SIZER_WASM_PATH);
+        return HandLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: SIZER_HAND_MODEL_PATH },
+          runningMode: "IMAGE",
+          numHands: 2,
+          minHandDetectionConfidence: 0.62,
+          minHandPresenceConfidence: 0.62,
+          minTrackingConfidence: 0.62
+        });
+      })
+      .catch((error) => {
+        sizerVisionPromise = null;
+        throw error;
+      });
+  }
+  return sizerVisionPromise;
+}
 
 function sizerIsTouchDevice() {
   return window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
@@ -11528,6 +11569,136 @@ function sizerStepNumber(step) {
 function sizerFingerTitle(step) {
   const hand = step.hand === "left" ? "Left" : "Right";
   return `${hand} ${step.finger} (${sizerStepNumber(step) + 1} of ${SIZER_FINGER_STEPS.length})`;
+}
+
+function sizerClamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function sizerDistance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function sizerSelectDetectedHand(result, step) {
+  const hands = Array.isArray(result?.landmarks) ? result.landmarks : [];
+  if (!hands.length) return null;
+  const desired = step.hand === "left" ? "left" : "right";
+  const matchingIndex = hands.findIndex((_, index) => String(result.handedness?.[index]?.[0]?.categoryName || "").toLowerCase() === desired);
+  const index = matchingIndex >= 0 ? matchingIndex : 0;
+  return { landmarks: hands[index], handedness: result.handedness?.[index]?.[0]?.categoryName || "hand" };
+}
+
+function sizerSamplePixel(data, width, height, x, y) {
+  const px = sizerClamp(Math.round(x), 0, width - 1);
+  const py = sizerClamp(Math.round(y), 0, height - 1);
+  const index = (py * width + px) * 4;
+  return [data[index], data[index + 1], data[index + 2]];
+}
+
+function sizerColorDistance(a, b) {
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
+function sizerEstimateNailGeometry(canvas, landmarks, step) {
+  const landmarkIndexes = SIZER_FINGER_LANDMARKS[step.finger] || SIZER_FINGER_LANDMARKS.index;
+  const tip = landmarks[landmarkIndexes.tip];
+  const dip = landmarks[landmarkIndexes.dip];
+  if (!tip || !dip) return null;
+  const width = canvas.width;
+  const height = canvas.height;
+  const tipPx = { x: tip.x * width, y: tip.y * height };
+  const dipPx = { x: dip.x * width, y: dip.y * height };
+  const fingerLength = sizerDistance(tipPx, dipPx);
+  if (fingerLength < Math.min(width, height) * 0.025) return null;
+  const axis = { x: (tipPx.x - dipPx.x) / fingerLength, y: (tipPx.y - dipPx.y) / fingerLength };
+  const perpendicular = { x: -axis.y, y: axis.x };
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return null;
+  const pixels = context.getImageData(0, 0, width, height).data;
+  const scanRows = [0.18, 0.28, 0.38, 0.48].map((progress) => ({
+    x: tipPx.x - axis.x * fingerLength * progress,
+    y: tipPx.y - axis.y * fingerLength * progress
+  }));
+  const candidates = [];
+  scanRows.forEach((center) => {
+    const samples = [];
+    const halfRange = fingerLength * 0.95;
+    const count = 72;
+    for (let index = 0; index <= count; index += 1) {
+      const position = -1 + (index / count) * 2;
+      const sample = sizerSamplePixel(
+        pixels,
+        width,
+        height,
+        center.x + perpendicular.x * halfRange * position,
+        center.y + perpendicular.y * halfRange * position
+      );
+      samples.push({ position, sample });
+    }
+    const edgeAt = (minPosition, maxPosition) => {
+      let best = null;
+      for (let index = 0; index < samples.length - 1; index += 1) {
+        const current = samples[index];
+        const next = samples[index + 1];
+        if (current.position < minPosition || current.position > maxPosition) continue;
+        const gradient = sizerColorDistance(current.sample, next.sample);
+        if (!best || gradient > best.gradient) best = { position: (current.position + next.position) / 2, gradient };
+      }
+      return best;
+    };
+    const left = edgeAt(-0.92, -0.08);
+    const right = edgeAt(0.08, 0.92);
+    if (!left || !right) return;
+    const edgeWidth = (right.position - left.position) * halfRange;
+    if (edgeWidth < fingerLength * 0.28 || edgeWidth > fingerLength * 1.25) return;
+    candidates.push({
+      center,
+      left,
+      right,
+      widthPx: edgeWidth,
+      score: left.gradient + right.gradient
+    });
+  });
+  const best = candidates.sort((a, b) => b.score - a.score)[0];
+  const fallbackWidth = fingerLength * 0.7;
+  if (!best) {
+    return {
+      center: {
+        x: tipPx.x - axis.x * fingerLength * 0.34,
+        y: tipPx.y - axis.y * fingerLength * 0.34
+      },
+      widthPx: fallbackWidth,
+      confidence: 0.46
+    };
+  }
+  return {
+    center: best.center,
+    widthPx: best.widthPx,
+    confidence: sizerClamp(best.score / 180, 0.48, 0.96)
+  };
+}
+
+function sizerImagePointToStage(point) {
+  const stage = sizerMeasureStage?.getBoundingClientRect();
+  const imageWidth = sizerState.cameraImageWidth || 1;
+  const imageHeight = sizerState.cameraImageHeight || 1;
+  if (!stage) return { x: point.x, y: point.y, scale: 1 };
+  const scale = Math.min(stage.width / imageWidth, stage.height / imageHeight);
+  return {
+    x: (stage.width - imageWidth * scale) / 2 + point.x * scale,
+    y: (stage.height - imageHeight * scale) / 2 + point.y * scale,
+    scale
+  };
+}
+
+async function sizerAnalyzeCapturedFrame(canvas, step) {
+  const handLandmarker = await sizerLoadHandLandmarker();
+  const result = handLandmarker.detect(canvas);
+  const hand = sizerSelectDetectedHand(result, step);
+  if (!hand) throw new Error("No hand detected. Place one nail and the card fully inside the frame, then retake the scan.");
+  const geometry = sizerEstimateNailGeometry(canvas, hand.landmarks, step);
+  if (!geometry) throw new Error("The selected finger was not clear enough to measure. Keep it flat and retake the scan.");
+  return { ...geometry, handedness: hand.handedness };
 }
 
 function sizerLoadCalibration() {
@@ -11556,7 +11727,13 @@ function sizerShowStep(name) {
   if (sizerProgress) sizerProgress.hidden = !["camera", "measure"].includes(name);
   if (name !== "camera") sizerStopCamera();
   if (name === "calibrate") sizerRenderCardBox();
-  if (name === "camera") sizerStartCamera();
+  if (name === "camera") {
+    sizerState.cameraImageSrc = "";
+    sizerState.cameraScanReady = false;
+    sizerState.cameraScanStepIndex = -1;
+    sizerSetScanStatus("");
+    sizerStartCamera();
+  }
   if (name === "measure") sizerRenderMeasureStep();
 }
 
@@ -11598,8 +11775,9 @@ function sizerRenderMeasureStep() {
   if (sizerRetakeCamera) sizerRetakeCamera.hidden = !isCamera;
   const help = document.querySelector(".sizer-measure-help");
   if (help) help.innerHTML = isCamera
-    ? "First match the white lines to the card's short edges. Then match the pink lines to the <strong>widest part of the nail</strong>."
+    ? "The scanner places the pink lines on the selected finger. First match the white lines to the card's short edges, then make a small final adjustment at the <strong>widest part of the nail</strong>."
     : "Rest this nail flat on the box below, then drag each pink handle until the lines just touch the <strong>widest part of your nail</strong>.";
+  if (!isCamera) sizerSetScanStatus("");
   const savedMm = Number(sizerState.measurements[step.hand]?.[step.finger]);
   const startMm = savedMm > 0 ? savedMm : SIZER_DEFAULT_FINGER_MM[step.finger] || 13;
   if (isCamera) {
@@ -11624,6 +11802,7 @@ function sizerRenderMeasureStep() {
 
 function sizerCurrentMm() {
   if (sizerState.mode === "camera" && sizerState.cameraImageSrc) {
+    if (!sizerState.cameraScanReady) return 0;
     const cardWidth = sizerState.cameraCardRightPx - sizerState.cameraCardLeftPx;
     const nailWidth = sizerState.cameraNailRightPx - sizerState.cameraNailLeftPx;
     return cardWidth > 0 ? (nailWidth / cardWidth) * SIZER_CARD_SHORT_EDGE_MM : 0;
@@ -11646,6 +11825,11 @@ function sizerRenderGuides() {
     }
   }
   const mm = sizerCurrentMm();
+  if (isCamera && !sizerState.cameraScanReady) {
+    if (sizerReadoutMm) sizerReadoutMm.textContent = "-- mm";
+    if (sizerReadoutSize) sizerReadoutSize.textContent = "Scan required";
+    return;
+  }
   if (sizerReadoutMm) sizerReadoutMm.textContent = `${mm.toFixed(1)} mm`;
   const size = sizerSizeFromMm(mm);
   if (sizerReadoutSize) sizerReadoutSize.textContent = size ? `Size ${size}` : "Keep adjusting";
@@ -11717,7 +11901,7 @@ async function sizerSwitchCamera() {
   await sizerStartCamera();
 }
 
-function sizerCaptureCamera() {
+async function sizerCaptureCamera() {
   if (!sizerCameraVideo || !sizerState.cameraStream || sizerCameraVideo.readyState < 2) {
     if (sizerCameraStatus) sizerCameraStatus.textContent = "Wait for the live preview, then capture again.";
     return;
@@ -11728,9 +11912,30 @@ function sizerCaptureCamera() {
   const context = canvas.getContext("2d");
   if (!context) return;
   context.drawImage(sizerCameraVideo, 0, 0, canvas.width, canvas.height);
+  const step = sizerCurrentStep();
   sizerState.cameraImageSrc = canvas.toDataURL("image/jpeg", 0.92);
+  sizerState.cameraImageWidth = canvas.width;
+  sizerState.cameraImageHeight = canvas.height;
+  sizerState.cameraScanReady = false;
+  sizerState.cameraScanStepIndex = sizerState.stepIndex;
   sizerStopCamera();
   sizerShowStep("measure");
+  sizerSetScanStatus("Scanning the selected finger on this device...");
+  try {
+    const analysis = await sizerAnalyzeCapturedFrame(canvas, step);
+    const point = sizerImagePointToStage(analysis.center);
+    const stageWidth = sizerMeasureStage?.getBoundingClientRect().width || 320;
+    const scaledWidth = Math.min(stageWidth - 20, analysis.widthPx * point.scale);
+    sizerState.cameraNailLeftPx = point.x - scaledWidth / 2;
+    sizerState.cameraNailRightPx = point.x + scaledWidth / 2;
+    sizerState.guideLeftPx = sizerState.cameraNailLeftPx;
+    sizerState.guideRightPx = sizerState.cameraNailRightPx;
+    sizerState.cameraScanReady = true;
+    sizerSetScanStatus(`AI found the ${step.finger} finger. Align the white lines to the card edges, then confirm the pink lines at the nail's widest point.`);
+    sizerRenderGuides();
+  } catch (error) {
+    sizerSetScanStatus(error.message || "The scanner could not find a clear hand. Retake the photo with one nail and the card fully visible.", true);
+  }
 }
 
 function sizerOpen() {
@@ -11902,6 +12107,10 @@ function setupNailSizer() {
   });
   document.querySelector("#sizerNext")?.addEventListener("click", () => {
     const step = sizerCurrentStep();
+    if (sizerState.mode === "camera" && (!sizerState.cameraImageSrc || !sizerState.cameraScanReady)) {
+      sizerSetScanStatus("Capture a clear scan first. The size is locked until the AI finds the selected finger.", true);
+      return;
+    }
     const mm = sizerCurrentMm();
     if (mm >= SIZER_MIN_MM && mm <= SIZER_MAX_MM) sizerState.measurements[step.hand][step.finger] = mm;
     sizerAdvance();
