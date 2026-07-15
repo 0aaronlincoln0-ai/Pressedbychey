@@ -3751,7 +3751,7 @@ function mergeCustomerIntoLocal(customer = {}, password = "") {
     name: customer.name || existing.name || email.split("@")[0],
     email,
     accountStatus: customer.accountStatus || existing.accountStatus || "active",
-    isAdmin: customer.isAdmin === true || existing.isAdmin === true,
+    isAdmin: typeof customer.isAdmin === "boolean" ? customer.isAdmin : existing.isAdmin === true,
     sizes: normalizeCustomerSizes(customer.sizes || existing.sizes),
     savedProducts: Array.isArray(customer.savedProducts) ? customer.savedProducts : existing.savedProducts || [],
     orders: Array.isArray(customer.orders) ? customer.orders : existing.orders || [],
