@@ -331,6 +331,7 @@ const LIVE_REQUEST_TIMEOUT_MS = 18000;
 const ADMIN_ORDER_REFRESH_MS = 10000;
 const CUSTOMER_QUOTE_REFRESH_MS = 5000;
 const CUSTOMER_MESSAGE_REFRESH_MS = 4000;
+const PRESENCE_REFRESH_MS = 20000;
 const ADMIN_ORDER_PAGE_SIZE = 25;
 const ADMIN_CUSTOMER_PAGE_SIZE = 25;
 const PRO_NOTE_PAGE_SIZE = 12;
@@ -353,6 +354,8 @@ let customerQuoteRefreshTimer = null;
 let customerMessageRefreshTimer = null;
 let adminMessageRefreshInFlight = false;
 let customerMessageRefreshInFlight = false;
+let adminPresenceLastSentAt = 0;
+let customerPresenceLastSentAt = 0;
 let adminSession = null;
 let customerConversation = null;
 let adminConversations = [];
@@ -4042,7 +4045,12 @@ function renderCustomerMessages() {
   if (customerMessageCount) customerMessageCount.textContent = `${String(customerMessageInput?.value || "").length}/2400`;
   if (customerMessagesStatus) {
     const unread = Number(customerConversation?.customerUnread || 0);
-    customerMessagesStatus.textContent = unread ? messageCountLabel(unread) : (hasAccess ? "Live support" : "Sign in required");
+    const presenceKnown = Boolean(customerConversation?.presence && Object.prototype.hasOwnProperty.call(customerConversation.presence, "cheyOnline"));
+    const cheyOnline = presenceKnown && Boolean(customerConversation.presence.cheyOnline);
+    const presenceLabel = !hasAccess ? "Sign in required" : !presenceKnown ? "Checking Chey's status..." : `Chey is ${cheyOnline ? "online" : "offline"}`;
+    customerMessagesStatus.classList.toggle("is-online", hasAccess && presenceKnown && cheyOnline);
+    customerMessagesStatus.classList.toggle("is-offline", hasAccess && presenceKnown && !cheyOnline);
+    customerMessagesStatus.textContent = unread ? `${messageCountLabel(unread)} - ${presenceLabel}` : presenceLabel;
   }
 }
 
@@ -4056,6 +4064,15 @@ async function refreshCustomerMessages({ silent = true } = {}) {
   try {
     const data = await customerMessagesRequest("get");
     customerConversation = data.conversation || null;
+    if (Date.now() - customerPresenceLastSentAt >= PRESENCE_REFRESH_MS) {
+      try {
+        const presenceData = await customerMessagesRequest("presence");
+        customerConversation = { ...(customerConversation || {}), presence: presenceData.presence || customerConversation?.presence };
+        customerPresenceLastSentAt = Date.now();
+      } catch {
+        // Presence is helpful but should never interrupt message refreshes.
+      }
+    }
     renderCustomerMessages();
     if (customerAccountPageIsOpen() && Number(customerConversation?.customerUnread || 0) > 0) {
       const readData = await customerMessagesRequest("mark-read");
@@ -4072,6 +4089,7 @@ async function refreshCustomerMessages({ silent = true } = {}) {
 
 function startCustomerMessageRefresh() {
   if (customerMessageRefreshTimer) return;
+  customerPresenceLastSentAt = 0;
   refreshCustomerMessages();
   customerMessageRefreshTimer = window.setInterval(() => refreshCustomerMessages(), CUSTOMER_MESSAGE_REFRESH_MS);
 }
@@ -4080,6 +4098,7 @@ function stopCustomerMessageRefresh() {
   if (!customerMessageRefreshTimer) return;
   window.clearInterval(customerMessageRefreshTimer);
   customerMessageRefreshTimer = null;
+  customerPresenceLastSentAt = 0;
 }
 
 function openCustomerMessages() {
@@ -4249,7 +4268,7 @@ function renderAdminMessageList() {
   if (!adminConversationList) return;
   const listKey = JSON.stringify({
     activeEmail: activeAdminMessageEmail,
-    conversations: adminConversations.map((conversation) => [conversation.email, conversation.name, conversation.updatedAt, conversation.adminUnread, conversation.lastMessage?.body || ""])
+    conversations: adminConversations.map((conversation) => [conversation.email, conversation.name, conversation.updatedAt, conversation.adminUnread, conversation.customerOnline, conversation.lastMessage?.body || ""])
   });
   if (adminConversationList.dataset.renderKey !== listKey) {
     const conversationListIntro = `<div class="admin-conversation-list-intro"><strong>Choose a customer</strong><span>Click a conversation below to open the chat. To start a new one, use <b>Message Customer</b> from the Customers tab.</span></div>`;
@@ -4258,6 +4277,7 @@ function renderAdminMessageList() {
         <button class="admin-conversation-item ${conversation.email === activeAdminMessageEmail ? "is-active" : ""}" type="button" data-admin-conversation-email="${escapeAttribute(conversation.email)}" aria-label="Open conversation with ${escapeAttribute(conversation.name || conversation.email)}" aria-pressed="${conversation.email === activeAdminMessageEmail ? "true" : "false"}">
           <span class="admin-conversation-item-head"><strong>${escapeHTML(conversation.name || conversation.email)}</strong>${conversation.adminUnread ? `<b>${conversation.adminUnread > 99 ? "99+" : conversation.adminUnread}</b>` : ""}</span>
           <small>${escapeHTML(conversation.email)}</small>
+          <small class="admin-conversation-presence ${conversation.customerOnline ? "is-online" : "is-offline"}">${conversation.customerOnline ? "Customer is online" : "Customer is offline"}</small>
           <p>${escapeHTML(conversation.lastMessage?.body || "No messages yet")}</p>
           <time>${escapeHTML(messageDateLabel(conversation.updatedAt))}</time>
         </button>
@@ -4294,9 +4314,12 @@ function renderAdminMessageThread() {
     if (adminMessageCount) adminMessageCount.textContent = `${String(adminMessageInput?.value || "").length}/2400`;
     return;
   }
-  const headingKey = `${activeAdminMessageEmail}|${activeAdminConversation.name || ""}`;
+  const presenceKnown = Boolean(activeAdminConversation.presence && Object.prototype.hasOwnProperty.call(activeAdminConversation.presence, "customerOnline"));
+  const customerOnline = presenceKnown && Boolean(activeAdminConversation.presence.customerOnline);
+  const presenceLabel = !presenceKnown ? "Checking customer status..." : `Customer is ${customerOnline ? "online" : "offline"}`;
+  const headingKey = `${activeAdminMessageEmail}|${activeAdminConversation.name || ""}|${presenceLabel}`;
   if (adminConversationHeading.dataset.renderKey !== headingKey) {
-    adminConversationHeading.innerHTML = `<span class="chat-avatar chat-avatar-customer" aria-hidden="true">${escapeHTML((activeAdminConversation.name || "C").slice(0, 1).toUpperCase())}</span><div><strong>${escapeHTML(activeAdminConversation.name || activeAdminConversation.email)}</strong><span>${escapeHTML(activeAdminConversation.email)}</span></div><button class="chat-delete-button" type="button" data-delete-conversation aria-label="Delete conversation" title="Delete conversation"><span aria-hidden="true">&#128465;</span></button>`;
+    adminConversationHeading.innerHTML = `<span class="chat-avatar chat-avatar-customer" aria-hidden="true">${escapeHTML((activeAdminConversation.name || "C").slice(0, 1).toUpperCase())}</span><div><strong>${escapeHTML(activeAdminConversation.name || activeAdminConversation.email)}</strong><span>${escapeHTML(activeAdminConversation.email)}</span><span class="chat-presence ${presenceKnown && customerOnline ? "is-online" : presenceKnown ? "is-offline" : "is-checking"}">${presenceLabel}</span></div><button class="chat-delete-button" type="button" data-delete-conversation aria-label="Delete conversation" title="Delete conversation"><span aria-hidden="true">&#128465;</span></button>`;
     adminConversationHeading.dataset.renderKey = headingKey;
   }
   const threadChanged = renderMessageThread(adminMessageThread, activeAdminConversation, "Start the conversation with a helpful note from Chey.", "admin", activeAdminMessageEmail);
@@ -4322,7 +4345,7 @@ async function fetchAdminConversation(email, { showStatus = true } = {}) {
       activeAdminConversation = data.conversation || activeAdminConversation;
     }
     adminConversations = adminConversations.map((conversation) => conversation.email === email
-      ? { ...conversation, adminUnread: 0, updatedAt: activeAdminConversation.updatedAt, lastMessage: activeAdminConversation.messages.at(-1) || conversation.lastMessage }
+      ? { ...conversation, adminUnread: 0, customerOnline: activeAdminConversation.presence?.customerOnline ?? conversation.customerOnline, customerLastSeen: activeAdminConversation.presence?.customerLastSeen || conversation.customerLastSeen, updatedAt: activeAdminConversation.updatedAt, lastMessage: activeAdminConversation.messages.at(-1) || conversation.lastMessage }
       : conversation);
     renderAdminMessageList();
     renderAdminMessageThread();
@@ -4338,6 +4361,14 @@ async function fetchAdminMessages({ showStatus = true } = {}) {
   adminMessageRefreshInFlight = true;
   if (showStatus && adminMessagesStatus) adminMessagesStatus.textContent = "Loading messages...";
   try {
+    if (Date.now() - adminPresenceLastSentAt >= PRESENCE_REFRESH_MS) {
+      try {
+        await adminMessagesRequest("presence");
+        adminPresenceLastSentAt = Date.now();
+      } catch {
+        // Presence is helpful but should never interrupt the inbox refresh.
+      }
+    }
     const data = await adminMessagesRequest("list");
     adminConversations = Array.isArray(data.conversations) ? data.conversations : [];
     const nextEmail = activeAdminMessageEmail

@@ -1342,6 +1342,13 @@ img[data-photo-position="right"] {
   opacity: 0.52;
 }
 
+/* Store photos stay still; the chat has its own purposeful motion. */
+.nail-preview::after,
+.photo-preview::after {
+  content: none;
+  animation: none;
+}
+
 .nail-preview span,
 .builder-preview .finger i {
   position: relative;
@@ -10529,6 +10536,58 @@ body.admin-inventory-open {
   box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.13);
   content: "";
   animation: chatLivePulse 2.2s ease-in-out infinite;
+}
+
+.chat-live-status.is-offline {
+  color: #6b7280;
+}
+
+.chat-live-status.is-offline::before {
+  background: #9ca3af;
+  box-shadow: 0 0 0 4px rgba(156, 163, 175, 0.16);
+  animation: none;
+}
+
+.chat-presence,
+.admin-conversation-presence {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.34rem;
+  color: #6b7280 !important;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+}
+
+.chat-presence::before,
+.admin-conversation-presence::before {
+  width: 0.42rem;
+  height: 0.42rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #9ca3af;
+  content: "";
+}
+
+.chat-presence.is-online,
+.admin-conversation-presence.is-online {
+  color: #15803d !important;
+}
+
+.chat-presence.is-online::before,
+.admin-conversation-presence.is-online::before {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
+}
+
+.chat-presence.is-checking {
+  color: #a16207 !important;
+}
+
+.chat-presence.is-checking::before {
+  background: #eab308;
+  animation: chatLivePulse 1.5s ease-in-out infinite;
 }
 
 .chat-delete-button,
