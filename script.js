@@ -144,6 +144,7 @@ const customerMessageThread = document.querySelector("#customerMessageThread");
 const customerMessageForm = document.querySelector("#customerMessageForm");
 const customerMessageInput = document.querySelector("#customerMessageInput");
 const customerMessageSend = document.querySelector("#customerMessageSend");
+const customerMessageCount = document.querySelector("#customerMessageCount");
 const adminMessagesStatus = document.querySelector("#adminMessagesStatus");
 const refreshAdminMessagesButton = document.querySelector("#refreshAdminMessages");
 const adminConversationList = document.querySelector("#adminConversationList");
@@ -152,6 +153,7 @@ const adminMessageThread = document.querySelector("#adminMessageThread");
 const adminMessageForm = document.querySelector("#adminMessageForm");
 const adminMessageInput = document.querySelector("#adminMessageInput");
 const adminMessageSend = document.querySelector("#adminMessageSend");
+const adminMessageCount = document.querySelector("#adminMessageCount");
 const adminMessagesTabBadge = document.querySelector("#adminMessagesTabBadge");
 const adminCustomerCountBadge = document.querySelector("#adminCustomerCountBadge");
 const adminCustomerSummary = document.querySelector("#adminCustomerSummary");
@@ -321,7 +323,7 @@ const CUSTOM_ORDER_MAX_PHOTO_SIZE = 1600;
 const LIVE_REQUEST_TIMEOUT_MS = 18000;
 const ADMIN_ORDER_REFRESH_MS = 10000;
 const CUSTOMER_QUOTE_REFRESH_MS = 5000;
-const CUSTOMER_MESSAGE_REFRESH_MS = 10000;
+const CUSTOMER_MESSAGE_REFRESH_MS = 4000;
 const ADMIN_ORDER_PAGE_SIZE = 25;
 const ADMIN_CUSTOMER_PAGE_SIZE = 25;
 const PRO_NOTE_PAGE_SIZE = 12;
@@ -342,6 +344,8 @@ let adminLiveOrderRefreshTimer = null;
 let adminMessageRefreshTimer = null;
 let customerQuoteRefreshTimer = null;
 let customerMessageRefreshTimer = null;
+let adminMessageRefreshInFlight = false;
+let customerMessageRefreshInFlight = false;
 let adminSession = null;
 let customerConversation = null;
 let adminConversations = [];
@@ -3890,6 +3894,12 @@ function messageDateLabel(value = "") {
   return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+function messageDayLabel(value = "") {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+}
+
 function customerMessagePassword() {
   const user = currentCustomer();
   return customerSessionPasswords.get(String(user?.email || "").toLowerCase()) || "";
@@ -3936,18 +3946,34 @@ function renderMessageChrome() {
   });
 }
 
-function messageThreadMarkup(conversation, emptyLabel = "Your conversation with Chey will appear here.") {
+function messageThreadMarkup(conversation, emptyLabel = "Your conversation with Chey will appear here.", viewer = "customer") {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   if (!messages.length) return `<div class="message-thread-empty"><strong>No messages yet</strong><span>${escapeHTML(emptyLabel)}</span></div>`;
-  return messages.map((message) => `
-    <article class="message-bubble-row ${message.sender === "customer" ? "is-customer" : "is-chey"}">
-      <div class="message-bubble-card">
-        <span>${message.sender === "customer" ? "You" : "Chey"}</span>
-        <p>${escapeHTML(message.body)}</p>
-        <small>${escapeHTML(messageDateLabel(message.createdAt))}</small>
-      </div>
-    </article>
-  `).join("");
+  const outgoingSender = viewer === "admin" ? "chey" : "customer";
+  const lastOutgoingIndex = messages.reduce((last, message, index) => message.sender === outgoingSender ? index : last, -1);
+  let previousSender = "";
+  let previousDay = "";
+  return messages.map((message, index) => {
+    const outgoing = message.sender === outgoingSender;
+    const day = messageDayLabel(message.createdAt);
+    const grouped = previousSender === message.sender && previousDay === day;
+    const senderLabel = message.sender === "customer" ? (viewer === "admin" ? conversation.name || "Customer" : "You") : "Chey";
+    const dayDivider = day && day !== previousDay ? `<div class="message-day-divider"><span>${escapeHTML(day)}</span></div>` : "";
+    const delivery = outgoing && index === lastOutgoingIndex
+      ? `<span class="message-delivery-state">${message.readAt ? `Read ${escapeHTML(messageDateLabel(message.readAt))}` : "Delivered"}</span>`
+      : "";
+    previousSender = message.sender;
+    previousDay = day;
+    return `${dayDivider}
+      <article class="message-bubble-row ${outgoing ? "is-outgoing" : "is-incoming"} ${message.sender === "customer" ? "is-customer" : "is-chey"} ${grouped ? "is-grouped" : ""}" data-message-id="${escapeAttribute(message.id)}">
+        <div class="message-bubble-avatar" aria-hidden="true">${message.sender === "customer" ? (viewer === "admin" ? "C" : "Y") : "C"}</div>
+        <div class="message-bubble-card">
+          ${grouped ? "" : `<span class="message-bubble-sender">${escapeHTML(senderLabel)}</span>`}
+          <p>${escapeHTML(message.body)}</p>
+          <div class="message-bubble-meta"><time datetime="${escapeAttribute(message.createdAt)}">${escapeHTML(messageDateLabel(message.createdAt))}</time>${delivery}</div>
+        </div>
+      </article>`;
+  }).join("");
 }
 
 function renderCustomerMessages() {
@@ -3956,13 +3982,14 @@ function renderCustomerMessages() {
   if (!customerMessageThread || !customerMessageForm) return;
   const hasAccess = Boolean(user && customerMessagePassword());
   customerMessageThread.innerHTML = user
-    ? messageThreadMarkup(customerConversation, hasAccess ? "Send Chey a message about your order or design." : "Sign in again to load your live conversation.")
+    ? messageThreadMarkup(customerConversation, hasAccess ? "Send Chey a message about your order or design." : "Sign in again to load your live conversation.", "customer")
     : `<div class="message-thread-empty"><strong>Sign in to message Chey</strong><span>Your customer account keeps your conversation and order updates together.</span></div>`;
   if (customerMessageInput) {
     customerMessageInput.disabled = !hasAccess;
     customerMessageInput.placeholder = hasAccess ? "Write a message for Chey..." : "Sign in again to message Chey...";
   }
   if (customerMessageSend) customerMessageSend.disabled = !hasAccess;
+  if (customerMessageCount) customerMessageCount.textContent = `${String(customerMessageInput?.value || "").length}/2400`;
   if (customerMessagesStatus) {
     const unread = Number(customerConversation?.customerUnread || 0);
     customerMessagesStatus.textContent = unread ? messageCountLabel(unread) : (hasAccess ? "Live support" : "Sign in required");
@@ -3974,6 +4001,8 @@ async function refreshCustomerMessages({ silent = true } = {}) {
     renderCustomerMessages();
     return;
   }
+  if (customerMessageRefreshInFlight) return;
+  customerMessageRefreshInFlight = true;
   try {
     const data = await customerMessagesRequest("get");
     customerConversation = data.conversation || null;
@@ -3986,6 +4015,8 @@ async function refreshCustomerMessages({ silent = true } = {}) {
   } catch (error) {
     if (!silent && customerMessagesStatus) customerMessagesStatus.textContent = error.message || "Messages unavailable";
     renderCustomerMessages();
+  } finally {
+    customerMessageRefreshInFlight = false;
   }
 }
 
@@ -4019,17 +4050,33 @@ async function sendCustomerMessage(event) {
   const body = customerMessageInput?.value.trim() || "";
   if (!body || !customerMessagePassword()) return;
   if (customerMessageSend) customerMessageSend.disabled = true;
+  customerMessageSend?.classList.add("is-sending");
   try {
     const data = await customerMessagesRequest("send", { body });
     customerConversation = data.conversation || customerConversation;
     if (customerMessageInput) customerMessageInput.value = "";
     renderCustomerMessages();
+    if (customerMessagesStatus) customerMessagesStatus.textContent = "Delivered just now";
     customerMessageThread?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   } catch (error) {
     if (customerMessagesStatus) customerMessagesStatus.textContent = error.message || "Message could not be sent.";
   } finally {
-    if (customerMessageSend) customerMessageSend.disabled = false;
+    if (customerMessageSend) customerMessageSend.disabled = !customerMessagePassword();
+    customerMessageSend?.classList.remove("is-sending");
   }
+}
+
+function syncMessageComposer(input, count) {
+  if (!input) return;
+  if (count) count.textContent = `${input.value.length}/2400`;
+  input.style.height = "auto";
+  input.style.height = `${Math.min(Math.max(input.scrollHeight, 48), 150)}px`;
+}
+
+function submitMessageOnEnter(event, form) {
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  form?.requestSubmit();
 }
 
 function adminUnreadMessageCount() {
@@ -4058,19 +4105,21 @@ function renderAdminMessageList() {
 function renderAdminMessageThread() {
   if (!adminConversationHeading || !adminMessageThread) return;
   if (!activeAdminConversation) {
-    adminConversationHeading.innerHTML = "<strong>Select a customer</strong><span>Messages will appear here.</span>";
+    adminConversationHeading.innerHTML = '<span class="chat-avatar chat-avatar-customer" aria-hidden="true">?</span><div><strong>Select a customer</strong><span>Messages will appear here.</span></div>';
     adminMessageThread.innerHTML = `<div class="message-thread-empty"><strong>Your customer-care inbox is ready</strong><span>Select a conversation to reply with fit help, order updates, or design guidance.</span></div>`;
     if (adminMessageInput) adminMessageInput.disabled = true;
     if (adminMessageSend) adminMessageSend.disabled = true;
+    if (adminMessageCount) adminMessageCount.textContent = "0/2400";
     return;
   }
-  adminConversationHeading.innerHTML = `<strong>${escapeHTML(activeAdminConversation.name || activeAdminConversation.email)}</strong><span>${escapeHTML(activeAdminConversation.email)}</span>`;
-  adminMessageThread.innerHTML = messageThreadMarkup(activeAdminConversation, "Start the conversation with a helpful note from Chey.");
+  adminConversationHeading.innerHTML = `<span class="chat-avatar chat-avatar-customer" aria-hidden="true">${escapeHTML((activeAdminConversation.name || "C").slice(0, 1).toUpperCase())}</span><div><strong>${escapeHTML(activeAdminConversation.name || activeAdminConversation.email)}</strong><span>${escapeHTML(activeAdminConversation.email)}</span></div>`;
+  adminMessageThread.innerHTML = messageThreadMarkup(activeAdminConversation, "Start the conversation with a helpful note from Chey.", "admin");
   if (adminMessageInput) {
     adminMessageInput.disabled = false;
     adminMessageInput.placeholder = "Reply to this customer...";
   }
   if (adminMessageSend) adminMessageSend.disabled = false;
+  if (adminMessageCount) adminMessageCount.textContent = `${String(adminMessageInput?.value || "").length}/2400`;
   adminMessageThread.lastElementChild?.scrollIntoView({ block: "nearest" });
 }
 
@@ -4099,6 +4148,8 @@ async function fetchAdminConversation(email) {
 
 async function fetchAdminMessages({ showStatus = true } = {}) {
   if (!isAdminSignedIn()) return;
+  if (adminMessageRefreshInFlight) return;
+  adminMessageRefreshInFlight = true;
   if (showStatus && adminMessagesStatus) adminMessagesStatus.textContent = "Loading messages...";
   try {
     const data = await adminMessagesRequest("list");
@@ -4116,6 +4167,8 @@ async function fetchAdminMessages({ showStatus = true } = {}) {
     }
   } catch (error) {
     if (adminMessagesStatus) adminMessagesStatus.textContent = error.message || "Messages unavailable.";
+  } finally {
+    adminMessageRefreshInFlight = false;
   }
 }
 
@@ -4124,6 +4177,7 @@ async function sendAdminMessage(event) {
   const body = adminMessageInput?.value.trim() || "";
   if (!body || !activeAdminMessageEmail) return;
   if (adminMessageSend) adminMessageSend.disabled = true;
+  adminMessageSend?.classList.add("is-sending");
   try {
     const data = await adminMessagesRequest("send", { email: activeAdminMessageEmail, body });
     activeAdminConversation = data.conversation || activeAdminConversation;
@@ -4134,6 +4188,7 @@ async function sendAdminMessage(event) {
     if (adminMessagesStatus) adminMessagesStatus.textContent = error.message || "Reply could not be sent.";
   } finally {
     if (adminMessageSend) adminMessageSend.disabled = false;
+    adminMessageSend?.classList.remove("is-sending");
   }
 }
 
@@ -6395,6 +6450,10 @@ adminExitMode?.addEventListener("click", logoutAdmin);
 messageBubble?.addEventListener("click", openCustomerMessages);
 customerMessageForm?.addEventListener("submit", sendCustomerMessage);
 adminMessageForm?.addEventListener("submit", sendAdminMessage);
+customerMessageInput?.addEventListener("input", () => syncMessageComposer(customerMessageInput, customerMessageCount));
+customerMessageInput?.addEventListener("keydown", (event) => submitMessageOnEnter(event, customerMessageForm));
+adminMessageInput?.addEventListener("input", () => syncMessageComposer(adminMessageInput, adminMessageCount));
+adminMessageInput?.addEventListener("keydown", (event) => submitMessageOnEnter(event, adminMessageForm));
 refreshAdminMessagesButton?.addEventListener("click", () => fetchAdminMessages({ showStatus: true }));
 adminConversationList?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-admin-conversation-email]");

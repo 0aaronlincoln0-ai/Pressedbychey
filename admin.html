@@ -698,18 +698,19 @@
             <p class="admin-status" id="adminMessagesStatus" role="status"></p>
             <div class="admin-message-layout">
               <aside class="admin-conversation-list" id="adminConversationList" aria-label="Customer conversations"></aside>
-              <section class="admin-conversation-panel" aria-label="Selected conversation">
+              <section class="admin-conversation-panel chat-surface" aria-label="Selected conversation">
                 <div class="admin-conversation-heading" id="adminConversationHeading">
                   <strong>Select a customer</strong>
                   <span>Messages will appear here.</span>
                 </div>
-                <div class="admin-message-thread" id="adminMessageThread" aria-live="polite"></div>
-                <form class="admin-message-form" id="adminMessageForm">
+                <div class="admin-message-thread chat-thread" id="adminMessageThread" aria-live="polite" aria-label="Customer conversation"></div>
+                <form class="admin-message-form chat-composer" id="adminMessageForm">
                   <label class="sr-only" for="adminMessageInput">Message customer</label>
-                  <textarea id="adminMessageInput" maxlength="2400" placeholder="Select a customer to reply..." required disabled></textarea>
-                  <div class="admin-message-form-footer">
+                  <textarea id="adminMessageInput" maxlength="2400" rows="1" placeholder="Select a customer to reply..." required disabled></textarea>
+                  <div class="admin-message-form-footer chat-composer-footer">
                     <span>Replies appear on the customer account page.</span>
-                    <button class="button primary" type="submit" id="adminMessageSend" disabled>Send Reply</button>
+                    <span class="chat-character-count" id="adminMessageCount">0/2400</span>
+                    <button class="button primary chat-send-button" type="submit" id="adminMessageSend" aria-label="Send reply" disabled><span class="chat-send-icon" aria-hidden="true">&#8593;</span><span>Send</span></button>
                   </div>
                 </form>
               </section>
