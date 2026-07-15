@@ -285,6 +285,7 @@ let quoteSentFeedbackOrderIds = new Set();
 let adminOrderPage = 1;
 let selectedAdminOrderId = "";
 let proNotePage = 1;
+const expandedProNoteIds = new Set();
 let adminLiveOrderRefreshTimer = null;
 let customerQuoteRefreshTimer = null;
 let adminSession = null;
@@ -9149,6 +9150,16 @@ function proNoteMeta(note) {
   `;
 }
 
+function proNoteStableId(note = {}, index = 0) {
+  return note.id || `pro-note-index-${index}`;
+}
+
+function proNotePreviewText(note = {}) {
+  const text = String(note.body || "").replace(/\s+/g, " ").trim();
+  if (!text) return "No details written yet.";
+  return text.length > 170 ? `${text.slice(0, 167)}...` : text;
+}
+
 function renderProNotes(options = {}) {
   if (!proNotesList) return;
   adminState.proNotes = Array.isArray(adminState.proNotes) ? adminState.proNotes : [];
@@ -9176,34 +9187,44 @@ function renderProNotes(options = {}) {
     proNotesPagination.innerHTML = proNotePaginationMarkup(pageCount);
   }
   proNotesList.innerHTML = pageNotes.length
-    ? pageNotes.map(({ note, index }) => `
-        <article class="pro-note-card admin-control" data-pro-note-card="${index}">
+    ? pageNotes.map(({ note, index }) => {
+      const noteId = proNoteStableId(note, index);
+      const isExpanded = expandedProNoteIds.has(noteId);
+      return `
+        <article class="pro-note-card admin-control${isExpanded ? " is-expanded" : ""}" data-pro-note-card="${index}" data-pro-note-id="${escapeAttribute(noteId)}">
           <div class="pro-note-card-head">
             <div>
               <strong>${escapeHTML(note.title || "Untitled note")}</strong>
               <p>${escapeHTML(note.updatedAt || note.createdAt || "Saved note")}</p>
             </div>
-            <button class="delete-product" type="button" data-delete-pro-note="${index}">Remove</button>
+            <div class="pro-note-card-actions">
+              <button class="pro-note-toggle" type="button" data-toggle-pro-note="${escapeAttribute(noteId)}" aria-expanded="${isExpanded ? "true" : "false"}">${isExpanded ? "Close" : "Open"}</button>
+              <button class="delete-product" type="button" data-delete-pro-note="${index}">Remove</button>
+            </div>
           </div>
           ${proNoteMeta(note)}
-          <label>Title <input data-pro-note="${index}" data-field="title" value="${escapeAttribute(note.title || "")}" /></label>
-          <div class="admin-field-row">
-            <label>Category
-              <select data-pro-note="${index}" data-field="category">${proNoteCategoryOptions(note.category || "Order")}</select>
-            </label>
-            <label>Priority
-              <select data-pro-note="${index}" data-field="priority">${proNotePriorityOptions(note.priority || "Medium")}</select>
-            </label>
+          <p class="pro-note-preview">${escapeHTML(proNotePreviewText(note))}</p>
+          <div class="pro-note-edit-fields" ${isExpanded ? "" : "hidden"}>
+            <label>Title <input data-pro-note="${index}" data-field="title" value="${escapeAttribute(note.title || "")}" /></label>
+            <div class="admin-field-row">
+              <label>Category
+                <select data-pro-note="${index}" data-field="category">${proNoteCategoryOptions(note.category || "Order")}</select>
+              </label>
+              <label>Priority
+                <select data-pro-note="${index}" data-field="priority">${proNotePriorityOptions(note.priority || "Medium")}</select>
+              </label>
+            </div>
+            <div class="admin-field-row">
+              <label>Status
+                <select data-pro-note="${index}" data-field="status">${proNoteStatusOptions(note.status || "Open")}</select>
+              </label>
+              <label>Due date <input type="date" data-pro-note="${index}" data-field="due" value="${escapeAttribute(note.due || "")}" /></label>
+            </div>
+            <label>Details <textarea class="large-notes" data-pro-note="${index}" data-field="body">${escapeTextarea(note.body || "")}</textarea></label>
           </div>
-          <div class="admin-field-row">
-            <label>Status
-              <select data-pro-note="${index}" data-field="status">${proNoteStatusOptions(note.status || "Open")}</select>
-            </label>
-            <label>Due date <input type="date" data-pro-note="${index}" data-field="due" value="${escapeAttribute(note.due || "")}" /></label>
-          </div>
-          <label>Details <textarea class="large-notes" data-pro-note="${index}" data-field="body">${escapeTextarea(note.body || "")}</textarea></label>
         </article>
-      `).join("")
+      `;
+    }).join("")
     : `<div class="admin-control pro-note-empty">
         <strong>No matching notes</strong>
         <p>${allNotes.length ? "Clear or change filters to see more saved notes." : "Add a note for recipes, customer follow-ups, supply reminders, or launch planning."}</p>
@@ -9217,6 +9238,13 @@ function handleProNotesPaginationClick(event) {
   const pageCount = proNotePageCount(filteredProNotes().length);
   proNotePage += button.dataset.proNotePage === "next" ? 1 : -1;
   proNotePage = Math.min(Math.max(proNotePage, 1), pageCount);
+  renderProNotes();
+}
+
+function toggleProNote(noteId) {
+  if (!noteId) return;
+  if (expandedProNoteIds.has(noteId)) expandedProNoteIds.delete(noteId);
+  else expandedProNoteIds.add(noteId);
   renderProNotes();
 }
 
@@ -9239,7 +9267,7 @@ async function addProNote() {
   }
   adminState.proNotes = Array.isArray(adminState.proNotes) ? adminState.proNotes : [];
   adminState.proNotes.unshift({
-    id: `pro-note-${Date.now()}`,
+    id: `pro-note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: new Date().toLocaleString(),
     updatedAt: new Date().toLocaleString(),
     title: title || "Untitled pro note",
@@ -9294,10 +9322,16 @@ function updateProNoteFromCard(event) {
 }
 
 async function handleProNotesClick(event) {
+  const toggleButton = event.target.closest("[data-toggle-pro-note]");
+  if (toggleButton) {
+    toggleProNote(toggleButton.dataset.toggleProNote);
+    return;
+  }
   const deleteButton = event.target.closest("[data-delete-pro-note]");
   if (!deleteButton) return;
   const index = Number(deleteButton.dataset.deleteProNote);
   if (!adminState.proNotes?.[index]) return;
+  expandedProNoteIds.delete(proNoteStableId(adminState.proNotes[index], index));
   adminState.proNotes.splice(index, 1);
   const result = await saveAdminState({
     statusTarget: proNotesStatusMessage,
