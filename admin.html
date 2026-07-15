@@ -621,26 +621,26 @@
               </div>
             </div>
             <div class="admin-dashboard-summary" aria-label="Order workflow summary">
-              <article>
+              <button class="admin-dashboard-summary-card" type="button" data-admin-summary-filter="incoming" aria-controls="adminLiveOrderList">
                 <span>Incoming</span>
                 <strong id="adminNewOrdersCount">0</strong>
                 <p>Needs review or newly paid.</p>
-              </article>
-              <article>
+              </button>
+              <button class="admin-dashboard-summary-card" type="button" data-admin-summary-filter="working" aria-controls="adminLiveOrderList">
                 <span>Working</span>
                 <strong id="adminWorkingOrdersCount">0</strong>
                 <p>Being made, packed, or shipped.</p>
-              </article>
-              <article>
+              </button>
+              <button class="admin-dashboard-summary-card" type="button" data-admin-summary-filter="done" aria-controls="adminLiveOrderList">
                 <span>Done</span>
                 <strong id="adminDoneOrdersCount">0</strong>
                 <p>Completed, delivered, or closed.</p>
-              </article>
-              <article>
+              </button>
+              <button class="admin-dashboard-summary-card" type="button" data-admin-summary-view="products" aria-controls="adminProductsView">
                 <span>Live Products</span>
                 <strong id="adminProductSummaryCount">0</strong>
                 <p>Products currently in the shop.</p>
-              </article>
+              </button>
             </div>
             <p class="admin-status" id="liveOrderStatus" role="status"></p>
             <div class="admin-order-tools" aria-label="Order display tools">
@@ -859,7 +859,7 @@
             </div>
           </section>
         </div>
-+        <div class="admin-view-panel" id="adminTeamView" data-admin-view-panel="team" hidden>
+        <div class="admin-view-panel" id="adminTeamView" data-admin-view-panel="team" hidden>
           <section class="admin-section admin-team-section">
             <div class="admin-section-title">
               <div>

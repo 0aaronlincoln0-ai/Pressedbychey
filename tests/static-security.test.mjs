@@ -139,6 +139,28 @@ test("admin tab changes realign the dedicated workspace", async () => {
   assert.match(styles, /\.admin-dedicated-page \.admin-header,[\s\S]*grid-row: auto/);
 });
 
+test("order summary cards navigate to matching workflow details", async () => {
+  const adminHtml = await source("admin.html");
+  const client = await source("script.js");
+  const styles = await source("styles.css");
+  assert.match(adminHtml, /data-admin-summary-filter="incoming"/);
+  assert.match(adminHtml, /data-admin-summary-filter="working"/);
+  assert.match(adminHtml, /data-admin-summary-filter="done"/);
+  assert.match(adminHtml, /data-admin-summary-view="products"/);
+  assert.match(client, /function navigateFromAdminSummary\(button\)/);
+  assert.match(client, /selectedAdminOrderId = matchingOrder\?\.id \|\| ""/);
+  assert.match(client, /detail\.scrollIntoView\(\{ block: "start", behavior: "smooth" \}\)/);
+  assert.match(client, /updateAdminDashboardSummary\(liveOrders\)/);
+  assert.match(styles, /\.admin-dashboard-summary-card:focus-visible/);
+});
+
+test("admin markup has no patch marker artifacts", async () => {
+  const adminHtml = await source("admin.html");
+  const indexHtml = await source("index.html");
+  assert.doesNotMatch(adminHtml, /^\+/m);
+  assert.doesNotMatch(indexHtml, /^\+/m);
+});
+
 test("admin messages provide a direct customer picker", async () => {
   const client = await source("script.js");
   const adminHtml = await source("admin.html");

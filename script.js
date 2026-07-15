@@ -258,6 +258,7 @@ const adminNewOrdersCount = document.querySelector("#adminNewOrdersCount");
 const adminWorkingOrdersCount = document.querySelector("#adminWorkingOrdersCount");
 const adminDoneOrdersCount = document.querySelector("#adminDoneOrdersCount");
 const adminProductSummaryCount = document.querySelector("#adminProductSummaryCount");
+const adminDashboardSummary = document.querySelector(".admin-dashboard-summary");
 const adminOpenInventory = document.querySelector("#adminOpenInventory");
 const adminCreateProduct = document.querySelector("#adminCreateProduct");
 const adminProductSearch = document.querySelector("#adminProductSearch");
@@ -374,6 +375,7 @@ let selectedAdminOrderId = "";
 let proNotePage = 1;
 const expandedProNoteIds = new Set();
 let adminLiveOrderRefreshTimer = null;
+let pendingAdminOrderNavigation = false;
 let adminMessageRefreshTimer = null;
 let customerQuoteRefreshTimer = null;
 let customerMessageRefreshTimer = null;
@@ -6308,10 +6310,44 @@ function updateAdminDashboardSummary(orders = liveOrders) {
   if (adminProductSummaryCount) adminProductSummaryCount.textContent = String(adminState.customProducts.length);
 }
 
+function finishAdminOrderNavigation() {
+  if (!pendingAdminOrderNavigation || !adminLiveOrderList) return;
+  const detail = adminLiveOrderList.querySelector(".admin-order-detail-panel");
+  if (!detail) return;
+  pendingAdminOrderNavigation = false;
+  requestAnimationFrame(() => {
+    detail.scrollIntoView({ block: "start", behavior: "smooth" });
+  });
+}
+
+function navigateFromAdminSummary(button) {
+  const view = button?.dataset.adminSummaryView || "";
+  if (view) {
+    switchAdminView(view);
+    return;
+  }
+  const filter = button?.dataset.adminSummaryFilter || "";
+  if (!filter) return;
+  pendingAdminOrderNavigation = true;
+  if (orderSearchInput) orderSearchInput.value = "";
+  if (orderPaymentFilter) orderPaymentFilter.value = "all";
+  if (orderStatusFilter) orderStatusFilter.value = filter;
+  if (orderDatePreset) orderDatePreset.value = "all";
+  if (orderDateFrom) orderDateFrom.value = "";
+  if (orderDateTo) orderDateTo.value = "";
+  const matchingOrder = liveOrders.find((order) => orderStatusGroup(orderWorkflowStatus(order)) === filter);
+  selectedAdminOrderId = matchingOrder?.id || "";
+  if (selectedAdminOrderId) collapsedLiveOrderIds.delete(selectedAdminOrderId);
+  adminOrderPage = 1;
+  switchAdminView("orders");
+  renderAdminLiveOrders();
+  setLiveOrderFilterStatus("Showing");
+}
+
 function renderAdminLiveOrders() {
   if (!adminLiveOrderList) return;
   const visibleOrders = filteredLiveOrders();
-  updateAdminDashboardSummary(visibleOrders);
+  updateAdminDashboardSummary(liveOrders);
   adminLiveOrderList.innerHTML = visibleOrders.length
     ? visibleOrders
         .map((order) => {
@@ -6618,6 +6654,7 @@ function renderAdminLiveOrders({ preserveDetail = false } = {}) {
     detail.outerHTML = adminOrderDetailMarkup(selected);
   }
   autoGrowTextareas(adminLiveOrderList);
+  finishAdminOrderNavigation();
 }
 
 function setLiveOrderFilterStatus(prefix = "Showing") {
@@ -7167,6 +7204,11 @@ checkoutButton.addEventListener("click", checkoutCart);
 guestCheckoutOpen.addEventListener("click", () => openGuestCheckout());
 guestCheckoutButton.addEventListener("click", checkoutGuest);
 refreshLiveOrdersButton?.addEventListener("click", () => fetchAdminLiveOrders());
+adminDashboardSummary?.addEventListener("click", (event) => {
+  const summaryButton = event.target.closest("[data-admin-summary-filter], [data-admin-summary-view]");
+  if (!summaryButton) return;
+  navigateFromAdminSummary(summaryButton);
+});
 refreshAccountingButton?.addEventListener("click", () => fetchAccounting());
 accountingSearch?.addEventListener("input", renderAccounting);
 [accountingPaymentFilter, accountingDateFilter, accountingSort].forEach((filter) => filter?.addEventListener("change", renderAccounting));

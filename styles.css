@@ -5448,7 +5448,8 @@ figcaption {
   gap: 0.75rem;
 }
 
-.admin-dashboard-summary article {
+.admin-dashboard-summary article,
+.admin-dashboard-summary-card {
   display: grid;
   gap: 0.3rem;
   min-height: 132px;
@@ -5457,6 +5458,26 @@ figcaption {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 14px 34px rgba(143, 29, 81, 0.08);
+}
+
+.admin-dashboard-summary-card {
+  width: 100%;
+  border: 1px solid rgba(143, 29, 81, 0.1);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.admin-dashboard-summary-card:hover {
+  border-color: rgba(203, 46, 114, 0.42);
+  box-shadow: 0 18px 38px rgba(143, 29, 81, 0.14);
+  transform: translateY(-2px);
+}
+
+.admin-dashboard-summary-card:focus-visible {
+  outline: 3px solid rgba(203, 46, 114, 0.38);
+  outline-offset: 3px;
 }
 
 .admin-dashboard-summary span {
@@ -5506,14 +5527,16 @@ figcaption {
   line-height: 1;
 }
 
-.admin-dedicated-page .admin-dashboard-summary article {
+.admin-dedicated-page .admin-dashboard-summary article,
+.admin-dedicated-page .admin-dashboard-summary-card {
   min-height: 118px;
   border-color: rgba(36, 16, 24, 0.1);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 243, 249, 0.86));
 }
 
-.admin-dedicated-page .admin-dashboard-summary article:first-child {
+.admin-dedicated-page .admin-dashboard-summary article:first-child,
+.admin-dedicated-page .admin-dashboard-summary-card:first-child {
   border-color: rgba(203, 46, 114, 0.3);
   box-shadow: inset 0 4px 0 var(--pink-600), 0 14px 34px rgba(143, 29, 81, 0.1);
 }
