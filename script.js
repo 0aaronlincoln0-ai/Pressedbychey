@@ -1924,23 +1924,20 @@ function showAdminPage() {
     openAccount("Please sign in to continue.");
     return;
   }
+  if (!IS_ADMIN_PAGE) {
+    window.location.href = "admin.html";
+    return;
+  }
   closeCartDrawer();
   closeAccountPanel();
-  if (!IS_ADMIN_PAGE && window.location.hash !== "#adminPage") {
-    history.replaceState(null, "", "#adminPage");
-  }
   adminPage.hidden = false;
-  if (!IS_ADMIN_PAGE) showSitePage("home", { updateHash: false, force: true });
   renderAdminVisibility();
   adminPage.hidden = false;
   switchAdminView("orders");
   syncAdminLiveOrderAutoRefresh();
   requestAnimationFrame(() => {
-    if (IS_ADMIN_PAGE) {
-      window.scrollTo({ top: 0, behavior: "auto" });
-      adminPage.focus?.({ preventScroll: true });
-    }
-    else adminPage.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.scrollTo({ top: 0, behavior: "auto" });
+    adminPage.focus?.({ preventScroll: true });
   });
   setInlineEditStatus("Admin dashboard is open. Use Products for shop items or Site Editor for page edits.");
 }
@@ -6307,6 +6304,9 @@ async function setupAdmin() {
     if (IS_ADMIN_PAGE) {
       event.preventDefault();
       showAdminPage();
+    } else if (isAdminSignedIn()) {
+      event.preventDefault();
+      window.location.href = "admin.html";
     }
   });
   adminLogout.addEventListener("click", logoutAdmin);
@@ -6316,7 +6316,7 @@ async function setupAdmin() {
   if (IS_ADMIN_PAGE && adminPage.hidden) {
     showAdminPage();
   } else if (window.location.hash === "#adminPage") {
-    showSitePage("home", { updateHash: true, force: true });
+    showAdminPage();
   } else {
     const productIndex = productIndexFromHash();
     if (productIndex >= 0) {
