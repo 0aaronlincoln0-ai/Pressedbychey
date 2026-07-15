@@ -23,7 +23,7 @@
       rel="stylesheet"
     />
     <link rel="preload" href="assets/nail-polish-brush-cursor.svg?v=brush3" as="image" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=20260715-nail-size-finder" />
+    <link rel="stylesheet" href="styles.css?v=20260715-hero-glitter" />
   </head>
   <body>
     <div class="scroll-progress" aria-hidden="true"></div>
@@ -71,7 +71,7 @@
               reusable press-ons that match your vibe and your routine.
             </p>
             <div class="hero-actions">
-              <a class="button primary" href="#shop" data-page-link="shop">Shop Sets</a>
+              <a class="button primary" href="#shop" data-page-link="shop" data-shop-destination="inventory">Shop Sets</a>
               <a class="button secondary" href="#fit">Find Your Fit</a>
             </div>
             <div class="hero-stats" aria-label="Store highlights">
@@ -101,8 +101,8 @@
             <p>Browse small-batch handmade sets, find your finish, and make the look yours before it is gone.</p>
           </div>
           <div class="shop-promo-actions">
-            <a class="button primary" href="#shop" data-page-link="shop">Shop the drop <span class="shop-promo-arrow" aria-hidden="true">&rarr;</span></a>
-            <a class="shop-promo-text-link" href="#shop" data-page-link="shop">Browse all sets <span aria-hidden="true">&rarr;</span></a>
+            <a class="button primary" href="#shop" data-page-link="shop" data-shop-destination="fresh-drops">Shop Fresh Drops <span class="shop-promo-arrow" aria-hidden="true">&rarr;</span></a>
+            <a class="shop-promo-text-link" href="#shop" data-page-link="shop" data-shop-destination="inventory">View Main Inventory <span aria-hidden="true">&rarr;</span></a>
           </div>
         </section>
 
@@ -139,7 +139,7 @@
               <p class="eyebrow">Why clients come back</p>
               <h2 id="intro-title">Premium details without the salon wait.</h2>
             </div>
-            <a class="button secondary" href="#shop" data-page-link="shop">Browse the collection <span aria-hidden="true">&rarr;</span></a>
+            <a class="button secondary" href="#shop" data-page-link="shop" data-shop-destination="inventory">Browse the collection <span aria-hidden="true">&rarr;</span></a>
           </div>
           <div class="feature-grid">
             <article class="feature" data-reveal>
@@ -224,7 +224,7 @@
                   </div>
                   </div>
                 </div>
-                <a class="button secondary" href="#shop" data-page-link="shop">Shop Sets</a>
+                <a class="button secondary" href="#shop" data-page-link="shop" data-shop-destination="inventory">Shop Sets</a>
               </footer>
             </div>
           </section>
@@ -649,8 +649,26 @@
           <li>Rest each finger on the screen and match the lines to your nail.</li>
           <li>Save the sizes straight to your nail profile for Chey.</li>
         </ol>
-        <p class="sizer-note">Takes about 3 minutes. Measure the widest part of the nail, not the skin.</p>
-        <button class="button primary wide" type="button" id="sizerStart">Start Measuring</button>
+        <p class="sizer-note">Camera mode is best when you have a standard card nearby. The on-screen guide is the quickest fallback.</p>
+        <div class="sizer-mode-actions">
+          <button class="button primary" type="button" id="sizerUseCamera">Use Live Camera</button>
+          <button class="button secondary" type="button" id="sizerStart">Use On-Screen Guide</button>
+        </div>
+      </section>
+
+      <section class="sizer-step" id="sizerStepCamera" hidden>
+        <h3 id="sizerCameraTitle">Camera measurement</h3>
+        <p>Place one nail and the short edge of a standard card side by side, flat and in the same plane. Keep both fully inside the frame.</p>
+        <div class="sizer-camera-stage">
+          <video id="sizerCameraVideo" autoplay muted playsinline></video>
+          <span class="sizer-camera-frame-hint">Card + nail</span>
+        </div>
+        <p class="sizer-status" id="sizerCameraStatus" role="status">Camera permission is requested only after you choose Live Camera.</p>
+        <div class="sizer-camera-actions">
+          <button class="button secondary" type="button" id="sizerCameraSwitch">Switch Camera</button>
+          <button class="button primary" type="button" id="sizerCameraCapture">Capture Nail</button>
+        </div>
+        <button class="button secondary wide" type="button" id="sizerCameraUseScreen">Use On-Screen Guide Instead</button>
       </section>
 
       <section class="sizer-step" id="sizerStepCalibrate" hidden>
@@ -673,9 +691,16 @@
         <h3 id="sizerFingerLabel">Left thumb</h3>
         <p class="sizer-measure-help">Rest this nail flat on the box below, then drag each pink handle until the lines just touch the <strong>widest part of your nail</strong>.</p>
         <div class="sizer-measure-stage" id="sizerMeasureStage">
+          <img id="sizerCameraImage" alt="Captured card and nail reference" hidden />
           <div class="sizer-readout" id="sizerReadout" aria-live="polite">
             <strong id="sizerReadoutMm">15.0 mm</strong>
             <span id="sizerReadoutSize">Size 4</span>
+          </div>
+          <div class="sizer-guide sizer-reference-guide" id="sizerCameraCardGuideLeft" hidden>
+            <button class="sizer-handle" type="button" aria-label="Drag left card edge"><span aria-hidden="true">&#8596;</span></button>
+          </div>
+          <div class="sizer-guide sizer-reference-guide" id="sizerCameraCardGuideRight" hidden>
+            <button class="sizer-handle" type="button" aria-label="Drag right card edge"><span aria-hidden="true">&#8596;</span></button>
           </div>
           <div class="sizer-guide" id="sizerGuideLeft">
             <button class="sizer-handle" type="button" aria-label="Drag left line"><span aria-hidden="true">&#8596;</span></button>
@@ -690,6 +715,7 @@
         </div>
         <div class="sizer-measure-actions">
           <button class="button secondary" type="button" id="sizerBack">Back</button>
+          <button class="button secondary" type="button" id="sizerRetakeCamera" hidden>Retake</button>
           <button class="button secondary" type="button" id="sizerSkip">Skip</button>
           <button class="button primary" type="button" id="sizerNext">Save &amp; Next</button>
         </div>

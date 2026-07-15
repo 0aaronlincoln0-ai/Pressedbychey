@@ -1050,6 +1050,50 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.shop-collection {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 1rem;
+  scroll-margin-top: 96px;
+}
+
+.shop-collection-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0 0.25rem;
+  border-top: 1px solid rgba(34, 21, 26, 0.1);
+}
+
+.shop-collection-heading h3 {
+  margin: 0.15rem 0 0;
+  color: var(--charcoal);
+  font-family: var(--serif);
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+}
+
+.shop-collection-heading p:not(.eyebrow) {
+  max-width: 620px;
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.shop-collection-count {
+  flex: 0 0 auto;
+  color: var(--berry);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shop-collection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 1.35rem);
+}
+
 .store-empty-state,
 .look-empty-state {
   display: grid;
@@ -1596,7 +1640,8 @@ img[data-photo-position="right"] {
 }
 
 @media (min-width: 1080px) {
-  .product-grid {
+  .product-grid,
+  .shop-collection-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
@@ -2856,28 +2901,20 @@ figcaption {
   display: grid;
   gap: 0.65rem;
   overflow: hidden;
-  padding: 1rem;
-  border: 1px solid rgba(203, 46, 114, 0.16);
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at 88% 12%, rgba(255, 255, 255, 0.95), transparent 5rem),
-    radial-gradient(circle at 8% 12%, rgba(255, 197, 220, 0.42), transparent 8rem),
-    linear-gradient(135deg, rgba(255, 244, 249, 0.96), rgba(237, 244, 236, 0.78));
-  box-shadow: 0 18px 44px rgba(143, 29, 81, 0.1);
+  padding: 1.15rem 1.1rem 1rem 1.25rem;
+  border: 1px solid rgba(36, 16, 24, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 42px rgba(36, 16, 24, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.94);
 }
 
-.account-auth-hero::after {
+.account-auth-hero::before {
   position: absolute;
-  right: -1.8rem;
-  bottom: -2.2rem;
-  width: 130px;
-  height: 130px;
-  border-radius: 46% 54% 48% 52%;
-  background:
-    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.8), transparent 22%),
-    linear-gradient(145deg, rgba(203, 46, 114, 0.18), rgba(120, 143, 125, 0.12));
+  inset: 0 auto 0 0;
+  width: 5px;
+  border-radius: 18px 0 0 18px;
+  background: linear-gradient(180deg, var(--plum), var(--rose), var(--sage));
   content: "";
-  transform: rotate(-16deg);
 }
 
 .account-auth-hero > * {
@@ -2887,11 +2924,10 @@ figcaption {
 
 .account-sparkle {
   justify-self: start;
-  border-radius: 999px;
-  padding: 0.35rem 0.65rem;
-  background: rgba(255, 255, 255, 0.72);
+  padding: 0 0 0.55rem;
+  border-bottom: 1px solid rgba(36, 16, 24, 0.1);
   color: var(--berry);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2906,33 +2942,40 @@ figcaption {
   max-width: 12ch;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: clamp(2rem, 8vw, 3.05rem);
-  line-height: 0.9;
+  font-size: clamp(1.9rem, 7vw, 2.85rem);
+  line-height: 0.94;
 }
 
 .account-auth-hero p {
   max-width: 28rem;
   color: var(--muted);
-  font-weight: 800;
+  font-size: 0.9rem;
+  font-weight: 700;
   line-height: 1.45;
 }
 
 .account-benefits,
 .account-kpi-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 0.25rem;
+  border-top: 1px solid rgba(36, 16, 24, 0.1);
 }
 
 .account-benefits span,
 .account-kpi-row span {
-  border: 1px solid rgba(143, 29, 81, 0.1);
-  border-radius: 999px;
-  padding: 0.45rem 0.65rem;
-  background: rgba(255, 255, 255, 0.72);
+  min-width: 0;
+  padding: 0.65rem 0.5rem 0.05rem;
+  border-right: 1px solid rgba(36, 16, 24, 0.1);
   color: var(--plum);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 900;
+}
+
+.account-benefits span:last-child,
+.account-kpi-row span:last-child {
+  border-right: 0;
 }
 
 .auth-card,
@@ -7411,6 +7454,7 @@ body.photo-lightbox-open {
 
   .feature-grid,
   .product-grid,
+  .shop-collection-grid,
   .fit-grid,
   .review-track,
   .photo-proof-grid {
@@ -7655,6 +7699,7 @@ body.photo-lightbox-open {
 
   .feature-grid,
   .product-grid,
+  .shop-collection-grid,
   .fit-grid,
   .review-track,
   .photo-proof-grid {
@@ -10295,6 +10340,30 @@ body.admin-inventory-open {
     grid-template-columns: 1fr;
   }
 
+  .admin-dedicated-page .admin-view-tabs {
+    position: sticky;
+    top: 0.55rem;
+    z-index: 30;
+    grid-template-columns: repeat(10, minmax(8.7rem, 1fr));
+    overflow-x: auto;
+    padding: 0.35rem;
+    border: 1px solid rgba(36, 16, 24, 0.12);
+    border-radius: 16px;
+    background: rgba(255, 250, 252, 0.92);
+    box-shadow: 0 12px 26px rgba(36, 16, 24, 0.12);
+    backdrop-filter: blur(16px) saturate(1.1);
+    -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  }
+
+  .admin-dedicated-page .admin-view-tabs button {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .admin-dedicated-page .admin-view-panel {
+    scroll-margin-top: 5.5rem;
+  }
+
   .admin-message-layout {
     grid-template-columns: 1fr;
   }
@@ -11986,6 +12055,63 @@ body.sizer-open {
   font-weight: 600;
 }
 
+.sizer-mode-actions,
+.sizer-camera-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.sizer-mode-actions .button,
+.sizer-camera-actions .button {
+  min-width: 0;
+}
+
+.sizer-camera-stage {
+  position: relative;
+  display: grid;
+  min-height: min(58vh, 460px);
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid rgba(36, 16, 24, 0.16);
+  border-radius: 18px;
+  background: #241018;
+  box-shadow: 0 18px 38px rgba(36, 16, 24, 0.18);
+}
+
+.sizer-camera-stage video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: min(58vh, 460px);
+  object-fit: cover;
+}
+
+.sizer-camera-stage::after {
+  position: absolute;
+  inset: 12% 8%;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 0 0 999px rgba(18, 8, 13, 0.2);
+  content: "";
+  pointer-events: none;
+}
+
+.sizer-camera-frame-hint {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1;
+  border-radius: 999px;
+  padding: 0.42rem 0.65rem;
+  background: rgba(18, 8, 13, 0.78);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .sizer-note {
   font-size: 0.82rem;
 }
@@ -12084,6 +12210,24 @@ body.sizer-open {
   overflow: hidden;
 }
 
+.sizer-camera-image {
+  position: absolute;
+  inset: 0;
+}
+
+.sizer-measure-stage > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #241018;
+}
+
+.sizer-measure-stage.is-camera {
+  border-style: solid;
+  border-color: rgba(36, 16, 24, 0.22);
+  background: #241018;
+}
+
 .sizer-readout {
   position: absolute;
   top: 0.6rem;
@@ -12116,6 +12260,22 @@ body.sizer-open {
   width: 3px;
   margin-left: -1.5px;
   background: var(--pink-600);
+}
+
+.sizer-reference-guide {
+  z-index: 1;
+  width: 2px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(36, 16, 24, 0.45), 0 0 14px rgba(255, 255, 255, 0.72);
+}
+
+.sizer-reference-guide .sizer-handle {
+  background: #fff;
+  color: var(--ink);
+}
+
+.sizer-measure-stage.is-camera .sizer-guide:not(.sizer-reference-guide) {
+  z-index: 2;
 }
 
 .sizer-guide .sizer-handle {
@@ -12180,5 +12340,115 @@ body.sizer-open {
 @media (min-width: 720px) {
   .sizer-overlay {
     padding: 2rem clamp(2rem, 20vw, 18rem);
+  }
+}
+
+@media (max-width: 520px) {
+  .sizer-mode-actions,
+  .sizer-camera-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .sizer-camera-stage,
+  .sizer-camera-stage video {
+    min-height: min(54dvh, 390px);
+  }
+}
+
+/* Home hero — warm glitter border with falling sparkle and soft fog */
+.hero-visual {
+  border-color: rgba(243, 215, 184, 0.9);
+  box-shadow:
+    0 0 0 1px rgba(255, 241, 216, 0.7),
+    0 0 34px rgba(243, 215, 184, 0.55),
+    0 10px 46px rgba(255, 196, 217, 0.34),
+    0 32px 80px rgba(62, 24, 42, 0.15);
+}
+
+.hero-glitter {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 241, 216, 0.3), transparent 24%),
+    linear-gradient(0deg, rgba(255, 232, 223, 0.44), transparent 32%);
+  -webkit-mask-image: radial-gradient(ellipse 74% 68% at 50% 46%, transparent 44%, #000 94%);
+  mask-image: radial-gradient(ellipse 74% 68% at 50% 46%, transparent 44%, #000 94%);
+  animation: heroFogBreathe 9s ease-in-out infinite;
+}
+
+.hero-glitter::before,
+.hero-glitter::after {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(-1 * var(--fall));
+  bottom: 0;
+  content: "";
+  background-repeat: repeat;
+}
+
+.hero-glitter::before {
+  --fall: 260px;
+  background-image:
+    radial-gradient(2.2px 2.2px at 24px 36px, rgba(255, 255, 255, 0.95) 50%, transparent 52%),
+    radial-gradient(1.6px 1.6px at 96px 120px, rgba(255, 241, 216, 0.9) 50%, transparent 52%),
+    radial-gradient(2px 2px at 168px 60px, rgba(255, 214, 170, 0.85) 50%, transparent 52%),
+    radial-gradient(1.4px 1.4px at 210px 190px, rgba(255, 255, 255, 0.8) 50%, transparent 52%),
+    radial-gradient(1.8px 1.8px at 60px 220px, rgba(255, 196, 217, 0.8) 50%, transparent 52%),
+    radial-gradient(1.3px 1.3px at 140px 246px, rgba(243, 215, 184, 0.9) 50%, transparent 52%);
+  background-size: 260px 260px;
+  animation: heroGlitterFall 16s linear infinite, heroGlitterTwinkle 3.4s ease-in-out infinite;
+}
+
+.hero-glitter::after {
+  --fall: 320px;
+  background-image:
+    radial-gradient(1.3px 1.3px at 40px 60px, rgba(255, 255, 255, 0.55) 50%, transparent 52%),
+    radial-gradient(1px 1px at 150px 30px, rgba(255, 241, 216, 0.5) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 230px 140px, rgba(255, 214, 170, 0.48) 50%, transparent 52%),
+    radial-gradient(1px 1px at 90px 200px, rgba(255, 228, 238, 0.5) 50%, transparent 52%),
+    radial-gradient(1.2px 1.2px at 200px 280px, rgba(255, 255, 255, 0.42) 50%, transparent 52%);
+  background-size: 320px 320px;
+  animation: heroGlitterFall 26s linear infinite, heroGlitterTwinkle 4.6s ease-in-out 1.2s infinite;
+}
+
+@keyframes heroGlitterFall {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(var(--fall));
+  }
+}
+
+@keyframes heroGlitterTwinkle {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes heroFogBreathe {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-glitter,
+  .hero-glitter::before,
+  .hero-glitter::after {
+    animation: none !important;
   }
 }

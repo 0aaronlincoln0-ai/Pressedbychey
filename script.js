@@ -878,6 +878,21 @@ const categoryOptions = [
   ...nailShapeOptions
 ];
 
+const productCollectionOptions = [
+  ["inventory", "Main Inventory"],
+  ["fresh-drops", "Fresh Drops"]
+];
+
+function productCollectionFor(product = {}) {
+  return String(product.collection || "inventory").trim().toLowerCase() === "fresh-drops"
+    ? "fresh-drops"
+    : "inventory";
+}
+
+function productCollectionOptionsMarkup(selectedValue) {
+  return optionMarkup(productCollectionOptions, productCollectionFor({ collection: selectedValue }));
+}
+
 const stockOptions = [
   ["Available", "In stock"],
   ["Made to order", "Made to order"],
@@ -1463,6 +1478,7 @@ function normalizeAdminState(saved = {}) {
           stock: product.stock || "",
           sku: product.sku || `PBC-${String(index + 1).padStart(3, "0")}`,
           inventoryCount: normalizeInventoryCount(product.inventoryCount, defaultInventoryCountForStock(product.stock)),
+          collection: productCollectionFor(product),
           imageFit: sanitizePhotoFit(product.imageFit),
           imagePosition: sanitizePhotoPosition(product.imagePosition),
           imageZoom: sanitizePhotoZoom(product.imageZoom),
@@ -1962,7 +1978,7 @@ function lockPageNavigation(duration = 180) {
 }
 
 function showSitePage(pageKey, options = {}) {
-  const { updateHash = true, force = false, behavior = "smooth", track = true } = options;
+  const { updateHash = true, force = false, behavior = "smooth", track = true, shopDestination = "" } = options;
   const resolvedKey = adminState.hiddenSections[pageKey] ? firstVisiblePageKey() : pageKey;
   const productPage = pageElement("product");
   if (productPage) productPage.hidden = resolvedKey !== "product";
@@ -1992,7 +2008,12 @@ function showSitePage(pageKey, options = {}) {
   }
 
   const performScroll = () => {
-    const top = resolvedKey === firstVisiblePageKey()
+    const shopSection = resolvedKey === "shop" && ["fresh-drops", "inventory"].includes(shopDestination)
+      ? document.getElementById(`shop-${shopDestination}`)
+      : null;
+    const top = shopSection
+      ? Math.max(window.scrollY + shopSection.getBoundingClientRect().top - navOffset() - 12, 0)
+      : resolvedKey === firstVisiblePageKey()
       ? 0
       : Math.max(window.scrollY + targetPage.getBoundingClientRect().top - navOffset(), 0);
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -2196,10 +2217,13 @@ function showAdminOrdersPage() {
   showAdminPage();
 }
 
-function alignAdminWorkspace() {
+function alignAdminWorkspace({ focusPanel = false } = {}) {
   if (!IS_ADMIN_PAGE || !adminPage || adminPage.hidden) return;
   requestAnimationFrame(() => {
-    adminPage.scrollIntoView({ block: "start", behavior: "auto" });
+    const activePanel = Array.from(adminViewPanels).find((panel) => !panel.hidden);
+    const narrowViewport = window.matchMedia("(max-width: 1040px)").matches;
+    const target = focusPanel && narrowViewport ? activePanel : adminPage;
+    target?.scrollIntoView({ block: "start", behavior: focusPanel ? "smooth" : "auto" });
   });
 }
 
@@ -3376,7 +3400,11 @@ document.addEventListener("click", (event) => {
   const pageKey = link.dataset.pageLink;
   if (!pageKey) return;
   event.preventDefault();
-  showSitePage(pageKey, { updateHash: true, behavior: "auto" });
+  showSitePage(pageKey, {
+    updateHash: true,
+    behavior: "auto",
+    shopDestination: link.dataset.shopDestination || ""
+  });
 });
 document.addEventListener("focusin", (event) => {
   if (!textEditMode || !isAdminSignedIn()) return;
@@ -7327,6 +7355,9 @@ function applyProductFilter(filter) {
     product.classList.toggle("hidden", !isMatch);
     if (isMatch) visibleCount += 1;
   });
+  document.querySelectorAll("[data-collection-section]").forEach((section) => {
+    section.hidden = !section.querySelector(".product:not(.hidden)");
+  });
   if (productGrid && visibleCount === 0) {
     const activeFilterLabel = document.querySelector(`.filter[data-filter="${CSS.escape(filter)}"]`)?.textContent?.trim() || "that shape";
     const emptyState = document.createElement("article");
@@ -7455,6 +7486,7 @@ function readLookData(index) {
     salePrice: detail.salePrice && detail.salePrice.trim() ? detail.salePrice.trim() : "",
     discount: detail.discount && detail.discount.trim() ? detail.discount.trim() : "",
     stock: detail.stock && detail.stock.trim() ? detail.stock.trim() : "",
+    collection: productCollectionFor(detail.collection || sourceProduct?.collection),
     sku: detail.sku && detail.sku.trim() ? detail.sku.trim() : "",
     inventoryCount: normalizeInventoryCount(detail.inventoryCount, defaultInventoryCountForStock(detail.stock)),
     tag: detail.tag && detail.tag.trim() ? detail.tag.trim() : "New from Chey",
@@ -7833,7 +7865,7 @@ async function setupAdmin() {
   });
   adminLogout.addEventListener("click", logoutAdmin);
   adminViewButtons.forEach((button) => {
-    button.addEventListener("click", () => switchAdminView(button.dataset.adminView));
+    button.addEventListener("click", () => switchAdminView(button.dataset.adminView, { focusPanel: true }));
   });
   if (IS_ADMIN_PAGE && adminPage.hidden) {
     showAdminPage();
@@ -7924,7 +7956,7 @@ async function setupAdmin() {
   autoGrowTextareas();
 }
 
-function switchAdminView(view) {
+function switchAdminView(view, { focusPanel = false } = {}) {
   adminViewButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.adminView === view);
   });
@@ -7939,7 +7971,7 @@ function switchAdminView(view) {
   if (view === "notes") renderProNotes();
   syncAdminLiveOrderAutoRefresh();
   autoGrowTextareas();
-  alignAdminWorkspace();
+  alignAdminWorkspace({ focusPanel });
 }
 
 function autoGrowTextarea(textarea) {
@@ -8881,6 +8913,7 @@ function productFromLook(look) {
     stock: look.stock || "",
     sku,
     inventoryCount: inventoryCountFor(look),
+    collection: productCollectionFor(look),
     category: look.finish || "custom",
     image: look.photo,
     imageFit: look.photoFit,
@@ -8900,6 +8933,7 @@ const productToLookFieldMap = {
   stock: "stock",
   sku: "sku",
   inventoryCount: "inventoryCount",
+  collection: "collection",
   category: "finish",
   description: "copy",
   notes: "notes",
@@ -9123,7 +9157,8 @@ function writeProductToInventory(product, index, options = {}) {
     finish: product.category || "custom",
     copy: product.description || "",
     notes: product.notes || "",
-    tag: product.tag || "New from Chey"
+    tag: product.tag || "New from Chey",
+    collection: productCollectionFor(product)
   };
   if (options.publishedAt || product.publishedAt) {
     adminState.lookDetails[index].publishedAt = options.publishedAt || product.publishedAt;
@@ -9349,6 +9384,11 @@ function renderAdminLookPhotos() {
           </label>
           <label>Units in stock <input type="number" min="0" step="1" inputmode="numeric" value="${inventoryCountFor(look) ?? ""}" placeholder="Made to order" data-look-detail="${index}" data-look-field="inventoryCount" /></label>
         </div>
+        <label>Shop placement
+          <select data-look-detail="${index}" data-look-field="collection">
+            ${productCollectionOptionsMarkup(look.collection)}
+          </select>
+        </label>
         <label>Description <textarea data-look-detail="${index}" data-look-field="copy" placeholder="Tell customers about the shape, finish, color, charms, and vibe.">${escapeTextarea((adminState.lookDetails[index] && adminState.lookDetails[index].copy) || "")}</textarea></label>
         <details class="admin-optional">
           <summary>Optional product details</summary>
@@ -9565,6 +9605,11 @@ function renderAdminProducts() {
           </label>
           <label>Units in stock <input type="number" min="0" step="1" inputmode="numeric" data-custom-product="${index}" data-field="inventoryCount" value="${inventoryCountFor(product) ?? ""}" placeholder="Made to order" /></label>
         </div>
+        <label>Shop placement
+          <select data-custom-product="${index}" data-field="collection">
+            ${productCollectionOptionsMarkup(product.collection)}
+          </select>
+        </label>
         <label>Description <textarea data-custom-product="${index}" data-field="description">${escapeTextarea(product.description)}</textarea></label>
         <label>Maker notes <textarea data-custom-product="${index}" data-field="notes" placeholder="Private notes: polish colors, pigments, charms, sizing, timing, or customer preferences.">${escapeTextarea(product.notes || "")}</textarea></label>
         <details class="admin-optional">
@@ -11195,20 +11240,39 @@ function renderCustomProducts() {
   if (canInlineEdit) {
     productGrid.insertAdjacentHTML("beforeend", inlineProductAddCardMarkup());
   }
-  if (!adminState.customProducts.length) {
-    if (filterRow) filterRow.hidden = true;
-    if (!canInlineEdit) {
-      const emptyState = document.createElement("article");
-      emptyState.className = "store-empty-state";
-      emptyState.innerHTML = `
-        <strong>New sets are being uploaded.</strong>
-        <p>Check back soon for fresh product photos.</p>
-      `;
-      productGrid.appendChild(emptyState);
-      return;
-    }
-  }
+  const collectionSections = new Map();
+  ["fresh-drops", "inventory"].forEach((collection) => {
+    const section = document.createElement("section");
+    section.className = `shop-collection shop-collection-${collection}`;
+    section.id = `shop-${collection}`;
+    section.dataset.collectionSection = collection;
+    const isFreshDrop = collection === "fresh-drops";
+    section.innerHTML = `
+      <div class="shop-collection-heading">
+        <div>
+          <p class="eyebrow">${isFreshDrop ? "Just released" : "Shop the full catalog"}</p>
+          <h3>${isFreshDrop ? "Fresh Drops" : "Main Inventory"}</h3>
+          <p>${isFreshDrop ? "Small-batch sets Chey has chosen to spotlight right now." : "Every available set in the Pressed by Chey store."}</p>
+        </div>
+        <span class="shop-collection-count">0 sets</span>
+      </div>
+      <div class="shop-collection-grid" data-collection-grid="${collection}"></div>
+    `;
+    collectionSections.set(collection, section);
+    productGrid.appendChild(section);
+  });
   if (filterRow) filterRow.hidden = !adminState.customProducts.length;
+  if (!adminState.customProducts.length) {
+    collectionSections.forEach((section) => {
+      section.querySelector("[data-collection-grid]").innerHTML = `
+        <article class="store-empty-state">
+          <strong>${section.dataset.collectionSection === "fresh-drops" ? "Fresh Drops are coming soon." : "New sets are being uploaded."}</strong>
+          <p>${section.dataset.collectionSection === "fresh-drops" ? "Check back for Chey's next small-batch release." : "The complete store inventory will appear here as sets are published."}</p>
+        </article>
+      `;
+    });
+    return;
+  }
   adminState.customProducts.forEach((product, index) => {
     const productForDisplay = { ...product, index };
     const productShape = productShapeFilterValue(product);
@@ -11270,6 +11334,11 @@ function renderCustomProducts() {
                 ${optionMarkup(categoryOptions, product.category)}
               </select>
             </label>
+            <label>Shop placement
+              <select data-inline-product-index="${index}" data-inline-product-input="collection">
+                ${productCollectionOptionsMarkup(product.collection)}
+              </select>
+            </label>
             <label>Private notes
               <textarea data-inline-product-index="${index}" data-inline-product-input="notes" placeholder="Polish colors, charms, sizing notes, timing...">${escapeTextarea(product.notes || "")}</textarea>
             </label>
@@ -11301,14 +11370,21 @@ function renderCustomProducts() {
       event.preventDefault();
       openProductDetail(index);
     });
-    productGrid.appendChild(article);
+    const collectionGrid = productGrid.querySelector(`[data-collection-grid="${productCollectionFor(product)}"]`) || productGrid;
+    collectionGrid.appendChild(article);
+    const count = collectionGrid.parentElement?.querySelector(".shop-collection-count");
+    if (count) {
+      const total = collectionGrid.querySelectorAll(".product").length;
+      count.textContent = `${total} set${total === 1 ? "" : "s"}`;
+    }
   });
   if (canInlineEdit) {
     lookLibrary
       .map((_, index) => readLookData(index))
       .filter((look) => look.active && !look.published)
       .forEach((look) => {
-        productGrid.insertAdjacentHTML("beforeend", inlineInventoryCardMarkup(look));
+        const inventoryGrid = productGrid.querySelector('[data-collection-grid="inventory"]') || productGrid;
+        inventoryGrid.insertAdjacentHTML("beforeend", inlineInventoryCardMarkup(look));
       });
   }
   const activeFilter = document.querySelector(".filter.active")?.dataset.filter || "all";
@@ -11352,10 +11428,16 @@ const sizerZoomWarning = document.querySelector("#sizerZoomWarning");
 const sizerSteps = {
   desktop: document.querySelector("#sizerStepDesktop"),
   intro: document.querySelector("#sizerStepIntro"),
+  camera: document.querySelector("#sizerStepCamera"),
   calibrate: document.querySelector("#sizerStepCalibrate"),
   measure: document.querySelector("#sizerStepMeasure"),
   results: document.querySelector("#sizerStepResults")
 };
+const sizerCameraVideo = document.querySelector("#sizerCameraVideo");
+const sizerCameraStatus = document.querySelector("#sizerCameraStatus");
+const sizerCameraImage = document.querySelector("#sizerCameraImage");
+const sizerCameraCardGuideLeft = document.querySelector("#sizerCameraCardGuideLeft");
+const sizerCameraCardGuideRight = document.querySelector("#sizerCameraCardGuideRight");
 const sizerCardStage = document.querySelector("#sizerCardStage");
 const sizerCardBox = document.querySelector("#sizerCardBox");
 const sizerCardHandle = document.querySelector("#sizerCardHandle");
@@ -11368,12 +11450,23 @@ const sizerReadoutSize = document.querySelector("#sizerReadoutSize");
 const sizerResultsGrid = document.querySelector("#sizerResultsGrid");
 const sizerStatus = document.querySelector("#sizerStatus");
 const sizerSaveProfile = document.querySelector("#sizerSaveProfile");
+const sizerRetakeCamera = document.querySelector("#sizerRetakeCamera");
 
 const sizerState = {
+  mode: "screen",
   pxPerMm: 0,
   stepIndex: 0,
   guideLeftPx: 0,
   guideRightPx: 0,
+  cameraStream: null,
+  cameraRequestId: 0,
+  cameraFacingMode: "environment",
+  cameraImageSrc: "",
+  cameraMeasureStepIndex: -1,
+  cameraCardLeftPx: 0,
+  cameraCardRightPx: 0,
+  cameraNailLeftPx: 0,
+  cameraNailRightPx: 0,
   measurements: { left: {}, right: {} }
 };
 
@@ -11423,8 +11516,10 @@ function sizerShowStep(name) {
   Object.entries(sizerSteps).forEach(([key, section]) => {
     if (section) section.hidden = key !== name;
   });
-  if (sizerProgress) sizerProgress.hidden = name !== "measure";
+  if (sizerProgress) sizerProgress.hidden = !["camera", "measure"].includes(name);
+  if (name !== "camera") sizerStopCamera();
   if (name === "calibrate") sizerRenderCardBox();
+  if (name === "camera") sizerStartCamera();
   if (name === "measure") sizerRenderMeasureStep();
 }
 
@@ -11457,16 +11552,45 @@ function sizerRenderMeasureStep() {
   const step = sizerCurrentStep();
   if (sizerFingerLabel) sizerFingerLabel.textContent = sizerFingerTitle(step);
   const stageWidth = sizerMeasureStage?.getBoundingClientRect().width || 320;
+  const isCamera = sizerState.mode === "camera" && Boolean(sizerState.cameraImageSrc);
+  if (sizerMeasureStage) sizerMeasureStage.classList.toggle("is-camera", isCamera);
+  if (sizerCameraImage) {
+    sizerCameraImage.hidden = !isCamera;
+    if (isCamera && sizerCameraImage.src !== sizerState.cameraImageSrc) sizerCameraImage.src = sizerState.cameraImageSrc;
+  }
+  if (sizerRetakeCamera) sizerRetakeCamera.hidden = !isCamera;
+  const help = document.querySelector(".sizer-measure-help");
+  if (help) help.innerHTML = isCamera
+    ? "First match the white lines to the card's short edges. Then match the pink lines to the <strong>widest part of the nail</strong>."
+    : "Rest this nail flat on the box below, then drag each pink handle until the lines just touch the <strong>widest part of your nail</strong>.";
   const savedMm = Number(sizerState.measurements[step.hand]?.[step.finger]);
   const startMm = savedMm > 0 ? savedMm : SIZER_DEFAULT_FINGER_MM[step.finger] || 13;
-  const widthPx = Math.min(stageWidth - 40, startMm * sizerState.pxPerMm);
-  sizerState.guideLeftPx = (stageWidth - widthPx) / 2;
-  sizerState.guideRightPx = (stageWidth + widthPx) / 2;
+  if (isCamera) {
+    if (sizerState.cameraMeasureStepIndex !== sizerState.stepIndex) {
+      sizerState.cameraMeasureStepIndex = sizerState.stepIndex;
+      sizerState.cameraCardLeftPx = stageWidth * 0.1;
+      sizerState.cameraCardRightPx = stageWidth * 0.48;
+      const nailWidth = Math.max(stageWidth * 0.12, Math.min(stageWidth * 0.3, (startMm / SIZER_CARD_SHORT_EDGE_MM) * (sizerState.cameraCardRightPx - sizerState.cameraCardLeftPx)));
+      sizerState.cameraNailLeftPx = stageWidth * 0.7 - nailWidth / 2;
+      sizerState.cameraNailRightPx = stageWidth * 0.7 + nailWidth / 2;
+    }
+    sizerState.guideLeftPx = sizerState.cameraNailLeftPx;
+    sizerState.guideRightPx = sizerState.cameraNailRightPx;
+  } else {
+    const widthPx = Math.min(stageWidth - 40, startMm * sizerState.pxPerMm);
+    sizerState.guideLeftPx = (stageWidth - widthPx) / 2;
+    sizerState.guideRightPx = (stageWidth + widthPx) / 2;
+  }
   sizerRenderGuides();
   sizerRenderProgress();
 }
 
 function sizerCurrentMm() {
+  if (sizerState.mode === "camera" && sizerState.cameraImageSrc) {
+    const cardWidth = sizerState.cameraCardRightPx - sizerState.cameraCardLeftPx;
+    const nailWidth = sizerState.cameraNailRightPx - sizerState.cameraNailLeftPx;
+    return cardWidth > 0 ? (nailWidth / cardWidth) * SIZER_CARD_SHORT_EDGE_MM : 0;
+  }
   const widthPx = sizerState.guideRightPx - sizerState.guideLeftPx;
   return sizerState.pxPerMm > 0 ? widthPx / sizerState.pxPerMm : 0;
 }
@@ -11475,6 +11599,15 @@ function sizerRenderGuides() {
   if (!sizerGuideLeft || !sizerGuideRight) return;
   sizerGuideLeft.style.left = `${sizerState.guideLeftPx}px`;
   sizerGuideRight.style.left = `${sizerState.guideRightPx}px`;
+  const isCamera = sizerState.mode === "camera" && Boolean(sizerState.cameraImageSrc);
+  if (sizerCameraCardGuideLeft && sizerCameraCardGuideRight) {
+    sizerCameraCardGuideLeft.hidden = !isCamera;
+    sizerCameraCardGuideRight.hidden = !isCamera;
+    if (isCamera) {
+      sizerCameraCardGuideLeft.style.left = `${sizerState.cameraCardLeftPx}px`;
+      sizerCameraCardGuideRight.style.left = `${sizerState.cameraCardRightPx}px`;
+    }
+  }
   const mm = sizerCurrentMm();
   if (sizerReadoutMm) sizerReadoutMm.textContent = `${mm.toFixed(1)} mm`;
   const size = sizerSizeFromMm(mm);
@@ -11484,10 +11617,83 @@ function sizerRenderGuides() {
 function sizerSetGuideWidthMm(mm) {
   const clamped = Math.min(SIZER_MAX_MM, Math.max(SIZER_MIN_MM, mm));
   const center = (sizerState.guideLeftPx + sizerState.guideRightPx) / 2;
-  const halfPx = (clamped * sizerState.pxPerMm) / 2;
+  const referenceWidth = sizerState.cameraCardRightPx - sizerState.cameraCardLeftPx;
+  const halfPx = sizerState.mode === "camera" && sizerState.cameraImageSrc
+    ? ((clamped / SIZER_CARD_SHORT_EDGE_MM) * referenceWidth) / 2
+    : (clamped * sizerState.pxPerMm) / 2;
   sizerState.guideLeftPx = center - halfPx;
   sizerState.guideRightPx = center + halfPx;
+  if (sizerState.mode === "camera" && sizerState.cameraImageSrc) {
+    sizerState.cameraNailLeftPx = sizerState.guideLeftPx;
+    sizerState.cameraNailRightPx = sizerState.guideRightPx;
+  }
   sizerRenderGuides();
+}
+
+function sizerStopCamera() {
+  sizerState.cameraRequestId += 1;
+  sizerState.cameraStream?.getTracks().forEach((track) => track.stop());
+  sizerState.cameraStream = null;
+  if (sizerCameraVideo) sizerCameraVideo.srcObject = null;
+}
+
+function sizerCameraErrorMessage(error) {
+  if (error?.name === "NotAllowedError" || error?.name === "SecurityError") return "Camera access was blocked. Allow camera access for this site, then try again, or use the on-screen guide.";
+  if (error?.name === "NotFoundError" || error?.name === "OverconstrainedError") return "No usable camera was found. Use the on-screen guide instead.";
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return "Live camera needs the secure HTTPS website. Use the on-screen guide on this device for now.";
+  return "The camera could not start. Check your browser permission and try again.";
+}
+
+async function sizerStartCamera() {
+  if (!sizerCameraVideo || sizerSteps.camera?.hidden) return;
+  sizerStopCamera();
+  const requestId = sizerState.cameraRequestId;
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    if (sizerCameraStatus) sizerCameraStatus.textContent = sizerCameraErrorMessage();
+    return;
+  }
+  if (sizerCameraStatus) sizerCameraStatus.textContent = "Starting camera...";
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: sizerState.cameraFacingMode },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    });
+    if (requestId !== sizerState.cameraRequestId || sizerSteps.camera?.hidden) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    sizerState.cameraStream = stream;
+    sizerCameraVideo.srcObject = stream;
+    await sizerCameraVideo.play().catch(() => {});
+    if (sizerCameraStatus) sizerCameraStatus.textContent = "Live camera is ready. Keep the card and nail flat and side by side.";
+  } catch (error) {
+    if (requestId === sizerState.cameraRequestId && sizerCameraStatus) sizerCameraStatus.textContent = sizerCameraErrorMessage(error);
+  }
+}
+
+async function sizerSwitchCamera() {
+  sizerState.cameraFacingMode = sizerState.cameraFacingMode === "environment" ? "user" : "environment";
+  await sizerStartCamera();
+}
+
+function sizerCaptureCamera() {
+  if (!sizerCameraVideo || !sizerState.cameraStream || sizerCameraVideo.readyState < 2) {
+    if (sizerCameraStatus) sizerCameraStatus.textContent = "Wait for the live preview, then capture again.";
+    return;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = sizerCameraVideo.videoWidth || 1280;
+  canvas.height = sizerCameraVideo.videoHeight || 720;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  context.drawImage(sizerCameraVideo, 0, 0, canvas.width, canvas.height);
+  sizerState.cameraImageSrc = canvas.toDataURL("image/jpeg", 0.92);
+  sizerStopCamera();
+  sizerShowStep("measure");
 }
 
 function sizerOpen() {
@@ -11498,6 +11704,10 @@ function sizerOpen() {
     return;
   }
   closeAccountPanel();
+  sizerStopCamera();
+  sizerState.mode = "screen";
+  sizerState.cameraImageSrc = "";
+  sizerState.cameraMeasureStepIndex = -1;
   document.body.classList.add("sizer-open");
   sizerOverlay.hidden = false;
   if (sizerStatus) sizerStatus.textContent = "";
@@ -11513,6 +11723,7 @@ function sizerOpen() {
 
 function sizerClose() {
   if (!sizerOverlay) return;
+  sizerStopCamera();
   sizerOverlay.hidden = true;
   document.body.classList.remove("sizer-open");
 }
@@ -11524,7 +11735,8 @@ function sizerAdvance() {
     return;
   }
   sizerState.stepIndex += 1;
-  sizerRenderMeasureStep();
+  if (sizerState.mode === "camera") sizerShowStep("camera");
+  else sizerRenderMeasureStep();
 }
 
 function sizerRenderResults() {
@@ -11611,13 +11823,34 @@ function setupNailSizer() {
   document.querySelectorAll("[data-sizer-open]").forEach((button) => button.addEventListener("click", sizerOpen));
   document.querySelector("#sizerClose")?.addEventListener("click", sizerClose);
   sizerOverlay.querySelectorAll("[data-sizer-close]").forEach((button) => button.addEventListener("click", sizerClose));
-  document.querySelector("#sizerStart")?.addEventListener("click", () => sizerShowStep("calibrate"));
+  document.querySelector("#sizerUseCamera")?.addEventListener("click", () => {
+    sizerState.mode = "camera";
+    sizerState.cameraImageSrc = "";
+    sizerState.cameraMeasureStepIndex = -1;
+    sizerShowStep("camera");
+  });
+  document.querySelector("#sizerStart")?.addEventListener("click", () => {
+    sizerState.mode = "screen";
+    sizerState.cameraImageSrc = "";
+    sizerShowStep("calibrate");
+  });
+  document.querySelector("#sizerCameraSwitch")?.addEventListener("click", sizerSwitchCamera);
+  document.querySelector("#sizerCameraCapture")?.addEventListener("click", sizerCaptureCamera);
+  document.querySelector("#sizerCameraUseScreen")?.addEventListener("click", () => {
+    sizerState.mode = "screen";
+    sizerState.cameraImageSrc = "";
+    sizerShowStep("calibrate");
+  });
   document.querySelector("#sizerCalibrateDone")?.addEventListener("click", () => {
     sizerSaveCalibration();
     sizerState.stepIndex = 0;
     sizerShowStep("measure");
   });
   document.querySelector("#sizerBack")?.addEventListener("click", () => {
+    if (sizerState.mode === "camera" && sizerState.cameraImageSrc) {
+      sizerShowStep("camera");
+      return;
+    }
     if (sizerState.stepIndex === 0) {
       sizerShowStep("calibrate");
       return;
@@ -11638,9 +11871,16 @@ function setupNailSizer() {
   });
   document.querySelector("#sizerRestart")?.addEventListener("click", () => {
     sizerState.stepIndex = 0;
-    sizerShowStep("measure");
+    if (sizerState.mode === "camera") {
+      sizerState.cameraImageSrc = "";
+      sizerState.cameraMeasureStepIndex = -1;
+      sizerShowStep("camera");
+    } else {
+      sizerShowStep("measure");
+    }
   });
   document.querySelector("#sizerSaveProfile")?.addEventListener("click", sizerApplyToProfile);
+  sizerRetakeCamera?.addEventListener("click", () => sizerShowStep("camera"));
 
   sizerBindHandleDrag(sizerCardHandle, (event) => {
     const rect = sizerCardStage.getBoundingClientRect();
@@ -11667,6 +11907,15 @@ function setupNailSizer() {
   };
   sizerBindHandleDrag(sizerGuideLeft?.querySelector(".sizer-handle"), guideMover("left"));
   sizerBindHandleDrag(sizerGuideRight?.querySelector(".sizer-handle"), guideMover("right"));
+  const cameraCardGuideMover = (which) => (event) => {
+    const rect = sizerMeasureStage.getBoundingClientRect();
+    const x = Math.min(rect.width - 4, Math.max(4, event.clientX - rect.left));
+    if (which === "left") sizerState.cameraCardLeftPx = Math.min(x, sizerState.cameraCardRightPx - 6);
+    else sizerState.cameraCardRightPx = Math.max(x, sizerState.cameraCardLeftPx + 6);
+    sizerRenderGuides();
+  };
+  sizerBindHandleDrag(sizerCameraCardGuideLeft?.querySelector(".sizer-handle"), cameraCardGuideMover("left"));
+  sizerBindHandleDrag(sizerCameraCardGuideRight?.querySelector(".sizer-handle"), cameraCardGuideMover("right"));
   document.querySelectorAll("[data-measure-nudge]").forEach((button) => {
     button.addEventListener("click", () => sizerSetGuideWidthMm(sizerCurrentMm() + Number(button.dataset.measureNudge) * 0.1));
   });

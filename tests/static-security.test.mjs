@@ -130,13 +130,15 @@ test("product command center uses the full responsive admin workspace", async ()
 test("admin tab changes realign the dedicated workspace", async () => {
   const client = await source("script.js");
   const styles = await source("styles.css");
-  assert.match(client, /function alignAdminWorkspace\(\)/);
-  assert.match(client, /adminPage\.scrollIntoView\(\{ block: "start", behavior: "auto" \}\)/);
-  assert.match(client, /autoGrowTextareas\(\);\s*alignAdminWorkspace\(\);/);
+  assert.match(client, /function alignAdminWorkspace\(\{ focusPanel = false \} = \{\}\)/);
+  assert.match(client, /target\?\.scrollIntoView\(\{ block: "start", behavior: focusPanel \? "smooth" : "auto" \}\)/);
+  assert.match(client, /switchAdminView\(button\.dataset\.adminView, \{ focusPanel: true \}\)/);
+  assert.match(client, /autoGrowTextareas\(\);\s*alignAdminWorkspace\(\{ focusPanel \}\);/);
   assert.match(styles, /\.admin-dedicated-page \.admin-page[\s\S]*scroll-margin-top: 92px/);
   assert.match(styles, /\.admin-dedicated-page \.admin-view-tabs\s*\{[\s\S]*grid-row: 2/);
   assert.match(styles, /\.admin-dedicated-page \.admin-view-panel\s*\{[\s\S]*grid-row: 2/);
   assert.match(styles, /\.admin-dedicated-page \.admin-header,[\s\S]*grid-row: auto/);
+  assert.match(styles, /\.admin-dedicated-page \.admin-view-panel\s*\{[\s\S]*scroll-margin-top: 5\.5rem/);
 });
 
 test("order summary cards navigate to matching workflow details", async () => {
@@ -183,6 +185,22 @@ test("home page has clear, contextual paths into the shop", async () => {
   assert.match(styles, /\.shop-promo-actions \.button\.primary/);
 });
 
+test("shop separates fresh drops from the complete inventory", async () => {
+  const indexHtml = await source("index.html");
+  const adminHtml = await source("admin.html");
+  const client = await source("script.js");
+  const styles = await source("styles.css");
+  assert.match(client, /const productCollectionOptions = \[/);
+  assert.match(client, /function productCollectionFor\(product = \{\}\)/);
+  assert.match(client, /\["fresh-drops", "inventory"\]\.forEach/);
+  assert.match(client, /data-collection-grid/);
+  assert.match(client, /collection: productCollectionFor\(product\)/);
+  assert.match(indexHtml, /data-shop-destination="fresh-drops"/);
+  assert.match(indexHtml, /data-shop-destination="inventory"/);
+  assert.match(client, /Shop placement/);
+  assert.match(styles, /\.shop-collection-grid\s*\{/);
+});
+
 test("home service strip fills its three-column rhythm", async () => {
   const indexHtml = await source("index.html");
   const adminHtml = await source("admin.html");
@@ -206,8 +224,22 @@ test("admin exposes the nail size finder tool", async () => {
   assert.match(client, /const adminOpenSizer = document\.querySelector\("#adminOpenSizer"\)/);
   assert.match(client, /const adminMode = IS_ADMIN_PAGE && isAdminSignedIn\(\)/);
   assert.match(client, /adminOpenSizer\?\.addEventListener\("click", sizerOpen\)/);
+  assert.match(client, /navigator\.mediaDevices\?\.getUserMedia/);
+  assert.match(client, /facingMode: \{ ideal: sizerState\.cameraFacingMode \}/);
+  assert.match(client, /function sizerStopCamera\(\)/);
+  assert.match(client, /canvas\.toDataURL\("image\/jpeg", 0\.92\)/);
+  assert.match(adminHtml, /id="sizerStepCamera"/);
+  assert.match(adminHtml, /id="sizerCameraCapture"/);
   assert.match(styles, /grid-template-columns: repeat\(10, minmax\(0, 1fr\)/);
   assert.match(styles, /\.admin-sizing-overview\s*\{/);
+});
+
+test("account hero uses a restrained studio treatment", async () => {
+  const styles = await source("styles.css");
+  assert.match(styles, /\.account-auth-hero::before\s*\{/);
+  assert.doesNotMatch(styles, /\.account-auth-hero::after\s*\{/);
+  assert.match(styles, /\.account-benefits,\s*\.account-kpi-row\s*\{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)/);
+  assert.match(styles, /\.account-auth-hero\s*\{[\s\S]*border-radius: 18px/);
 });
 
 test("admin markup has no patch marker artifacts", async () => {
