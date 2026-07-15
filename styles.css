@@ -10651,9 +10651,9 @@ body.admin-inventory-open {
   border: 0;
   border-radius: 0;
   background:
-    radial-gradient(circle at 10% 5%, rgba(191, 219, 254, 0.72), transparent 12rem),
-    radial-gradient(circle at 94% 90%, rgba(251, 207, 232, 0.44), transparent 14rem),
-    linear-gradient(145deg, rgba(239, 246, 255, 0.94), rgba(248, 250, 252, 0.95));
+    radial-gradient(circle at 10% 5%, rgba(219, 234, 254, 0.74), transparent 12rem),
+    radial-gradient(circle at 94% 90%, rgba(251, 226, 239, 0.42), transparent 14rem),
+    linear-gradient(145deg, rgba(244, 248, 255, 0.96), rgba(250, 251, 253, 0.98));
   scroll-behavior: smooth;
   scrollbar-color: rgba(107, 114, 128, 0.35) transparent;
 }
@@ -10694,9 +10694,17 @@ body.admin-inventory-open {
 .message-bubble-row {
   display: flex;
   align-items: end;
-  gap: 0.38rem;
+  gap: 0;
   width: 100%;
   animation: chatMessageIn 220ms ease both;
+}
+
+.message-bubble-row:not(.is-grouped) {
+  margin-top: 0.2rem;
+}
+
+.message-bubble-row.is-grouped {
+  margin-top: -0.08rem;
 }
 
 .message-bubble-row.is-outgoing {
@@ -10716,16 +10724,7 @@ body.admin-inventory-open {
 }
 
 .message-bubble-avatar {
-  display: inline-grid;
-  flex: 0 0 auto;
-  width: 1.35rem;
-  height: 1.35rem;
-  place-items: center;
-  border-radius: 50%;
-  background: #d1d5db;
-  color: #4b5563;
-  font-size: 0.58rem;
-  font-weight: 900;
+  display: none;
 }
 
 .message-bubble-row.is-outgoing .message-bubble-avatar {
@@ -10734,7 +10733,7 @@ body.admin-inventory-open {
 }
 
 .message-bubble-row.is-grouped .message-bubble-avatar {
-  visibility: hidden;
+  display: none;
 }
 
 .message-bubble-row.is-existing {
@@ -10748,7 +10747,7 @@ body.admin-inventory-open {
   min-width: 0;
   padding: 0.62rem 0.82rem 0.48rem;
   border: 1px solid rgba(255, 255, 255, 0.68);
-  border-radius: 1.18rem 1.18rem 1.18rem 0.32rem;
+  border-radius: 1.2rem 1.2rem 1.2rem 0.42rem;
   background: rgba(255, 255, 255, 0.78);
   color: #111827;
   box-shadow: 0 1px 1px rgba(17, 24, 39, 0.08);
@@ -10758,7 +10757,7 @@ body.admin-inventory-open {
 }
 
 .message-bubble-row.is-outgoing .message-bubble-card {
-  border-radius: 1.18rem 1.18rem 0.32rem 1.18rem;
+  border-radius: 1.2rem 1.2rem 0.42rem 1.2rem;
   border-color: rgba(255, 255, 255, 0.22);
   background: linear-gradient(145deg, #0a84ff, #007aff);
   color: white;
@@ -10766,11 +10765,11 @@ body.admin-inventory-open {
 }
 
 .message-bubble-row.is-grouped.is-incoming .message-bubble-card {
-  border-top-left-radius: 0.38rem;
+  border-top-left-radius: 0.48rem;
 }
 
 .message-bubble-row.is-grouped.is-outgoing .message-bubble-card {
-  border-top-right-radius: 0.38rem;
+  border-top-right-radius: 0.48rem;
 }
 
 .message-bubble-sender {

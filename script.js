@@ -3974,7 +3974,6 @@ function messageThreadMarkup(conversation, emptyLabel = "Your conversation with 
     const outgoing = message.sender === outgoingSender;
     const day = messageDayLabel(message.createdAt);
     const grouped = previousSender === message.sender && previousDay === day;
-    const senderLabel = message.sender === "customer" ? (viewer === "admin" ? conversation.name || "Customer" : "You") : "Chey";
     const dayDivider = day && day !== previousDay ? `<div class="message-day-divider"><span>${escapeHTML(day)}</span></div>` : "";
     const delivery = outgoing && index === lastOutgoingIndex
       ? `<span class="message-delivery-state">${message.readAt ? `Read ${escapeHTML(messageDateLabel(message.readAt))}` : "Delivered"}</span>`
@@ -3988,7 +3987,6 @@ function messageThreadMarkup(conversation, emptyLabel = "Your conversation with 
       <article class="message-bubble-row ${outgoing ? "is-outgoing" : "is-incoming"} ${message.sender === "customer" ? "is-customer" : "is-chey"} ${grouped ? "is-grouped" : ""}" data-message-id="${escapeAttribute(message.id)}">
         <div class="message-bubble-avatar" aria-hidden="true">${message.sender === "customer" ? (viewer === "admin" ? "C" : "Y") : "C"}</div>
         <div class="message-bubble-card">
-          ${grouped ? "" : `<span class="message-bubble-sender">${escapeHTML(senderLabel)}</span>`}
           <p>${escapeHTML(message.body)}</p>
           <div class="message-bubble-meta"><time datetime="${escapeAttribute(message.createdAt)}">${escapeHTML(messageDateLabel(message.createdAt))}</time>${delivery}${undoAction}</div>
         </div>
