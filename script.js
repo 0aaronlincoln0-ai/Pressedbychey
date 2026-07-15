@@ -6248,6 +6248,9 @@ function imageUrlFromStyle(element) {
 }
 
 async function setupAdmin() {
+  // On the dedicated route, reveal the dashboard before processing saved data.
+  // This prevents a stale local edit from leaving the page visually empty.
+  if (IS_ADMIN_PAGE) showAdminPage();
   bindAdminRemoteSyncEvents();
   loadAdminState();
   migrateLegacyAdminTextKeys();
@@ -6268,7 +6271,6 @@ async function setupAdmin() {
   renderProNotes({ resetPage: true });
 
   if (IS_ADMIN_PAGE) {
-    showAdminPage();
     setAdminSaveMessage(adminContentStatus, ADMIN_LIVE_LOADING_MESSAGE);
   }
 
@@ -9599,4 +9601,9 @@ function renderCustomProducts() {
 
 setupAdmin().catch((error) => {
   console.error("Pressed by Chey startup failed", error);
+  if (IS_ADMIN_PAGE && isAdminSignedIn()) {
+    adminPage.hidden = false;
+    switchAdminView("orders");
+    setAdminSaveMessage(adminContentStatus, "Dashboard loaded. A saved edit could not finish syncing; refresh once to retry.");
+  }
 });
