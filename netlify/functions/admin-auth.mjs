@@ -3,12 +3,15 @@ import { getStore } from "@netlify/blobs";
 import {
   adminAuthConfiguration,
   authenticateAdminCredentials,
-  issueAdminToken
+  issueAdminToken,
+  isOwnerEmail
 } from "./_shared/admin-auth.mjs";
+import { verifyPassword } from "./customer-account.mjs";
 
 const STORE_NAME = "pressed-by-chey-security";
 const MAX_ATTEMPTS = 5;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const CUSTOMER_STORE_NAME = "pressed-by-chey";
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -28,6 +31,10 @@ function safeText(value, maxLength = 180) {
 function attemptKey(email, ip) {
   const digest = createHash("sha256").update(`${email}|${ip}`).digest("hex");
   return `admin-login/${digest}.json`;
+}
+
+function customerKey(email) {
+  return `customers/${encodeURIComponent(email)}.json`;
 }
 
 export default async (request, context = {}) => {
@@ -56,7 +63,13 @@ export default async (request, context = {}) => {
     return jsonResponse({ error: "Too many login attempts. Try again in 15 minutes." }, { status: 429 });
   }
 
-  const result = authenticateAdminCredentials(email, password);
+  let result = authenticateAdminCredentials(email, password);
+  if (!result.ok && !isOwnerEmail(email)) {
+    const customer = await getStore({ name: CUSTOMER_STORE_NAME, consistency: "strong" }).get(customerKey(email), { type: "json" });
+    if (customer?.isAdmin === true && verifyPassword(password, customer.passwordHash)) {
+      result = { ok: true, configured: true, email, dynamic: true };
+    }
+  }
   if (!result.ok) {
     await store.setJSON(key, {
       failures: failures + 1,
@@ -67,7 +80,6 @@ export default async (request, context = {}) => {
   }
 
   await store.delete(key);
-  const session = issueAdminToken(result.email, now);
+  const session = issueAdminToken(result.email, now, { allowDynamic: Boolean(result.dynamic) });
   return jsonResponse({ ok: true, session });
 };
-

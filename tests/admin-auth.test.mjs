@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   adminAuthConfiguration,
   authenticateAdminCredentials,
+  adminEmails,
+  isOwnerEmail,
   issueAdminToken,
   verifyAdminToken
 } from "../netlify/functions/_shared/admin-auth.mjs";
@@ -36,6 +38,11 @@ test("accepts only the configured admin credentials", () => {
   assert.equal(authenticateAdminCredentials(EMAIL.toUpperCase(), PASSWORD).ok, true);
   assert.equal(authenticateAdminCredentials(EMAIL, "wrong-password").ok, false);
   assert.equal(authenticateAdminCredentials("someone@example.test", PASSWORD).ok, false);
+});
+
+test("keeps the owner identity in the admin allowlist", () => {
+  assert.equal(isOwnerEmail("CALLISON@PRESSEDBYCHEY.COM"), true);
+  assert.equal(adminEmails().includes("callison@pressedbychey.com"), true);
 });
 
 test("issues and verifies a short-lived signed session", () => {

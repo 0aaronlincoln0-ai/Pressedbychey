@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const TOKEN_TTL_SECONDS = 2 * 60 * 60;
+export const OWNER_EMAIL = "callison@pressedbychey.com";
 const DEFAULT_ADMIN_EMAILS = [
   "admin",
   "chey",
@@ -15,10 +16,13 @@ export function envValue(name) {
 }
 
 export function adminEmails() {
-  return (envValue("CHEY_ADMIN_EMAILS") || DEFAULT_ADMIN_EMAILS.join(","))
-    .split(",")
+  return [OWNER_EMAIL, ...(envValue("CHEY_ADMIN_EMAILS") || DEFAULT_ADMIN_EMAILS.join(",")).split(",")]
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
+}
+
+export function isOwnerEmail(emailValue) {
+  return String(emailValue || "").trim().toLowerCase() === OWNER_EMAIL;
 }
 
 export function adminAuthConfiguration() {
@@ -56,10 +60,10 @@ export function authenticateAdminCredentials(emailValue, passwordValue) {
   };
 }
 
-export function issueAdminToken(emailValue, now = Date.now()) {
+export function issueAdminToken(emailValue, now = Date.now(), options = {}) {
   const email = String(emailValue || "").trim().toLowerCase();
   const { secret, configured } = adminAuthConfiguration();
-  if (!configured || !adminEmails().includes(email)) throw new Error("Admin authentication is not configured.");
+  if (!configured || (!adminEmails().includes(email) && !options.allowDynamic)) throw new Error("Admin authentication is not configured.");
   const issuedAt = Math.floor(now / 1000);
   const payload = {
     v: 1,
@@ -87,7 +91,6 @@ export function verifyAdminToken(tokenValue, now = Date.now()) {
     const payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
     const nowSeconds = Math.floor(now / 1000);
     if (payload?.v !== 1 || payload?.role !== "admin") return null;
-    if (!adminEmails().includes(String(payload.sub || "").toLowerCase())) return null;
     if (!Number.isFinite(payload.iat) || !Number.isFinite(payload.exp)) return null;
     if (payload.iat > nowSeconds + 60 || payload.exp <= nowSeconds) return null;
     return payload;
@@ -105,4 +108,3 @@ export function bearerToken(request) {
 export function verifyAdminRequest(request, now = Date.now()) {
   return verifyAdminToken(bearerToken(request), now);
 }
-

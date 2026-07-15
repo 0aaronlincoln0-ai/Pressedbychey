@@ -288,6 +288,7 @@ const presetAura = {
   radius: 210
 };
 const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
+const ADMIN_OWNER_EMAIL = "callison@pressedbychey.com";
 const ADMIN_SESSION_KEY = "pressedByCheyAdminSession";
 const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const ADMIN_TOOLBAR_COLLAPSED_KEY = "pressedByCheyAdminToolbarCollapsed";
@@ -1994,6 +1995,10 @@ function closeAccountPanel() {
 
 function isAdminEmail(email) {
   return ADMIN_EMAILS.includes(String(email || "").trim().toLowerCase());
+}
+
+function isOwnerAdmin() {
+  return String(adminSession?.email || "").toLowerCase() === ADMIN_OWNER_EMAIL;
 }
 
 function clearAdminSession() {
@@ -4161,7 +4166,7 @@ function renderAdminCustomerList() {
   adminCustomerList.innerHTML = adminCustomers.length
     ? adminCustomers.map((customer) => `
       <button class="admin-customer-row ${customer.email === activeAdminCustomerEmail ? "is-active" : ""}" type="button" data-admin-customer-email="${escapeAttribute(customer.email)}">
-        <span class="admin-customer-row-head"><strong>${escapeHTML(customer.name || customer.email)}</strong><b class="admin-account-status is-${escapeAttribute(customer.accountStatus)}">${escapeHTML(adminCustomerStatusLabel(customer.accountStatus))}</b></span>
+        <span class="admin-customer-row-head"><strong>${escapeHTML(customer.name || customer.email)}</strong><span><b class="admin-account-status is-${escapeAttribute(customer.accountStatus)}">${escapeHTML(adminCustomerStatusLabel(customer.accountStatus))}</b>${customer.isAdmin ? " <b class=\"admin-account-status is-active\">Admin</b>" : ""}</span></span>
         <small>${escapeHTML(customer.email)}</small>
         <span class="admin-customer-row-stats"><span>${customer.orderCount || 0} orders</span><span>${customer.savedProductCount || 0} saved</span></span>
         <time>Last seen ${escapeHTML(messageDateLabel(customer.lastLogin || customer.createdAt) || "not yet")}</time>
@@ -4209,6 +4214,7 @@ function renderAdminCustomerDetail() {
           <option value="blocked"${customer.accountStatus === "blocked" ? " selected" : ""}>Blocked</option>
         </select>
       </label>
+      ${isOwnerAdmin() && customer.email !== ADMIN_OWNER_EMAIL ? `<label class="admin-customer-admin-toggle"><span>Admin access</span><span><input type="checkbox" data-admin-customer-input="isAdmin"${customer.isAdmin ? " checked" : ""} /> Can manage the store and customer accounts</span></label>` : ""}
       <div class="admin-customer-sizing">
         <div class="admin-customer-subhead"><strong>Saved sizing</strong><span>Chey can correct fit details for future orders.</span></div>
         <div class="admin-customer-size-grid">${adminCustomerSizeInputs(customer.sizes)}</div>
@@ -4275,6 +4281,7 @@ async function saveAdminCustomer(event) {
   if (!activeAdminCustomerEmail) return;
   const form = event.currentTarget;
   const input = (name) => form.querySelector(`[data-admin-customer-input="${name}"]`)?.value || "";
+  const isAdminInput = form.querySelector('[data-admin-customer-input="isAdmin"]');
   const sizes = Object.fromEntries(sizeHandKeys.map((hand) => [hand, Object.fromEntries(sizeFingerKeys.map((finger) => [finger,
     form.querySelector(`[data-admin-customer-size-hand="${hand}"][data-admin-customer-size-finger="${finger}"]`)?.value.trim() || ""
   ]))]));
@@ -4286,6 +4293,7 @@ async function saveAdminCustomer(event) {
       name: input("name"),
       accountStatus: input("accountStatus"),
       adminNote: input("adminNote"),
+      ...(isAdminInput ? { isAdmin: isAdminInput.checked } : {}),
       sizes
     });
     activeAdminCustomer = data.customer || activeAdminCustomer;
@@ -4537,7 +4545,7 @@ async function registerCustomer() {
 async function loginCustomer() {
   const email = loginEmail.value.trim().toLowerCase();
   const password = loginPassword.value;
-  if (IS_ADMIN_PAGE && isAdminEmail(email)) {
+  if (email === ADMIN_OWNER_EMAIL || (IS_ADMIN_PAGE && isAdminEmail(email))) {
     accountStatus.textContent = "Checking secure admin access...";
     try {
       await completeAdminLogin(email, password);

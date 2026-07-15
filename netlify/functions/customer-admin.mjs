@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import { verifyAdminRequest } from "./_shared/admin-auth.mjs";
+import { isOwnerEmail, verifyAdminRequest } from "./_shared/admin-auth.mjs";
 
 const STORE_NAME = "pressed-by-chey";
 const CUSTOMER_PREFIX = "customers";
@@ -61,6 +61,7 @@ function publicCustomer(customer = {}, detailed = false) {
     name: safeText(customer.name, 100),
     email: normalizeEmail(customer.email),
     accountStatus: normalizeStatus(customer.accountStatus),
+    isAdmin: customer.isAdmin === true,
     adminNote: safeText(customer.adminNote, 1200),
     sizes: normalizeSizes(customer.sizes),
     savedProductCount: Array.isArray(customer.savedProducts) ? customer.savedProducts.length : 0,
@@ -138,12 +139,21 @@ export default async (request) => {
 
   if (action === "get") return jsonResponse({ ok: true, customer: publicCustomer(customer, true) });
   if (action === "update") {
+    const adminSession = verifyAdminRequest(request);
+    const changingAdminRole = typeof payload.isAdmin === "boolean";
+    if (changingAdminRole && !isOwnerEmail(adminSession?.sub)) {
+      return jsonResponse({ error: "Only the owner can change admin access." }, { status: 403 });
+    }
+    if (isOwnerEmail(email) && payload.isAdmin === false) {
+      return jsonResponse({ error: "The owner admin account cannot be removed." }, { status: 400 });
+    }
     const nextCustomer = {
       ...customer,
       name: safeText(payload.name || customer.name, 100),
       sizes: normalizeSizes(payload.sizes || customer.sizes),
       accountStatus: normalizeStatus(payload.accountStatus || customer.accountStatus),
       adminNote: safeText(payload.adminNote || "", 1200),
+      isAdmin: isOwnerEmail(email) || (changingAdminRole ? payload.isAdmin : customer.isAdmin === true),
       updatedAt: new Date().toISOString()
     };
     await store.setJSON(key, nextCustomer);
