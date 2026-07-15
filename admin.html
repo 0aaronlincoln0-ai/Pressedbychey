@@ -756,22 +756,66 @@
         </div>
         <div class="admin-view-panel" id="adminProductsView" data-admin-view-panel="products" hidden>
         <section class="admin-section product-library-section">
-          <div class="admin-section-title">
+          <div class="admin-products-hero">
             <div>
-              <h3>Products</h3>
-              <p>This is Chey's product library. Upload nail photos, polish product details, then publish finished designs directly to the Shop.</p>
+              <p class="eyebrow">Catalog Operations</p>
+              <h3>Product Command Center</h3>
+              <p>Manage the catalog Chey actually sells: photos, product numbers, stock, pricing, descriptions, and publishing status in one place.</p>
             </div>
-            <div class="admin-section-actions">
-              <span id="lookCountBadge">0 saved designs</span>
-              <span id="productCountBadge">0 live products</span>
-              <button type="button" id="adminOpenInventory">Open Inventory</button>
-              <button type="button" id="saveProductChanges">Save Products</button>
+            <div class="admin-products-hero-actions">
+              <button class="button primary" type="button" id="adminCreateProduct">New Product</button>
+              <button class="button secondary" type="button" id="adminOpenInventory">Inventory Control</button>
+              <button class="button ghost" type="button" id="saveProductChanges">Save All Changes</button>
             </div>
+          </div>
+          <div class="admin-product-kpis" aria-label="Product catalog summary">
+            <article><span>Catalog</span><strong id="adminProductsTotalCount">0</strong><small>Saved product records</small></article>
+            <article><span>Live</span><strong id="adminProductsLiveCount">0</strong><small>Visible in the Shop</small></article>
+            <article><span>Drafts</span><strong id="adminProductsDraftCount">0</strong><small>Private until published</small></article>
+            <article><span>In Stock</span><strong id="adminProductsStockCount">0</strong><small>Ready to sell now</small></article>
+            <article><span>Attention</span><strong id="adminProductsAttentionCount">0</strong><small>Low or out of stock</small></article>
+          </div>
+          <div class="admin-product-toolbar" aria-label="Product catalog filters">
+            <label>Search catalog
+              <input id="adminProductSearch" type="search" placeholder="Name, product number, or description" autocomplete="off" />
+            </label>
+            <label>Visibility
+              <select id="adminProductVisibilityFilter">
+                <option value="all">All products</option>
+                <option value="published">Live in Shop</option>
+                <option value="draft">Private drafts</option>
+              </select>
+            </label>
+            <label>Stock
+              <select id="adminProductStockFilter">
+                <option value="all">All stock states</option>
+                <option value="in-stock">In stock</option>
+                <option value="low-stock">Low stock</option>
+                <option value="out-of-stock">Out of stock</option>
+                <option value="made-to-order">Made to order</option>
+                <option value="coming-soon">Coming soon</option>
+              </select>
+            </label>
+            <label>Shape
+              <select id="adminProductShapeFilter">
+                <option value="all">All shapes</option>
+                <option value="almond">Almond</option>
+                <option value="square">Square</option>
+                <option value="coffin">Coffin</option>
+                <option value="oval">Oval</option>
+                <option value="stiletto">Stiletto</option>
+              </select>
+            </label>
+            <button class="button ghost" type="button" id="clearAdminProductFilters">Reset Filters</button>
+          </div>
+          <div class="admin-product-results-bar">
+            <strong id="adminProductShowing">Showing 0 products</strong>
+            <span>Use product numbers to keep inventory, orders, and customer questions organized.</span>
           </div>
           <p class="admin-status" id="addProductStatus" role="status"></p>
           <div class="admin-look-list" id="adminLookList"></div>
-          <details class="admin-published-products" open>
-            <summary>Published Shop Products</summary>
+          <details class="admin-published-products">
+            <summary>Advanced live product editor</summary>
             <p>These are the products customers can see in the Shop. Use the product library above to add more.</p>
             <div class="admin-product-list" id="adminProductList"></div>
           </details>
@@ -1086,6 +1130,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260714-inventory-pro-notes"></script>
+    <script src="script.js?v=20260714-products-command-center"></script>
   </body>
 </html>

@@ -225,6 +225,18 @@ const adminWorkingOrdersCount = document.querySelector("#adminWorkingOrdersCount
 const adminDoneOrdersCount = document.querySelector("#adminDoneOrdersCount");
 const adminProductSummaryCount = document.querySelector("#adminProductSummaryCount");
 const adminOpenInventory = document.querySelector("#adminOpenInventory");
+const adminCreateProduct = document.querySelector("#adminCreateProduct");
+const adminProductSearch = document.querySelector("#adminProductSearch");
+const adminProductVisibilityFilter = document.querySelector("#adminProductVisibilityFilter");
+const adminProductStockFilter = document.querySelector("#adminProductStockFilter");
+const adminProductShapeFilter = document.querySelector("#adminProductShapeFilter");
+const clearAdminProductFilters = document.querySelector("#clearAdminProductFilters");
+const adminProductShowing = document.querySelector("#adminProductShowing");
+const adminProductsTotalCount = document.querySelector("#adminProductsTotalCount");
+const adminProductsLiveCount = document.querySelector("#adminProductsLiveCount");
+const adminProductsDraftCount = document.querySelector("#adminProductsDraftCount");
+const adminProductsStockCount = document.querySelector("#adminProductsStockCount");
+const adminProductsAttentionCount = document.querySelector("#adminProductsAttentionCount");
 const adminContentList = document.querySelector("#adminContentList");
 const adminContentStatus = document.querySelector("#adminContentStatus");
 const adminLayoutList = document.querySelector("#adminLayoutList");
@@ -739,7 +751,7 @@ function photoPositionCss(value) {
 }
 
 function photoZoomPercent(value) {
-  return Math.round((sanitizePhotoZoom(value) - 1) * 100);
+  return Math.round(sanitizePhotoZoom(value) * 100);
 }
 
 function normalizeMoneyValue(value) {
@@ -7020,6 +7032,11 @@ async function setupAdmin() {
   resetLayoutButton.addEventListener("click", resetLayoutState);
   if (saveProductChangesButton) saveProductChangesButton.addEventListener("click", saveProductChangesFromSection);
   adminOpenInventory?.addEventListener("click", openAdminInventoryShelf);
+  adminCreateProduct?.addEventListener("click", createInventoryDraft);
+  [adminProductSearch, adminProductVisibilityFilter, adminProductStockFilter, adminProductShapeFilter].forEach((filter) => {
+    filter?.addEventListener(filter === adminProductSearch ? "input" : "change", applyAdminProductFilters);
+  });
+  clearAdminProductFilters?.addEventListener("click", clearAdminProductFiltersAndRender);
   setupDrawingPad();
   ideaPhoto.addEventListener("change", previewIdeaPhoto);
   saveIdeaButton.addEventListener("click", addDesignIdea);
@@ -7936,6 +7953,65 @@ function setLookStatus(index, message) {
   if (adminInventoryStatus && !adminInventoryPanel?.hidden) adminInventoryStatus.textContent = message;
 }
 
+function updateAdminProductCatalogSummary() {
+  const looks = inventoryLooks();
+  const total = looks.length;
+  const live = looks.filter((look) => look.published).length;
+  const drafts = looks.filter((look) => !look.published).length;
+  const inStock = looks.filter((look) => inventoryStateFor(look).key === "in-stock").length;
+  const attention = looks.filter((look) => ["low-stock", "out-of-stock"].includes(inventoryStateFor(look).key)).length;
+  if (adminProductsTotalCount) adminProductsTotalCount.textContent = String(total);
+  if (adminProductsLiveCount) adminProductsLiveCount.textContent = String(live);
+  if (adminProductsDraftCount) adminProductsDraftCount.textContent = String(drafts);
+  if (adminProductsStockCount) adminProductsStockCount.textContent = String(inStock);
+  if (adminProductsAttentionCount) adminProductsAttentionCount.textContent = String(attention);
+  if (adminProductShowing && !adminProductSearch?.value && (adminProductVisibilityFilter?.value || "all") === "all" && (adminProductStockFilter?.value || "all") === "all" && (adminProductShapeFilter?.value || "all") === "all") {
+    adminProductShowing.textContent = `Showing ${total.toLocaleString()} product${total === 1 ? "" : "s"}`;
+  }
+}
+
+function applyAdminProductFilters() {
+  if (!adminLookList) return;
+  const query = (adminProductSearch?.value || "").trim().toLowerCase();
+  const visibility = adminProductVisibilityFilter?.value || "all";
+  const stock = adminProductStockFilter?.value || "all";
+  const shape = adminProductShapeFilter?.value || "all";
+  const cards = [...adminLookList.querySelectorAll("[data-look-card]")];
+  let visible = 0;
+  cards.forEach((card) => {
+    const matchesQuery = !query || `${card.dataset.catalogName || ""} ${card.dataset.catalogNumber || ""}`.includes(query);
+    const matchesVisibility = visibility === "all" || card.dataset.catalogVisibility === visibility;
+    const matchesStock = stock === "all" || card.dataset.catalogStock === stock;
+    const matchesShape = shape === "all" || card.dataset.catalogShape === shape;
+    const matches = matchesQuery && matchesVisibility && matchesStock && matchesShape;
+    card.hidden = !matches;
+    if (matches) visible += 1;
+  });
+  const total = cards.length;
+  if (adminProductShowing) {
+    adminProductShowing.textContent = query || visibility !== "all" || stock !== "all" || shape !== "all"
+      ? `Showing ${visible.toLocaleString()} of ${total.toLocaleString()} products`
+      : `Showing ${total.toLocaleString()} product${total === 1 ? "" : "s"}`;
+  }
+  const empty = adminLookList.querySelector("[data-admin-product-filter-empty]");
+  if (empty) empty.remove();
+  if (cards.length && !visible) {
+    const emptyState = document.createElement("div");
+    emptyState.className = "admin-product-empty-state";
+    emptyState.dataset.adminProductFilterEmpty = "true";
+    emptyState.innerHTML = "<strong>No products match these filters.</strong><p>Reset the catalog filters or search by another product number.</p>";
+    adminLookList.appendChild(emptyState);
+  }
+}
+
+function clearAdminProductFiltersAndRender() {
+  if (adminProductSearch) adminProductSearch.value = "";
+  if (adminProductVisibilityFilter) adminProductVisibilityFilter.value = "all";
+  if (adminProductStockFilter) adminProductStockFilter.value = "all";
+  if (adminProductShapeFilter) adminProductShapeFilter.value = "all";
+  applyAdminProductFilters();
+}
+
 function productFromLook(look) {
   return {
     name: look.name,
@@ -8332,17 +8408,29 @@ function renderAdminLookPhotos() {
   const activeIndices = lookLibrary
     .map((_, index) => index)
     .filter((index) => readLookData(index).active);
-  const inactiveIndices = lookLibrary
-    .map((_, index) => index)
-    .filter((index) => !readLookData(index).active);
-  const displayIndices = [...activeIndices, ...inactiveIndices.slice(0, Math.max(visibleLookSlotCount - activeIndices.length, 0))]
-    .filter((index, position, list) => list.indexOf(index) === position)
-    .sort((a, b) => a - b);
+  const displayIndices = activeIndices.sort((a, b) => a - b);
+  if (!displayIndices.length) {
+    adminLookList.innerHTML = `
+      <div class="admin-product-empty-state">
+        <strong>Your catalog is ready for its first product.</strong>
+        <p>Create a product record, add its photo and details, then publish it when the set is ready.</p>
+        <button class="button primary" type="button" data-empty-create-product>New Product</button>
+      </div>
+    `;
+    adminLookList.querySelector("[data-empty-create-product]")?.addEventListener("click", createInventoryDraft);
+    updateAdminProductCatalogSummary();
+    return;
+  }
   displayIndices.forEach((index) => {
     const look = readLookData(index);
     const card = document.createElement("div");
     card.className = `admin-control admin-look-card${look.published ? " is-published" : ""}`;
     card.dataset.lookCard = String(index);
+    card.dataset.catalogName = `${look.name} ${look.copy}`.toLowerCase();
+    card.dataset.catalogNumber = productNumberFor(look, index).toLowerCase();
+    card.dataset.catalogVisibility = look.published ? "published" : "draft";
+    card.dataset.catalogStock = inventoryStateFor(look).key;
+    card.dataset.catalogShape = productShapeFilterValue({ category: look.finish, name: look.name, description: look.copy });
     card.style.setProperty("--look-base", look.base);
     card.style.setProperty("--look-accent", look.accent);
     if (look.photo) card.style.setProperty("--look-photo", `url("${look.photo}")`);
@@ -8355,10 +8443,19 @@ function renderAdminLookPhotos() {
       </div>
       <div class="admin-look-copy">
         <span>${look.slotLabel}${look.published ? " - Published" : ""}</span>
+        <div class="admin-look-record-meta" aria-label="Catalog status">
+          <span class="admin-look-status-chip${look.published ? " is-live" : ""}">${look.published ? "Live in Shop" : "Private draft"}</span>
+          <span class="admin-look-status-chip" data-catalog-stock-label>${escapeHTML(inventoryDisplayLabel(look))}</span>
+          <span class="admin-look-status-chip" data-catalog-number-label>${escapeHTML(productNumberFor(look, index))}</span>
+        </div>
         <label>Name <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].name) || "")}" placeholder="${escapeAttribute(look.name)}" data-look-detail="${index}" data-look-field="name" /></label>
         <div class="admin-field-row">
           <label>Price <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].price) || "")}" inputmode="decimal" placeholder="45" data-look-detail="${index}" data-look-field="price" /></label>
           <label>Style <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].finish) || "")}" placeholder="chrome, aura, french" data-look-detail="${index}" data-look-field="finish" /></label>
+        </div>
+        <div class="admin-field-row">
+          <label>Product number <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].sku) || productNumberFor(look, index))}" placeholder="PBC-001" data-look-detail="${index}" data-look-field="sku" /></label>
+          <label>Units in stock <input type="number" min="0" step="1" inputmode="numeric" value="${inventoryCountFor(look) ?? ""}" placeholder="Made to order" data-look-detail="${index}" data-look-field="inventoryCount" /></label>
         </div>
         <label>Description <textarea data-look-detail="${index}" data-look-field="copy" placeholder="Tell customers about the shape, finish, color, charms, and vibe.">${escapeTextarea((adminState.lookDetails[index] && adminState.lookDetails[index].copy) || "")}</textarea></label>
         <details class="admin-optional">
@@ -8480,7 +8577,28 @@ function renderAdminLookPhotos() {
       const index = field.dataset.lookDetail;
       const key = field.dataset.lookField;
       adminState.lookDetails[index] = adminState.lookDetails[index] || {};
-      adminState.lookDetails[index][key] = field.value;
+      const value = key === "price"
+        ? normalizeMoneyValue(field.value)
+        : key === "inventoryCount"
+          ? normalizeInventoryCount(field.value, null)
+          : field.value.trim();
+      adminState.lookDetails[index][key] = value;
+      const look = readLookData(Number(index));
+      if (look.published) {
+        syncInventoryLookToPublishedProduct(Number(index));
+        renderCustomProducts();
+      }
+      const card = field.closest("[data-look-card]");
+      if (card) {
+        card.dataset.catalogName = `${look.name} ${look.copy}`.toLowerCase();
+        card.dataset.catalogNumber = productNumberFor(look, Number(index)).toLowerCase();
+        card.dataset.catalogStock = inventoryStateFor(look).key;
+        card.dataset.catalogShape = productShapeFilterValue({ category: look.finish, name: look.name, description: look.copy });
+        const stockLabel = card.querySelector("[data-catalog-stock-label]");
+        const numberLabel = card.querySelector("[data-catalog-number-label]");
+        if (stockLabel) stockLabel.textContent = inventoryDisplayLabel(look);
+        if (numberLabel) numberLabel.textContent = productNumberFor(look, Number(index));
+      }
       localSaveAdminState();
       scheduleRemoteAdminStateSave({
         statusTarget: addProductStatus,
@@ -8490,19 +8608,12 @@ function renderAdminLookPhotos() {
       });
       renderLooks();
       updateLookCount();
+      updateAdminProductCatalogSummary();
+      applyAdminProductFilters();
     });
   });
-  if (displayIndices.length < lookLibrary.length) {
-    const moreButton = document.createElement("button");
-    moreButton.type = "button";
-    moreButton.className = "tiny-upload admin-load-more";
-    moreButton.textContent = `Show ${Math.min(LOOK_SLOT_BATCH_SIZE, lookLibrary.length - displayIndices.length)} more design slots`;
-    moreButton.addEventListener("click", () => {
-      visibleLookSlotCount = Math.min(lookLibrary.length, visibleLookSlotCount + LOOK_SLOT_BATCH_SIZE);
-      renderAdminLookPhotos();
-    });
-    adminLookList.appendChild(moreButton);
-  }
+  updateAdminProductCatalogSummary();
+  applyAdminProductFilters();
 }
 
 function renderAdminProducts() {
