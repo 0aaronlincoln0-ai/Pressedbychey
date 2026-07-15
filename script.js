@@ -1871,25 +1871,36 @@ function startAdminSession() {
     authenticatedAt: now,
     expiresAt: now + ADMIN_SESSION_TTL_MS
   };
-  sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(adminSession));
-  localStorage.removeItem(ADMIN_SESSION_KEY);
+  const serializedSession = JSON.stringify(adminSession);
+  sessionStorage.setItem(ADMIN_SESSION_KEY, serializedSession);
+  // The dedicated dashboard can be opened in a new tab, so keep the same
+  // time-limited session available to that tab as well.
+  localStorage.setItem(ADMIN_SESSION_KEY, serializedSession);
 }
 
 function isAdminSignedIn() {
-  localStorage.removeItem(ADMIN_SESSION_KEY);
   if (!adminSession) {
     try {
-      const saved = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || "null");
+      const saved = JSON.parse(
+        sessionStorage.getItem(ADMIN_SESSION_KEY)
+        || localStorage.getItem(ADMIN_SESSION_KEY)
+        || "null"
+      );
       if (saved?.authenticated === true) adminSession = saved;
     } catch {
       sessionStorage.removeItem(ADMIN_SESSION_KEY);
+      localStorage.removeItem(ADMIN_SESSION_KEY);
     }
   }
   if (adminSession?.authenticated === true && Number(adminSession.expiresAt) > Date.now()) {
+    const serializedSession = JSON.stringify(adminSession);
+    sessionStorage.setItem(ADMIN_SESSION_KEY, serializedSession);
+    localStorage.setItem(ADMIN_SESSION_KEY, serializedSession);
     return true;
   }
   adminSession = null;
   sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  localStorage.removeItem(ADMIN_SESSION_KEY);
   return false;
 }
 
