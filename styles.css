@@ -5300,6 +5300,7 @@ figcaption {
 .admin-dedicated-page .admin-page {
   width: min(1680px, calc(100% - 24px));
   min-height: calc(100vh - 120px);
+  scroll-margin-top: 92px;
   margin: 0 auto clamp(2rem, 4vw, 4rem);
   padding: clamp(0.85rem, 2vw, 1.25rem);
   border-color: rgba(36, 16, 24, 0.1);

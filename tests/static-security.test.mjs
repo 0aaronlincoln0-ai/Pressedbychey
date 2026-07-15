@@ -127,6 +127,15 @@ test("product command center uses the full responsive admin workspace", async ()
   assert.match(styles, /\.admin-dedicated-page \.admin-page[\s\S]*width: calc\(100% - 16px\)/);
 });
 
+test("admin tab changes realign the dedicated workspace", async () => {
+  const client = await source("script.js");
+  const styles = await source("styles.css");
+  assert.match(client, /function alignAdminWorkspace\(\)/);
+  assert.match(client, /adminPage\.scrollIntoView\(\{ block: "start", behavior: "auto" \}\)/);
+  assert.match(client, /autoGrowTextareas\(\);\s*alignAdminWorkspace\(\);/);
+  assert.match(styles, /\.admin-dedicated-page \.admin-page[\s\S]*scroll-margin-top: 92px/);
+});
+
 test("admin messages provide a direct customer picker", async () => {
   const client = await source("script.js");
   const adminHtml = await source("admin.html");

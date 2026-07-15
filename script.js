@@ -2192,6 +2192,13 @@ function showAdminOrdersPage() {
   showAdminPage();
 }
 
+function alignAdminWorkspace() {
+  if (!IS_ADMIN_PAGE || !adminPage || adminPage.hidden) return;
+  requestAnimationFrame(() => {
+    adminPage.scrollIntoView({ block: "start", behavior: "auto" });
+  });
+}
+
 function renderAdminVisibility() {
   const signedIn = isAdminSignedIn();
   if (IS_ADMIN_PAGE) body.classList.add("admin-dedicated-page");
@@ -7872,6 +7879,7 @@ function switchAdminView(view) {
   if (view === "notes") renderProNotes();
   syncAdminLiveOrderAutoRefresh();
   autoGrowTextareas();
+  alignAdminWorkspace();
 }
 
 function autoGrowTextarea(textarea) {
