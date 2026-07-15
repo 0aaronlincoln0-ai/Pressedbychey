@@ -13,7 +13,7 @@
       rel="stylesheet"
     />
     <link rel="preload" href="assets/nail-polish-brush-cursor.svg?v=brush3" as="image" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=20260715-brush-flash-fix" />
+    <link rel="stylesheet" href="styles.css?v=20260715-cursor-glitter" />
   </head>
   <body class="admin-dedicated-page">
     <div class="scroll-progress" aria-hidden="true"></div>
@@ -1054,6 +1054,14 @@
                 <option value="draft">Private drafts</option>
               </select>
             </label>
+            <label>Readiness
+              <select id="adminProductReadinessFilter">
+                <option value="all">All readiness states</option>
+                <option value="live">Live and ready</option>
+                <option value="ready">Ready to publish</option>
+                <option value="needs-attention">Needs a photo or price</option>
+              </select>
+            </label>
             <label>Stock
               <select id="adminProductStockFilter">
                 <option value="all">All stock states</option>
@@ -1398,6 +1406,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260715-ai-sizer-v3"></script>
+    <script src="script.js?v=20260715-cursor-glitter"></script>
   </body>
 </html>

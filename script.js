@@ -265,6 +265,7 @@ const adminOpenInventory = document.querySelector("#adminOpenInventory");
 const adminCreateProduct = document.querySelector("#adminCreateProduct");
 const adminProductSearch = document.querySelector("#adminProductSearch");
 const adminProductVisibilityFilter = document.querySelector("#adminProductVisibilityFilter");
+const adminProductReadinessFilter = document.querySelector("#adminProductReadinessFilter");
 const adminProductStockFilter = document.querySelector("#adminProductStockFilter");
 const adminProductShapeFilter = document.querySelector("#adminProductShapeFilter");
 const clearAdminProductFilters = document.querySelector("#clearAdminProductFilters");
@@ -1986,6 +1987,111 @@ function setShopCollectionFilter(destination = "") {
   applyProductFilter(document.querySelector("#shopFilters [data-filter].active")?.dataset.filter || "all");
 }
 
+function setupPromoCursorGlitter() {
+  const triggers = document.querySelectorAll(".shop-promo-actions .button");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  if (!triggers.length || reducedMotion || !finePointer) return;
+
+  const particles = [];
+  const colors = ["#fff", "#ffe9c9", "#f3d7b8", "#ffc4d9"];
+  let frame = 0;
+  let lastFrame = 0;
+  let lastSpawn = 0;
+  let active = false;
+  let pointerX = 0;
+  let pointerY = 0;
+  let pointerVelocityX = 0;
+  let pointerVelocityY = 0;
+  let lastPointerTime = 0;
+
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+  function spawnSpark() {
+    const spark = document.createElement("span");
+    const size = 2 + Math.random() * 3.5;
+    const star = Math.random() > 0.58;
+    spark.className = `promo-cursor-glitter-particle${star ? " is-star" : ""}`;
+    spark.style.width = `${size}px`;
+    spark.style.height = `${size}px`;
+    spark.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    document.body.appendChild(spark);
+    particles.push({
+      element: spark,
+      x: pointerX + (Math.random() - 0.5) * 8,
+      y: pointerY + (Math.random() - 0.5) * 5,
+      vx: clamp(pointerVelocityX * 0.16 + (Math.random() - 0.5) * 70, -180, 180),
+      vy: 35 + Math.random() * 85 + Math.max(0, pointerVelocityY * 0.04),
+      age: 0,
+      life: 0.75 + Math.random() * 0.65,
+      rotation: Math.random() * 360,
+      spin: (Math.random() - 0.5) * 420,
+      seed: Math.random() * Math.PI * 2
+    });
+  }
+
+  function animate(timestamp) {
+    const delta = lastFrame ? clamp((timestamp - lastFrame) / 1000, 0.001, 0.04) : 0.016;
+    lastFrame = timestamp;
+    if (active && timestamp - lastSpawn > 48) {
+      spawnSpark();
+      if (Math.abs(pointerVelocityX) + Math.abs(pointerVelocityY) > 650) spawnSpark();
+      lastSpawn = timestamp;
+    }
+    for (let index = particles.length - 1; index >= 0; index -= 1) {
+      const particle = particles[index];
+      particle.age += delta;
+      particle.vx += Math.sin(particle.age * 4 + particle.seed) * 18 * delta;
+      particle.vy += 540 * delta;
+      particle.x += particle.vx * delta;
+      particle.y += particle.vy * delta;
+      particle.rotation += particle.spin * delta;
+      const fadeIn = clamp(particle.age / 0.1, 0, 1);
+      const fadeOut = clamp((particle.life - particle.age) / 0.22, 0, 1);
+      particle.element.style.opacity = String(fadeIn * fadeOut);
+      particle.element.style.transform = `translate3d(${particle.x}px, ${particle.y}px, 0) rotate(${particle.rotation}deg)`;
+      if (particle.age >= particle.life || particle.y > window.innerHeight + 40) {
+        particle.element.remove();
+        particles.splice(index, 1);
+      }
+    }
+    if (active || particles.length) frame = window.requestAnimationFrame(animate);
+    else {
+      frame = 0;
+      lastFrame = 0;
+    }
+  }
+
+  function updatePointer(event) {
+    const now = event.timeStamp || performance.now();
+    const elapsed = Math.max(8, now - lastPointerTime);
+    pointerVelocityX = clamp(((event.clientX - pointerX) / elapsed) * 1000, -900, 900);
+    pointerVelocityY = clamp(((event.clientY - pointerY) / elapsed) * 1000, -900, 900);
+    pointerX = event.clientX;
+    pointerY = event.clientY;
+    lastPointerTime = now;
+    if (!frame) frame = window.requestAnimationFrame(animate);
+  }
+
+  function enter(event) {
+    active = true;
+    updatePointer(event);
+    lastSpawn = 0;
+  }
+
+  function leave() {
+    active = false;
+    pointerVelocityX = 0;
+    pointerVelocityY = 0;
+  }
+
+  triggers.forEach((trigger) => {
+    trigger.addEventListener("pointerenter", enter);
+    trigger.addEventListener("pointermove", updatePointer);
+    trigger.addEventListener("pointerleave", leave);
+  });
+}
+
 function showSitePage(pageKey, options = {}) {
   const { updateHash = true, force = false, behavior = "smooth", track = true, shopDestination = "" } = options;
   const resolvedKey = adminState.hiddenSections[pageKey] ? firstVisiblePageKey() : pageKey;
@@ -2512,6 +2618,11 @@ function inventoryCardMeta(look) {
   };
 }
 
+function productReadinessFor(look = {}) {
+  if (!look.photo || moneyNumber(look.price) <= 0) return "needs-attention";
+  return look.published ? "live" : "ready";
+}
+
 function renderAdminInventoryPanel() {
   if (!adminInventoryList) return;
   const looks = inventoryLooks();
@@ -2802,13 +2913,14 @@ async function handleAdminInventoryPhotoUpload() {
   renderAdminInventoryPanel();
 }
 
-async function createInventoryDraft() {
+async function createInventoryDraft(options = {}) {
   if (!isAdminSignedIn()) {
     openAccount("Please sign in to add products.");
     return;
   }
+  const focusCommandCenter = options.focusCommandCenter === true;
   ensureAdminInventoryPanel();
-  if (adminInventoryPanel.hidden) openAdminInventoryShelf();
+  if (adminInventoryPanel.hidden && !focusCommandCenter) openAdminInventoryShelf();
   const index = nextProductLibrarySlotIndex();
   const existing = readLookData(index);
   if (existing.active || existing.published) {
@@ -2839,13 +2951,21 @@ async function createInventoryDraft() {
   renderAdminLookPhotos();
   renderLooks();
   updateLookCount();
-  setAdminMessage(adminInventoryStatus, "New private product draft added. Add details now, then publish when it is ready.");
+  const statusTarget = focusCommandCenter ? addProductStatus : adminInventoryStatus;
+  setAdminMessage(statusTarget, "New private product draft added. Add details now, then publish when it is ready.");
   const result = await saveAdminState({
-    statusTarget: adminInventoryStatus || adminEditStatus,
+    statusTarget: statusTarget || adminEditStatus,
     savingMessage: "Adding product draft to inventory...",
     successMessage: "Product draft saved in inventory. Customers cannot see it yet."
   });
   if (!result.ok) return index;
+  if (focusCommandCenter) {
+    closeAdminInventoryPanel();
+    renderAdminLookPhotos();
+    focusProductCommandCard(index);
+    setAdminMessage(addProductStatus, "Draft ready in the Product Command Center. Add the photo and details, then publish when ready.");
+    return index;
+  }
   requestAnimationFrame(() => {
     adminInventoryList?.querySelector(`[data-inventory-card="${index}"] [data-inventory-field="name"]`)?.focus();
   });
@@ -7783,6 +7903,7 @@ renderLooks();
 updateBuilder();
 setupProductTryOns();
 setupPhotoZoom();
+setupPromoCursorGlitter();
 handleCheckoutReturn();
 
 document.querySelectorAll(".nail-preview, .builder-preview").forEach((tray) => {
@@ -7970,8 +8091,8 @@ async function setupAdmin() {
   resetLayoutButton.addEventListener("click", resetLayoutState);
   if (saveProductChangesButton) saveProductChangesButton.addEventListener("click", saveProductChangesFromSection);
   adminOpenInventory?.addEventListener("click", openAdminInventoryShelf);
-  adminCreateProduct?.addEventListener("click", createInventoryDraft);
-  [adminProductSearch, adminProductVisibilityFilter, adminProductStockFilter, adminProductShapeFilter].forEach((filter) => {
+  adminCreateProduct?.addEventListener("click", () => createInventoryDraft({ focusCommandCenter: true }));
+  [adminProductSearch, adminProductVisibilityFilter, adminProductReadinessFilter, adminProductStockFilter, adminProductShapeFilter].forEach((filter) => {
     filter?.addEventListener(filter === adminProductSearch ? "input" : "change", applyAdminProductFilters);
   });
   clearAdminProductFilters?.addEventListener("click", clearAdminProductFiltersAndRender);
@@ -8899,13 +9020,13 @@ function updateAdminProductCatalogSummary() {
   const live = looks.filter((look) => look.published).length;
   const drafts = looks.filter((look) => !look.published).length;
   const inStock = looks.filter((look) => inventoryStateFor(look).key === "in-stock").length;
-  const attention = looks.filter((look) => ["low-stock", "out-of-stock"].includes(inventoryStateFor(look).key)).length;
+  const attention = looks.filter((look) => productReadinessFor(look) === "needs-attention" || ["low-stock", "out-of-stock"].includes(inventoryStateFor(look).key)).length;
   if (adminProductsTotalCount) adminProductsTotalCount.textContent = String(total);
   if (adminProductsLiveCount) adminProductsLiveCount.textContent = String(live);
   if (adminProductsDraftCount) adminProductsDraftCount.textContent = String(drafts);
   if (adminProductsStockCount) adminProductsStockCount.textContent = String(inStock);
   if (adminProductsAttentionCount) adminProductsAttentionCount.textContent = String(attention);
-  if (adminProductShowing && !adminProductSearch?.value && (adminProductVisibilityFilter?.value || "all") === "all" && (adminProductStockFilter?.value || "all") === "all" && (adminProductShapeFilter?.value || "all") === "all") {
+  if (adminProductShowing && !adminProductSearch?.value && (adminProductVisibilityFilter?.value || "all") === "all" && (adminProductReadinessFilter?.value || "all") === "all" && (adminProductStockFilter?.value || "all") === "all" && (adminProductShapeFilter?.value || "all") === "all") {
     adminProductShowing.textContent = `Showing ${total.toLocaleString()} product${total === 1 ? "" : "s"}`;
   }
 }
@@ -8914,6 +9035,7 @@ function applyAdminProductFilters() {
   if (!adminLookList) return;
   const query = (adminProductSearch?.value || "").trim().toLowerCase();
   const visibility = adminProductVisibilityFilter?.value || "all";
+  const readiness = adminProductReadinessFilter?.value || "all";
   const stock = adminProductStockFilter?.value || "all";
   const shape = adminProductShapeFilter?.value || "all";
   const cards = [...adminLookList.querySelectorAll("[data-look-card]")];
@@ -8921,15 +9043,16 @@ function applyAdminProductFilters() {
   cards.forEach((card) => {
     const matchesQuery = !query || `${card.dataset.catalogName || ""} ${card.dataset.catalogNumber || ""}`.includes(query);
     const matchesVisibility = visibility === "all" || card.dataset.catalogVisibility === visibility;
+    const matchesReadiness = readiness === "all" || card.dataset.catalogReadiness === readiness;
     const matchesStock = stock === "all" || card.dataset.catalogStock === stock;
     const matchesShape = shape === "all" || card.dataset.catalogShape === shape;
-    const matches = matchesQuery && matchesVisibility && matchesStock && matchesShape;
+    const matches = matchesQuery && matchesVisibility && matchesReadiness && matchesStock && matchesShape;
     card.hidden = !matches;
     if (matches) visible += 1;
   });
   const total = cards.length;
   if (adminProductShowing) {
-    adminProductShowing.textContent = query || visibility !== "all" || stock !== "all" || shape !== "all"
+    adminProductShowing.textContent = query || visibility !== "all" || readiness !== "all" || stock !== "all" || shape !== "all"
       ? `Showing ${visible.toLocaleString()} of ${total.toLocaleString()} products`
       : `Showing ${total.toLocaleString()} product${total === 1 ? "" : "s"}`;
   }
@@ -8947,9 +9070,21 @@ function applyAdminProductFilters() {
 function clearAdminProductFiltersAndRender() {
   if (adminProductSearch) adminProductSearch.value = "";
   if (adminProductVisibilityFilter) adminProductVisibilityFilter.value = "all";
+  if (adminProductReadinessFilter) adminProductReadinessFilter.value = "all";
   if (adminProductStockFilter) adminProductStockFilter.value = "all";
   if (adminProductShapeFilter) adminProductShapeFilter.value = "all";
   applyAdminProductFilters();
+}
+
+function focusProductCommandCard(index) {
+  switchAdminView("products", { focusPanel: true });
+  requestAnimationFrame(() => {
+    const card = adminLookList?.querySelector(`[data-look-card="${index}"]`);
+    if (!card) return;
+    card.open = true;
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    card.querySelector("[data-look-detail]")?.focus({ preventScroll: true });
+  });
 }
 
 function productFromLook(look) {
@@ -9382,7 +9517,7 @@ function renderAdminLookPhotos() {
         <button class="button primary" type="button" data-empty-create-product>New Product</button>
       </div>
     `;
-    adminLookList.querySelector("[data-empty-create-product]")?.addEventListener("click", createInventoryDraft);
+    adminLookList.querySelector("[data-empty-create-product]")?.addEventListener("click", () => createInventoryDraft({ focusCommandCenter: true }));
     updateAdminProductCatalogSummary();
     return;
   }
@@ -9394,6 +9529,7 @@ function renderAdminLookPhotos() {
     card.dataset.catalogName = `${look.name} ${look.copy}`.toLowerCase();
     card.dataset.catalogNumber = productNumberFor(look, index).toLowerCase();
     card.dataset.catalogVisibility = look.published ? "published" : "draft";
+    card.dataset.catalogReadiness = productReadinessFor(look);
     card.dataset.catalogStock = inventoryStateFor(look).key;
     card.dataset.catalogShape = productShapeFilterValue({ category: look.finish, name: look.name, description: look.copy });
     card.style.setProperty("--look-base", look.base);
@@ -9595,6 +9731,7 @@ function renderAdminLookPhotos() {
       if (card) {
         card.dataset.catalogName = `${look.name} ${look.copy}`.toLowerCase();
         card.dataset.catalogNumber = productNumberFor(look, Number(index)).toLowerCase();
+        card.dataset.catalogReadiness = productReadinessFor(look);
         card.dataset.catalogStock = inventoryStateFor(look).key;
         card.dataset.catalogShape = productShapeFilterValue({ category: look.finish, name: look.name, description: look.copy });
         const stockLabel = card.querySelector("[data-catalog-stock-label]");

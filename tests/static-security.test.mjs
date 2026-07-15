@@ -136,12 +136,20 @@ test("the secondary owner keeps permanent owner capabilities", async () => {
 test("product command center uses the full responsive admin workspace", async () => {
   const adminHtml = await source("admin.html");
   const styles = await source("styles.css");
+  const client = await source("script.js");
   assert.match(adminHtml, /id="adminProductsView"/);
   assert.match(adminHtml, /Product Command Center/);
+  assert.match(adminHtml, /id="adminCreateProduct"/);
+  assert.match(adminHtml, /id="adminProductReadinessFilter"/);
   assert.match(styles, /\.admin-dedicated-page \.admin-view-panel\s*\{[\s\S]*grid-column: 2/);
   assert.match(styles, /#adminProductsView \.admin-look-list/);
   assert.match(styles, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 430px\), 1fr\)\)/);
+  assert.match(styles, /\.admin-product-toolbar\s*\{[\s\S]*repeat\(4, minmax\(120px, 1fr\)\)/);
   assert.match(styles, /\.admin-dedicated-page \.admin-page[\s\S]*width: calc\(100% - 16px\)/);
+  assert.match(client, /function focusProductCommandCard\(index\)/);
+  assert.match(client, /createInventoryDraft\(\{ focusCommandCenter: true \}\)/);
+  assert.match(client, /function productReadinessFor\(look = \{\}\)/);
+  assert.match(client, /card\.dataset\.catalogReadiness/);
 });
 
 test("admin tab changes realign the dedicated workspace", async () => {
@@ -192,6 +200,7 @@ test("home page has clear, contextual paths into the shop", async () => {
   const indexHtml = await source("index.html");
   const adminHtml = await source("admin.html");
   const styles = await source("styles.css");
+  const client = await source("script.js");
   assert.match(indexHtml, /class="shop-promo-band"/);
   assert.match(indexHtml, /id="shopPromoTitle"/);
   assert.match(indexHtml, /Browse the collection/);
@@ -200,6 +209,11 @@ test("home page has clear, contextual paths into the shop", async () => {
   assert.match(adminHtml, /class="shop-promo-band"/);
   assert.match(styles, /\.shop-promo-band\s*\{/);
   assert.match(styles, /\.shop-promo-actions \.button\.primary/);
+  assert.match(client, /function setupPromoCursorGlitter\(\)/);
+  assert.match(client, /promo-cursor-glitter-particle/);
+  assert.match(client, /pointerVelocityX/);
+  assert.match(styles, /\.promo-cursor-glitter-particle\s*\{/);
+  assert.match(styles, /prefers-reduced-motion: reduce/);
 });
 
 test("shop separates fresh drops from the complete inventory", async () => {
