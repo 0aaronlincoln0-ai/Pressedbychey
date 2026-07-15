@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
 import { getStore } from "@netlify/blobs";
-import { verifyAdminRequest } from "./_shared/admin-auth.mjs";
+import { verifyAdminCapability, verifyAdminRequest } from "./_shared/admin-auth.mjs";
 
 const STORE_NAME = "pressed-by-chey";
 const STATE_KEY = "admin-state";
@@ -183,15 +183,22 @@ function withoutPrivateNotes(value = {}) {
   return publicValue;
 }
 
+function withoutPrivateCatalogIdentifiers(value = {}) {
+  const publicValue = withoutPrivateNotes(value);
+  if (!publicValue || typeof publicValue !== "object" || Array.isArray(publicValue)) return publicValue;
+  const { sku, productNumber, ...customerValue } = publicValue;
+  return customerValue;
+}
+
 export function publicAdminState(state) {
   return {
     ...state,
-    customProducts: (state.customProducts || []).map(withoutPrivateNotes),
+    customProducts: (state.customProducts || []).map(withoutPrivateCatalogIdentifiers),
     lookDetails: Object.fromEntries(
-      Object.entries(state.lookDetails || {}).map(([key, value]) => [key, withoutPrivateNotes(value)])
+      Object.entries(state.lookDetails || {}).map(([key, value]) => [key, withoutPrivateCatalogIdentifiers(value)])
     ),
     products: Object.fromEntries(
-      Object.entries(state.products || {}).map(([key, value]) => [key, withoutPrivateNotes(value)])
+      Object.entries(state.products || {}).map(([key, value]) => [key, withoutPrivateCatalogIdentifiers(value)])
     ),
     ideas: [],
     proNotes: []
@@ -200,6 +207,12 @@ export function publicAdminState(state) {
 
 function isAuthorized(request) {
   return Boolean(verifyAdminRequest(request));
+}
+
+function stateRemovesRecords(previous = {}, next = {}) {
+  const objectCollections = ["images", "products", "lookPhotos", "lookPhotoFits", "lookPhotoPositions", "lookPhotoZooms", "lookPhotoTransforms", "lookDetails"];
+  if (objectCollections.some((key) => Object.keys(previous[key] || {}).some((entry) => !Object.prototype.hasOwnProperty.call(next[key] || {}, entry)))) return true;
+  return ["customProducts", "ideas", "proNotes", "customPages", "customBlocks"].some((key) => Array.isArray(next[key]) && Array.isArray(previous[key]) && next[key].length < previous[key].length);
 }
 
 export default async (request) => {
@@ -284,6 +297,12 @@ export default async (request) => {
     }
 
     const normalizedState = normalizeAdminState(payload.state);
+    const savedState = normalizeAdminState(await store.get(STATE_KEY, { type: "json" }) || {});
+    const adminSession = await verifyAdminCapability(request, stateRemovesRecords(savedState, normalizedState) ? "delete" : "write");
+    if (!adminSession) return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+    if (stateRemovesRecords(savedState, normalizedState) && !adminSession.canDelete) {
+      return jsonResponse({ error: "Only Chey or an admin granted delete access can remove catalog records." }, { status: 403 });
+    }
     await externalizeStatePhotos(store, normalizedState);
     await store.setJSON(STATE_KEY, normalizedState);
     return jsonResponse({ ok: true, state: normalizedState });

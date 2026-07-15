@@ -62,6 +62,7 @@ function publicCustomer(customer = {}, detailed = false) {
     email: normalizeEmail(customer.email),
     accountStatus: normalizeStatus(customer.accountStatus),
     isAdmin: customer.isAdmin === true,
+    canDelete: customer.canDelete === true,
     adminNote: safeText(customer.adminNote, 1200),
     sizes: normalizeSizes(customer.sizes),
     savedProductCount: Array.isArray(customer.savedProducts) ? customer.savedProducts.length : 0,
@@ -141,19 +142,22 @@ export default async (request) => {
   if (action === "update") {
     const adminSession = verifyAdminRequest(request);
     const changingAdminRole = typeof payload.isAdmin === "boolean";
-    if (changingAdminRole && !isOwnerEmail(adminSession?.sub)) {
+    const changingDeleteAccess = typeof payload.canDelete === "boolean";
+    if ((changingAdminRole || changingDeleteAccess) && !isOwnerEmail(adminSession?.sub)) {
       return jsonResponse({ error: "Only the owner can change admin access." }, { status: 403 });
     }
     if (isOwnerEmail(email) && payload.isAdmin === false) {
       return jsonResponse({ error: "The owner admin account cannot be removed." }, { status: 400 });
     }
+    const nextIsAdmin = isOwnerEmail(email) || (changingAdminRole ? payload.isAdmin : customer.isAdmin === true);
     const nextCustomer = {
       ...customer,
       name: safeText(payload.name || customer.name, 100),
       sizes: normalizeSizes(payload.sizes || customer.sizes),
       accountStatus: normalizeStatus(payload.accountStatus || customer.accountStatus),
       adminNote: safeText(payload.adminNote || "", 1200),
-      isAdmin: isOwnerEmail(email) || (changingAdminRole ? payload.isAdmin : customer.isAdmin === true),
+      isAdmin: nextIsAdmin,
+      canDelete: isOwnerEmail(email) || (nextIsAdmin && (changingDeleteAccess ? payload.canDelete : customer.canDelete === true)),
       updatedAt: new Date().toISOString()
     };
     await store.setJSON(key, nextCustomer);

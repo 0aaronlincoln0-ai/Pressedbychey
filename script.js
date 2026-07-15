@@ -175,6 +175,21 @@ const adminCustomerPrev = document.querySelector("#adminCustomerPrev");
 const adminCustomerNext = document.querySelector("#adminCustomerNext");
 const adminCustomerList = document.querySelector("#adminCustomerList");
 const adminCustomerDetail = document.querySelector("#adminCustomerDetail");
+const refreshAccountingButton = document.querySelector("#refreshAccounting");
+const accountingGrossPaid = document.querySelector("#accountingGrossPaid");
+const accountingPaidCount = document.querySelector("#accountingPaidCount");
+const accountingOutstanding = document.querySelector("#accountingOutstanding");
+const accountingEntryCount = document.querySelector("#accountingEntryCount");
+const accountingStatus = document.querySelector("#accountingStatus");
+const accountingSearch = document.querySelector("#accountingSearch");
+const accountingPaymentFilter = document.querySelector("#accountingPaymentFilter");
+const accountingDateFilter = document.querySelector("#accountingDateFilter");
+const accountingSort = document.querySelector("#accountingSort");
+const accountingDateFrom = document.querySelector("#accountingDateFrom");
+const accountingDateTo = document.querySelector("#accountingDateTo");
+const clearAccountingFiltersButton = document.querySelector("#clearAccountingFilters");
+const accountingShowing = document.querySelector("#accountingShowing");
+const accountingList = document.querySelector("#accountingList");
 const resetEmail = document.querySelector("#resetEmail");
 const sendResetCode = document.querySelector("#sendResetCode");
 const resetCodeStep = document.querySelector("#resetCodeStep");
@@ -368,6 +383,7 @@ let adminCustomerTotal = 0;
 let activeAdminCustomerEmail = "";
 let activeAdminCustomer = null;
 let adminCustomerSearchTimer = null;
+let accountingOrders = [];
 let adminState = {
   texts: {},
   images: {},
@@ -661,6 +677,7 @@ function defaultAdminState() {
     imageTransforms: {},
     products: {},
     customProducts: [],
+    skuSequence: 0,
     lookPhotos: {},
     lookPhotoFits: {},
     lookPhotoPositions: {},
@@ -889,6 +906,26 @@ function inventoryStateFor(item = {}) {
 function productNumberFor(item = {}, index = 0) {
   const custom = String(item.sku || item.productNumber || "").trim();
   return custom || `PBC-${String(index + 1).padStart(3, "0")}`;
+}
+
+function skuNumberFromValue(value = "") {
+  const match = String(value || "").trim().match(/(\d+)\s*$/);
+  return match ? Number(match[1]) : 0;
+}
+
+function maxSkuSequenceForState(state = {}) {
+  const values = [
+    ...Object.values(state.lookDetails || {}).flatMap((detail) => [detail?.sku, detail?.productNumber]),
+    ...(state.customProducts || []).flatMap((product) => [product?.sku, product?.productNumber]),
+    ...Object.values(state.products || {}).flatMap((product) => typeof product === "object" ? [product?.sku, product?.productNumber] : [])
+  ];
+  return values.reduce((max, value) => Math.max(max, skuNumberFromValue(value)), 0);
+}
+
+function nextGeneratedSku() {
+  const nextNumber = Math.max(Number(adminState.skuSequence) || 0, maxSkuSequenceForState(adminState)) + 1;
+  adminState.skuSequence = nextNumber;
+  return `PBC-${String(nextNumber).padStart(3, "0")}`;
 }
 
 function inventoryDisplayLabel(item = {}) {
@@ -1415,6 +1452,7 @@ function normalizeAdminState(saved = {}) {
           imageTransform: sanitizePhotoTransform(product.imageTransform)
         }))
       : [],
+    skuSequence: Math.max(0, Math.floor(Number(saved.skuSequence) || 0)),
     lookPhotos: saved.lookPhotos || {},
     lookPhotoFits: normalizePhotoFitMap(saved.lookPhotoFits || {}),
     lookPhotoPositions: normalizePhotoPositionMap(saved.lookPhotoPositions || {}),
@@ -1449,6 +1487,7 @@ function normalizeAdminState(saved = {}) {
     layoutOrder: saved.layoutOrder || defaultLayoutOrder(),
     hiddenSections: saved.hiddenSections || {}
   };
+  nextState.skuSequence = Math.max(nextState.skuSequence, maxSkuSequenceForState(nextState));
   delete nextState.images["try-on"];
   return nextState;
 }
@@ -2018,6 +2057,10 @@ function isOwnerAdmin() {
   return String(adminSession?.email || "").toLowerCase() === ADMIN_OWNER_EMAIL;
 }
 
+function canAdminDelete() {
+  return isOwnerAdmin() || adminSession?.canDelete === true;
+}
+
 function clearAdminSession() {
   adminSession = null;
   sessionStorage.removeItem(ADMIN_SESSION_KEY);
@@ -2031,6 +2074,7 @@ function startAdminSession(session = {}) {
     authenticated: true,
     email: String(session.email || "").toLowerCase(),
     token: String(session.token),
+    canDelete: String(session.email || "").toLowerCase() === ADMIN_OWNER_EMAIL || session.canDelete === true,
     expiresAt: Math.min(expiresAt, Date.now() + ADMIN_SESSION_TTL_MS)
   };
   const serializedSession = JSON.stringify(adminSession);
@@ -2527,7 +2571,10 @@ function renderAdminInventoryPanel() {
                 </select>
               </label>
               <label>Product number / SKU
-                <input data-inventory-index="${look.index}" data-inventory-field="sku" value="${escapeAttribute(look.sku || meta.productNumber)}" placeholder="PBC-001" />
+                <span class="admin-sku-input">
+                  <input data-inventory-index="${look.index}" data-inventory-field="sku" value="${escapeAttribute(look.sku || meta.productNumber)}" placeholder="PBC-001" />
+                  <button class="sku-generate-button" type="button" data-generate-inventory-sku="${look.index}" title="Generate the next SKU">Generate</button>
+                </span>
               </label>
               <label>Units in stock
                 <input type="number" min="0" step="1" inputmode="numeric" data-inventory-index="${look.index}" data-inventory-field="inventoryCount" value="${inventoryCountFor(look) ?? ""}" placeholder="Made to order" />
@@ -2612,8 +2659,37 @@ function updateInventoryField(field, refreshPanel = false) {
   updateProductCount();
 }
 
+function persistGeneratedSku(message = "SKU saved to the live website.") {
+  localSaveAdminState();
+  scheduleRemoteAdminStateSave({
+    statusTarget: adminInventoryStatus || addProductStatus || adminContentStatus,
+    savingMessage: "Saving SKU to the live website...",
+    showSuccess: true,
+    successMessage: message
+  });
+}
+
+function generateInventorySku(index) {
+  if (!Number.isInteger(index) || index < 0) return;
+  adminState.lookDetails[index] = adminState.lookDetails[index] || {};
+  const sku = nextGeneratedSku();
+  adminState.lookDetails[index].sku = sku;
+  const look = readLookData(index);
+  if (look.published) syncInventoryLookToPublishedProduct(index);
+  renderAdminInventoryPanel();
+  renderAdminLookPhotos();
+  renderAdminProducts();
+  renderLooks();
+  updateLookCount();
+  updateAdminProductCatalogSummary();
+  persistGeneratedSku(`SKU ${sku} saved to the live website.`);
+}
+
 function bindAdminInventoryPanel() {
   if (!adminInventoryList) return;
+  adminInventoryList.querySelectorAll("[data-generate-inventory-sku]").forEach((button) => {
+    button.addEventListener("click", () => generateInventorySku(Number(button.dataset.generateInventorySku)));
+  });
   adminInventoryList.querySelectorAll("[data-inventory-field]").forEach((field) => {
     field.addEventListener("input", () => updateInventoryField(field));
     field.addEventListener("change", () => updateInventoryField(field, true));
@@ -2687,7 +2763,7 @@ async function createInventoryDraft() {
     salePrice: "",
     discount: "",
     stock: "Available",
-    sku: "",
+    sku: nextGeneratedSku(),
     inventoryCount: 10,
     finish: "custom",
     copy: "Describe this set for customers before publishing it.",
@@ -3365,7 +3441,6 @@ function orderItemMeta(item = {}) {
   return [
     item.customOrder ? "Custom order request" : "",
     item.requestTitle || "",
-    item.productNumber ? `Product ${item.productNumber}` : "",
     cartItemQuantity(item) > 1 ? `Quantity ${cartItemQuantity(item)}` : "",
     item.shape || "",
     item.length || "",
@@ -4242,6 +4317,10 @@ async function deleteCustomerConversation() {
 }
 
 async function deleteAdminConversation() {
+  if (!canAdminDelete()) {
+    if (adminMessagesStatus) adminMessagesStatus.textContent = "Only Chey or an admin granted delete access can delete conversations.";
+    return;
+  }
   if (!activeAdminMessageEmail || !window.confirm("Delete this conversation? This removes it for the customer too.")) return;
   const button = adminConversationHeading?.querySelector("[data-delete-conversation]");
   if (button) button.disabled = true;
@@ -4317,7 +4396,7 @@ function renderAdminMessageThread() {
   const presenceLabel = !presenceKnown ? "Checking customer status..." : `Customer is ${customerOnline ? "online" : "offline"}`;
   const headingKey = `${activeAdminMessageEmail}|${activeAdminConversation.name || ""}|${presenceLabel}`;
   if (adminConversationHeading.dataset.renderKey !== headingKey) {
-    adminConversationHeading.innerHTML = `<span class="chat-avatar chat-avatar-customer" aria-hidden="true">${escapeHTML((activeAdminConversation.name || "C").slice(0, 1).toUpperCase())}</span><div><strong>${escapeHTML(activeAdminConversation.name || activeAdminConversation.email)}</strong><span>${escapeHTML(activeAdminConversation.email)}</span><span class="chat-presence ${presenceKnown && customerOnline ? "is-online" : presenceKnown ? "is-offline" : "is-checking"}">${presenceLabel}</span></div><button class="chat-delete-button" type="button" data-delete-conversation aria-label="Delete conversation" title="Delete conversation"><span aria-hidden="true">&#128465;</span></button>`;
+    adminConversationHeading.innerHTML = `<span class="chat-avatar chat-avatar-customer" aria-hidden="true">${escapeHTML((activeAdminConversation.name || "C").slice(0, 1).toUpperCase())}</span><div><strong>${escapeHTML(activeAdminConversation.name || activeAdminConversation.email)}</strong><span>${escapeHTML(activeAdminConversation.email)}</span><span class="chat-presence ${presenceKnown && customerOnline ? "is-online" : presenceKnown ? "is-offline" : "is-checking"}">${presenceLabel}</span></div>${canAdminDelete() ? `<button class="chat-delete-button" type="button" data-delete-conversation aria-label="Delete conversation" title="Delete conversation"><span aria-hidden="true">&#128465;</span></button>` : ""}`;
     adminConversationHeading.dataset.renderKey = headingKey;
   }
   const threadChanged = renderMessageThread(adminMessageThread, activeAdminConversation, "Start the conversation with a helpful note from Chey.", "admin", activeAdminMessageEmail);
@@ -4442,7 +4521,7 @@ function renderAdminCustomerList() {
   adminCustomerList.innerHTML = adminCustomers.length
     ? adminCustomers.map((customer) => `
       <button class="admin-customer-row ${customer.email === activeAdminCustomerEmail ? "is-active" : ""}" type="button" data-admin-customer-email="${escapeAttribute(customer.email)}">
-        <span class="admin-customer-row-head"><strong>${escapeHTML(customer.name || customer.email)}</strong><span><b class="admin-account-status is-${escapeAttribute(customer.accountStatus)}">${escapeHTML(adminCustomerStatusLabel(customer.accountStatus))}</b>${customer.isAdmin ? " <b class=\"admin-account-status is-active\">Admin</b>" : ""}</span></span>
+        <span class="admin-customer-row-head"><strong>${escapeHTML(customer.name || customer.email)}</strong><span><b class="admin-account-status is-${escapeAttribute(customer.accountStatus)}">${escapeHTML(adminCustomerStatusLabel(customer.accountStatus))}</b>${customer.isAdmin ? " <b class=\"admin-account-status is-active\">Admin</b>" : ""}${customer.canDelete ? " <b class=\"admin-account-status is-delete\">Delete access</b>" : ""}</span></span>
         <small>${escapeHTML(customer.email)}</small>
         <span class="admin-customer-row-stats"><span>${customer.orderCount || 0} orders</span><span>${customer.savedProductCount || 0} saved</span></span>
         <time>Last seen ${escapeHTML(messageDateLabel(customer.lastLogin || customer.createdAt) || "not yet")}</time>
@@ -4490,7 +4569,7 @@ function renderAdminCustomerDetail() {
           <option value="blocked"${customer.accountStatus === "blocked" ? " selected" : ""}>Blocked</option>
         </select>
       </label>
-      ${isOwnerAdmin() && customer.email !== ADMIN_OWNER_EMAIL ? `<label class="admin-customer-admin-toggle"><span>Admin access</span><span><input type="checkbox" data-admin-customer-input="isAdmin"${customer.isAdmin ? " checked" : ""} /> Can manage the store and customer accounts</span></label>` : ""}
+      ${isOwnerAdmin() && customer.email !== ADMIN_OWNER_EMAIL ? `<label class="admin-customer-admin-toggle"><span>Admin access</span><span><input type="checkbox" data-admin-customer-input="isAdmin"${customer.isAdmin ? " checked" : ""} /> Can manage the store and customer accounts</span></label><label class="admin-customer-admin-toggle"><span>Delete access</span><span><input type="checkbox" data-admin-customer-input="canDelete"${customer.canDelete ? " checked" : ""} /> Can delete orders and conversations</span></label>` : ""}
       <div class="admin-customer-sizing">
         <div class="admin-customer-subhead"><strong>Saved sizing</strong><span>Chey can correct fit details for future orders.</span></div>
         <div class="admin-customer-size-grid">${adminCustomerSizeInputs(customer.sizes)}</div>
@@ -4558,6 +4637,7 @@ async function saveAdminCustomer(event) {
   const form = event.currentTarget;
   const input = (name) => form.querySelector(`[data-admin-customer-input="${name}"]`)?.value || "";
   const isAdminInput = form.querySelector('[data-admin-customer-input="isAdmin"]');
+  const canDeleteInput = form.querySelector('[data-admin-customer-input="canDelete"]');
   const sizes = Object.fromEntries(sizeHandKeys.map((hand) => [hand, Object.fromEntries(sizeFingerKeys.map((finger) => [finger,
     form.querySelector(`[data-admin-customer-size-hand="${hand}"][data-admin-customer-size-finger="${finger}"]`)?.value.trim() || ""
   ]))]));
@@ -4570,6 +4650,7 @@ async function saveAdminCustomer(event) {
       accountStatus: input("accountStatus"),
       adminNote: input("adminNote"),
       ...(isAdminInput ? { isAdmin: isAdminInput.checked } : {}),
+      ...(canDeleteInput ? { canDelete: canDeleteInput.checked } : {}),
       sizes
     });
     activeAdminCustomer = data.customer || activeAdminCustomer;
@@ -5117,7 +5198,6 @@ function renderProductDetail() {
   const discountLabel = productDiscountLabel(productForDisplay);
   const shapeLabel = productShapeLabel(product);
   const stockLabel = inventoryDisplayLabel(product);
-  const skuMarkup = `<span><small>Product number</small><strong>${escapeHTML(productNumberFor(product, selectedProductIndex))}</strong></span>`;
 
   productDetailContent.innerHTML = `
     <button class="product-detail-back" type="button" data-product-detail-back aria-label="Back to Shop">&larr; Back To Shop</button>
@@ -5139,7 +5219,6 @@ function renderProductDetail() {
         <div class="product-detail-facts" aria-label="Product details">
           <span><small>Availability</small><strong>${escapeHTML(stockLabel)}</strong></span>
           <span><small>Shape</small><strong>${escapeHTML(shapeLabel)}</strong></span>
-          ${skuMarkup}
         </div>
         <div class="product-detail-confidence">
           <strong>Made for a better fit</strong>
@@ -6144,7 +6223,7 @@ function renderAdminLiveOrders() {
                   </label>
                   <button type="button" data-save-live-order="${escapeAttribute(order.id)}">Save Order Update</button>
                   ${quoteOrder ? `<button class="quote-send" type="button" data-send-live-quote="${escapeAttribute(order.id)}">Accept & Send Quote</button>` : ""}
-                  <button class="danger" type="button" data-delete-live-order="${escapeAttribute(order.id)}">Delete Order</button>
+                  ${canAdminDelete() ? `<button class="danger" type="button" data-delete-live-order="${escapeAttribute(order.id)}">Delete Order</button>` : ""}
                 </div>
               </div>
             </article>
@@ -6279,7 +6358,7 @@ function adminOrderDetailMarkup(order) {
         </label>
         <button type="button" data-save-live-order="${escapeAttribute(orderId)}">Save Order Update</button>
         ${quoteOrder ? `<button class="quote-send" type="button" data-send-live-quote="${escapeAttribute(orderId)}">Accept & Send Quote</button>` : ""}
-        <button class="danger" type="button" data-delete-live-order="${escapeAttribute(orderId)}">Delete Order</button>
+        ${canAdminDelete() ? `<button class="danger" type="button" data-delete-live-order="${escapeAttribute(orderId)}">Delete Order</button>` : ""}
       </div>
     </aside>
   `;
@@ -6428,6 +6507,78 @@ async function fetchAdminLiveOrders({ showStatus = true } = {}) {
     renderAdminLiveOrders();
     const recovered = liveOrders.length ? ` Showing ${liveOrders.length} recovered account/guest order${liveOrders.length === 1 ? "" : "s"}.` : "";
     setAdminMessage(liveOrderStatus, `${error.message || "Could not load live orders."}${recovered}`);
+  }
+}
+
+function accountingPaymentKind(order = {}) {
+  return isPaidOrderRecord(order) ? "paid" : orderHasCustomQuote(order) ? "quote" : "pending";
+}
+function accountingDateRange() {
+  const preset = accountingDateFilter?.value || "all";
+  const now = new Date();
+  if (preset === "today") { const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()); const end = new Date(start); end.setDate(end.getDate() + 1); return { start, end }; }
+  if (preset === "7" || preset === "30") { const start = new Date(now); start.setDate(start.getDate() - Number(preset)); return { start, end: null }; }
+  if (preset === "custom") return { start: localDateInputToDate(accountingDateFrom?.value), end: localDateInputToDate(accountingDateTo?.value, true) };
+  return { start: null, end: null };
+}
+function accountingFilteredOrders() {
+  const search = String(accountingSearch?.value || "").trim().toLowerCase();
+  const payment = accountingPaymentFilter?.value || "all";
+  const range = accountingDateRange();
+  const filtered = accountingOrders.filter((order) => {
+    const haystack = [order.id, order.customerEmail, orderCustomerName(order), ...(order.items || []).map((item) => `${item?.name || ""} ${item?.sku || ""}`)].join(" ").toLowerCase();
+    const date = orderDateForFiltering(order);
+    if (search && !haystack.includes(search)) return false;
+    if (payment !== "all" && accountingPaymentKind(order) !== payment) return false;
+    if (range.start && (!date || date < range.start)) return false;
+    if (range.end && (!date || date >= range.end)) return false;
+    return true;
+  });
+  const sort = accountingSort?.value || "newest";
+  return filtered.sort((left, right) => {
+    if (sort === "highest" || sort === "lowest") { const difference = orderDisplayTotalCents(left) - orderDisplayTotalCents(right); return sort === "highest" ? -difference : difference; }
+    if (sort === "customer") return orderCustomerName(left).localeCompare(orderCustomerName(right));
+    const leftDate = orderDateForFiltering(left)?.getTime() || 0; const rightDate = orderDateForFiltering(right)?.getTime() || 0;
+    return sort === "oldest" ? leftDate - rightDate : rightDate - leftDate;
+  });
+}
+function accountingRecordMarkup(order = {}) {
+  const kind = accountingPaymentKind(order);
+  const paymentLabel = kind === "paid" ? "Paid" : kind === "quote" ? orderPaymentStatusLabel(order) : "Pending / unpaid";
+  const customerEmail = order.customerEmail || order.customer?.email || order.shipping?.email || "";
+  const items = (order.items || []).map((item) => orderItemWorkflowSummary(item)).filter(Boolean);
+  return [
+    '<details class="accounting-entry"><summary><span class="accounting-entry-main"><strong>', escapeHTML(orderCustomerName(order)), '</strong><small>', escapeHTML(customerEmail || "Guest checkout"), ' - ', escapeHTML(order.id || "Unnumbered order"), '</small></span>',
+    '<span class="accounting-entry-meta"><b class="accounting-pill is-', kind, '">', escapeHTML(paymentLabel), '</b><strong>', escapeHTML(formatOrderMoney(orderDisplayTotalCents(order), order.currency)), '</strong><time>', escapeHTML(orderDateSummary(order)), '</time></span></summary>',
+    '<div class="accounting-entry-details"><div class="accounting-detail-grid"><div><span>Payment</span><strong>', escapeHTML(paymentLabel), '</strong></div><div><span>Fulfillment</span><strong>', escapeHTML(orderWorkflowStatus(order)), '</strong></div><div><span>Paid at</span><strong>', escapeHTML(order.paidAt ? formatOrderDate(order.paidAt) : "Not paid"), '</strong></div><div><span>Payment reference</span><strong>', escapeHTML(order.stripeSessionId || "Not available"), '</strong></div></div>',
+    '<div class="accounting-entry-columns"><div><span>Customer</span><strong>', escapeHTML(orderCustomerName(order)), '</strong><small>', escapeHTML(customerEmail || "Guest checkout"), '</small></div><div><span>Items</span><p>', items.length ? items.map((item) => escapeHTML(item)).join("<br />") : "No item details saved.", '</p></div><div><span>Notes</span><p>', escapeHTML(order.adminNote || order.quoteMessage || "No notes saved."), '</p></div></div></div></details>'
+  ].join("");
+}
+function renderAccounting() {
+  if (!accountingList) return;
+  const paidOrders = accountingOrders.filter((order) => isPaidOrderRecord(order));
+  const grossPaid = paidOrders.reduce((sum, order) => sum + orderDisplayTotalCents(order), 0);
+  const outstanding = accountingOrders.filter((order) => !isPaidOrderRecord(order)).reduce((sum, order) => sum + orderDisplayTotalCents(order), 0);
+  const orders = accountingFilteredOrders();
+  if (accountingGrossPaid) accountingGrossPaid.textContent = formatOrderMoney(grossPaid);
+  if (accountingPaidCount) accountingPaidCount.textContent = String(paidOrders.length);
+  if (accountingOutstanding) accountingOutstanding.textContent = formatOrderMoney(outstanding);
+  if (accountingEntryCount) accountingEntryCount.textContent = String(accountingOrders.length);
+  if (accountingShowing) accountingShowing.textContent = `${orders.length} record${orders.length === 1 ? "" : "s"}`;
+  accountingList.innerHTML = orders.length ? orders.map(accountingRecordMarkup).join("") : '<div class="accounting-empty"><strong>No accounting records match</strong><span>Adjust the filters or refresh the ledger.</span></div>';
+}
+async function fetchAccounting({ showStatus = true } = {}) {
+  if (!isAdminSignedIn()) return;
+  if (showStatus && accountingStatus) accountingStatus.textContent = "Loading accounting records...";
+  try {
+    const { response, payload } = await fetchJsonWithTimeout(ADMIN_ORDERS_ENDPOINT, { headers: adminRemoteWriteHeaders() });
+    if (!response.ok || payload?.ok === false) throw new Error(payload?.error || "Could not load accounting records.");
+    accountingOrders = mergeAdminOrderSources(Array.isArray(payload.orders) ? payload.orders : []);
+    renderAccounting();
+    if (accountingStatus) accountingStatus.textContent = `${accountingOrders.length} accounting record${accountingOrders.length === 1 ? "" : "s"} loaded.`;
+  } catch (error) {
+    accountingOrders = mergeAdminOrderSources([]); renderAccounting();
+    if (accountingStatus) accountingStatus.textContent = error.message || "Accounting records unavailable.";
   }
 }
 
@@ -6642,6 +6793,10 @@ function sendAdminLiveQuote(orderId) {
 }
 
 async function deleteAdminLiveOrder(orderId) {
+  if (!canAdminDelete()) {
+    setAdminMessage(liveOrderStatus, "Only Chey or an admin granted delete access can delete orders.");
+    return;
+  }
   const order = liveOrders.find((item) => String(item.id || "") === String(orderId || ""));
   if (isPaidOrderRecord(order)) {
     setAdminMessage(liveOrderStatus, "Paid orders are protected. Mark this order Canceled or Completed instead of deleting it.");
@@ -6819,6 +6974,22 @@ checkoutButton.addEventListener("click", checkoutCart);
 guestCheckoutOpen.addEventListener("click", () => openGuestCheckout());
 guestCheckoutButton.addEventListener("click", checkoutGuest);
 refreshLiveOrdersButton?.addEventListener("click", () => fetchAdminLiveOrders());
+refreshAccountingButton?.addEventListener("click", () => fetchAccounting());
+accountingSearch?.addEventListener("input", renderAccounting);
+[accountingPaymentFilter, accountingDateFilter, accountingSort].forEach((filter) => filter?.addEventListener("change", renderAccounting));
+[accountingDateFrom, accountingDateTo].forEach((input) => input?.addEventListener("change", () => {
+  if (accountingDateFilter) accountingDateFilter.value = "custom";
+  renderAccounting();
+}));
+clearAccountingFiltersButton?.addEventListener("click", () => {
+  if (accountingSearch) accountingSearch.value = "";
+  if (accountingPaymentFilter) accountingPaymentFilter.value = "all";
+  if (accountingDateFilter) accountingDateFilter.value = "all";
+  if (accountingSort) accountingSort.value = "newest";
+  if (accountingDateFrom) accountingDateFrom.value = "";
+  if (accountingDateTo) accountingDateTo.value = "";
+  renderAccounting();
+});
 adminLiveOrderList?.addEventListener("click", handleAdminLiveOrderClick);
 orderSearchInput?.addEventListener("input", () => applyLiveOrderDateFilters());
 orderPaymentFilter?.addEventListener("change", () => applyLiveOrderDateFilters());
@@ -7508,6 +7679,7 @@ function switchAdminView(view) {
     panel.hidden = panel.dataset.adminViewPanel !== view;
   });
   if (view === "orders") fetchAdminLiveOrders();
+  if (view === "accounting") fetchAccounting();
   if (view === "messages") fetchAdminMessages();
   if (view === "customers") fetchAdminCustomers({ resetPage: true });
   if (view === "notes") renderProNotes();
@@ -8438,6 +8610,11 @@ function clearAdminProductFiltersAndRender() {
 }
 
 function productFromLook(look) {
+  const sku = look.sku || nextGeneratedSku();
+  if (!look.sku && Number.isInteger(look.index)) {
+    adminState.lookDetails[look.index] = adminState.lookDetails[look.index] || {};
+    adminState.lookDetails[look.index].sku = sku;
+  }
   return {
     name: look.name,
     tag: look.tag || "New from Chey",
@@ -8447,7 +8624,7 @@ function productFromLook(look) {
     salePrice: look.salePrice || "",
     discount: look.discount || "",
     stock: look.stock || "",
-    sku: look.sku || productNumberFor(look, look.index),
+    sku,
     inventoryCount: inventoryCountFor(look),
     category: look.finish || "custom",
     image: look.photo,
@@ -8558,6 +8735,10 @@ async function publishLookToShop(index) {
 }
 
 async function removePublishedProduct(productIndex) {
+  if (!canAdminDelete()) {
+    setInlineEditStatus("Only Chey or an admin granted delete access can withdraw products.");
+    return false;
+  }
   const index = Number(productIndex);
   const product = adminState.customProducts[index];
   if (!product) {
@@ -8602,6 +8783,10 @@ async function removePublishedProduct(productIndex) {
 }
 
 async function deleteInventoryProduct(sourceIndex, options = {}) {
+  if (!canAdminDelete()) {
+    setInlineEditStatus("Only Chey or an admin granted delete access can delete inventory.");
+    return false;
+  }
   const index = Number(sourceIndex);
   if (!Number.isInteger(index) || index < 0 || index >= lookLibrary.length) return false;
   const look = readLookData(index);
@@ -8678,7 +8863,7 @@ function writeProductToInventory(product, index, options = {}) {
     salePrice: product.salePrice || "",
     discount: product.discount || "",
     stock: product.stock || "",
-    sku: product.sku || productNumberFor(product, index),
+    sku: product.sku || nextGeneratedSku(),
     inventoryCount: inventoryCountFor(product),
     finish: product.category || "custom",
     copy: product.description || "",
@@ -8717,6 +8902,7 @@ async function copyIdeaToProductLibrary(idea) {
     ...(adminState.lookDetails[index] || {}),
     name: idea.name || "",
     price: idea.price || "",
+    sku: adminState.lookDetails[index]?.sku || nextGeneratedSku(),
     finish: [idea.shape, idea.length, idea.status].filter(Boolean).join(", "),
     copy: [idea.shape, idea.length, idea.art].filter(Boolean).join(" - "),
     notes: [
@@ -8900,7 +9086,12 @@ function renderAdminLookPhotos() {
           <label>Style <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].finish) || "")}" placeholder="chrome, aura, french" data-look-detail="${index}" data-look-field="finish" /></label>
         </div>
         <div class="admin-field-row">
-          <label>Product number <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].sku) || productNumberFor(look, index))}" placeholder="PBC-001" data-look-detail="${index}" data-look-field="sku" /></label>
+          <label>Product number
+            <span class="admin-sku-input">
+              <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].sku) || productNumberFor(look, index))}" placeholder="PBC-001" data-look-detail="${index}" data-look-field="sku" />
+              <button class="sku-generate-button" type="button" data-generate-look-sku="${index}" title="Generate the next SKU">Generate</button>
+            </span>
+          </label>
           <label>Units in stock <input type="number" min="0" step="1" inputmode="numeric" value="${inventoryCountFor(look) ?? ""}" placeholder="Made to order" data-look-detail="${index}" data-look-field="inventoryCount" /></label>
         </div>
         <label>Description <textarea data-look-detail="${index}" data-look-field="copy" placeholder="Tell customers about the shape, finish, color, charms, and vibe.">${escapeTextarea((adminState.lookDetails[index] && adminState.lookDetails[index].copy) || "")}</textarea></label>
@@ -9024,6 +9215,9 @@ function renderAdminLookPhotos() {
       await deleteInventoryProduct(Number(button.dataset.deleteInventoryLook));
     });
   });
+  adminLookList.querySelectorAll("[data-generate-look-sku]").forEach((button) => {
+    button.addEventListener("click", () => generateInventorySku(Number(button.dataset.generateLookSku)));
+  });
   adminLookList.querySelectorAll("[data-look-detail]").forEach((field) => {
     field.addEventListener("input", () => {
       const index = field.dataset.lookDetail;
@@ -9108,7 +9302,12 @@ function renderAdminProducts() {
               ${optionMarkup(categoryOptions, product.category)}
             </select>
           </label>
-          <label>Product number / SKU <input data-custom-product="${index}" data-field="sku" value="${escapeAttribute(productNumberFor(product, index))}" placeholder="PBC-001" /></label>
+          <label>Product number / SKU
+            <span class="admin-sku-input">
+              <input data-custom-product="${index}" data-field="sku" value="${escapeAttribute(productNumberFor(product, index))}" placeholder="PBC-001" />
+              <button class="sku-generate-button" type="button" data-generate-custom-product-sku="${index}" title="Generate the next SKU">Generate</button>
+            </span>
+          </label>
           <label>Units in stock <input type="number" min="0" step="1" inputmode="numeric" data-custom-product="${index}" data-field="inventoryCount" value="${inventoryCountFor(product) ?? ""}" placeholder="Made to order" /></label>
         </div>
         <label>Description <textarea data-custom-product="${index}" data-field="description">${escapeTextarea(product.description)}</textarea></label>
@@ -9136,6 +9335,21 @@ function renderAdminProducts() {
       await removePublishedProduct(Number(button.dataset.deleteCustomProduct));
     });
   });
+  adminProductList.querySelectorAll("[data-generate-custom-product-sku]").forEach((button) => {
+    button.addEventListener("click", () => generateCustomProductSku(Number(button.dataset.generateCustomProductSku)));
+  });
+}
+
+function generateCustomProductSku(index) {
+  const product = adminState.customProducts[index];
+  if (!product) return;
+  const sku = nextGeneratedSku();
+  product.sku = sku;
+  syncPublishedProductBackToLook(product, { sku });
+  renderAdminProducts();
+  renderAdminLookPhotos();
+  renderLooks();
+  persistGeneratedSku(`SKU ${sku} saved to the live website.`);
 }
 
 function escapeAttribute(value) {
@@ -10769,7 +10983,6 @@ function renderCustomProducts() {
         <p class="product-tag" data-admin-product-index="${index}" data-admin-product-field="tag">${escapeHTML(product.tag)}</p>
         <h3 data-admin-product-index="${index}" data-admin-product-field="name">${escapeHTML(product.name)}</h3>
         <p data-admin-product-index="${index}" data-admin-product-field="description">${escapeHTML(product.description)}</p>
-        <p class="product-code">${escapeHTML(productNumberFor(product, index))}</p>
         <p class="product-stock ${escapeAttribute(inventoryState.key)}">${escapeHTML(inventoryDisplayLabel(product))}</p>
         <div class="product-bottom">
           ${productPriceMarkup(productForDisplay)}

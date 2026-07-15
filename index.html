@@ -613,6 +613,7 @@
         </div>
         <div class="admin-view-tabs" aria-label="Admin pages">
           <button class="active" type="button" data-admin-view="orders">Orders Dashboard</button>
+          <button type="button" data-admin-view="accounting">Accounting</button>
           <button type="button" data-admin-view="messages">Messages <span class="admin-messages-tab-badge" id="adminMessagesTabBadge" hidden>0</span></button>
           <button type="button" data-admin-view="customers">Customers <span class="admin-customer-count-badge" id="adminCustomerCountBadge" hidden>0</span></button>
           <button type="button" data-admin-view="products">Products</button>
@@ -707,6 +708,67 @@
           <section class="admin-section admin-publish-note">
             <h3>Daily order workflow</h3>
             <p>Use each order card to move the order from <strong>Needs review</strong> to <strong>Making</strong>, <strong>Packing</strong>, <strong>Shipped</strong>, or <strong>Completed</strong>. Chey's private notes stay with the order.</p>
+          </section>
+        </div>
+        <div class="admin-view-panel" id="adminAccountingView" data-admin-view-panel="accounting" hidden>
+          <section class="admin-section admin-accounting-section">
+            <div class="admin-section-title">
+              <div>
+                <p class="eyebrow">Finance workspace</p>
+                <h3>Purchase History &amp; Payments</h3>
+                <p>Review sales, outstanding payments, quotes, and customer purchase history from one organized ledger.</p>
+              </div>
+              <div class="admin-section-actions">
+                <button type="button" id="refreshAccounting">Refresh Ledger</button>
+              </div>
+            </div>
+            <div class="accounting-summary-grid" aria-label="Accounting summary">
+              <article><span>Gross paid</span><strong id="accountingGrossPaid">$0.00</strong><small>Paid transactions in the ledger</small></article>
+              <article><span>Paid orders</span><strong id="accountingPaidCount">0</strong><small>Completed checkout payments</small></article>
+              <article><span>Outstanding</span><strong id="accountingOutstanding">$0.00</strong><small>Unpaid and pending order value</small></article>
+              <article><span>Ledger entries</span><strong id="accountingEntryCount">0</strong><small>Orders and quote requests</small></article>
+            </div>
+            <p class="admin-status" id="accountingStatus" role="status"></p>
+            <div class="accounting-tools" aria-label="Accounting filters">
+              <label>Search
+                <input id="accountingSearch" type="search" placeholder="Customer, email, order ID, SKU" />
+              </label>
+              <label>Payment
+                <select id="accountingPaymentFilter">
+                  <option value="all">All payment records</option>
+                  <option value="paid">Paid</option>
+                  <option value="pending">Pending / unpaid</option>
+                  <option value="quote">Quotes</option>
+                </select>
+              </label>
+              <label>Date
+                <select id="accountingDateFilter">
+                  <option value="all">All dates</option>
+                  <option value="today">Today</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="custom">Custom range</option>
+                </select>
+              </label>
+              <label>Sort
+                <select id="accountingSort">
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="highest">Highest amount</option>
+                  <option value="lowest">Lowest amount</option>
+                  <option value="customer">Customer A-Z</option>
+                </select>
+              </label>
+              <label>From
+                <input id="accountingDateFrom" type="date" />
+              </label>
+              <label>To
+                <input id="accountingDateTo" type="date" />
+              </label>
+              <button type="button" id="clearAccountingFilters">Reset Filters</button>
+            </div>
+            <div class="accounting-ledger-head"><strong id="accountingShowing">0 records</strong><span>Open a record to see customer, items, payment, and fulfillment details.</span></div>
+            <div class="accounting-ledger" id="accountingList"></div>
           </section>
         </div>
         <div class="admin-view-panel" id="adminMessagesView" data-admin-view-panel="messages" hidden>

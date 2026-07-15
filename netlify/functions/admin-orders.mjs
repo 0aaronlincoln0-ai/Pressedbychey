@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import { verifyAdminRequest } from "./_shared/admin-auth.mjs";
+import { verifyAdminCapability } from "./_shared/admin-auth.mjs";
 
 const STORE_NAME = "pressed-by-chey";
 const ORDER_PREFIX = "orders";
@@ -13,10 +13,6 @@ function jsonResponse(body, init = {}) {
       ...(init.headers || {})
     }
   });
-}
-
-function isAuthorized(request) {
-  return Boolean(verifyAdminRequest(request));
 }
 
 function safeOrderId(value = "") {
@@ -45,6 +41,7 @@ function publicOrder(order = {}) {
     items: Array.isArray(order.items) ? order.items : [],
     total: order.total || order.amountTotal || 0,
     currency: order.currency || "usd",
+    stripeSessionId: order.stripeSessionId || "",
     adminNote: order.adminNote || "",
     quoteAmount: Number(order.quoteAmount || 0),
     quoteStatus: order.quoteStatus || "",
@@ -84,7 +81,8 @@ function normalizeQuoteStatus(value = "", quoteAmount = 0) {
 }
 
 export default async (request) => {
-  if (!isAuthorized(request)) {
+  const adminSession = await verifyAdminCapability(request);
+  if (!adminSession) {
     return jsonResponse({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -135,6 +133,10 @@ export default async (request) => {
   }
 
   if (request.method === "DELETE") {
+    const deleteSession = await verifyAdminCapability(request, "delete");
+    if (!deleteSession?.canDelete) {
+      return jsonResponse({ error: "Only Chey or an admin granted delete access can delete orders." }, { status: 403 });
+    }
     const url = new URL(request.url);
     const orderId = safeOrderId(url.searchParams.get("orderId"));
     if (!orderId) return jsonResponse({ error: "Valid order ID is required." }, { status: 400 });

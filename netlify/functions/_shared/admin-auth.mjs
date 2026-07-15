@@ -1,7 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { getStore } from "@netlify/blobs";
 
 const TOKEN_TTL_SECONDS = 2 * 60 * 60;
 export const OWNER_EMAIL = "callison@pressedbychey.com";
+const CUSTOMER_STORE_NAME = "pressed-by-chey";
 const DEFAULT_ADMIN_EMAILS = [
   "admin",
   "chey",
@@ -107,4 +109,21 @@ export function bearerToken(request) {
 
 export function verifyAdminRequest(request, now = Date.now()) {
   return verifyAdminToken(bearerToken(request), now);
+}
+
+export async function verifyAdminCapability(request, capability = "") {
+  const session = verifyAdminRequest(request);
+  if (!session) return null;
+  const owner = isOwnerEmail(session.sub);
+  if (owner || capability !== "delete") {
+    return { ...session, isOwner: owner, canDelete: owner };
+  }
+
+  const store = getStore({ name: CUSTOMER_STORE_NAME, consistency: "strong" });
+  const customer = await store.get(`customers/${encodeURIComponent(session.sub)}.json`, { type: "json" });
+  return {
+    ...session,
+    isOwner: false,
+    canDelete: customer?.isAdmin === true && customer?.canDelete === true
+  };
 }

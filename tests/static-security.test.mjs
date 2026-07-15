@@ -41,7 +41,8 @@ test("admin order deletion handles recovered orders without weakening paid prote
   assert.match(client, /function deleteLocalAdminOrder\(/);
   assert.match(client, /isRecoveredLocalOrder\(orderId, order\)/);
   assert.match(client, /Paid orders are protected/);
-  assert.match(ordersFunction, /verifyAdminRequest\(request\)/);
+  assert.match(ordersFunction, /verifyAdminCapability\(request\)/);
+  assert.match(ordersFunction, /canDelete/);
   assert.match(ordersFunction, /Paid transactions cannot be deleted/);
 });
 
@@ -49,4 +50,36 @@ test("dropdown controls keep a visible hover state", async () => {
   const styles = await source("styles.css");
   assert.match(styles, /select:not\(:disabled\):hover/);
   assert.match(styles, /select option:checked/);
+});
+
+test("product editors expose a sequential SKU generator", async () => {
+  const client = await source("script.js");
+  const styles = await source("styles.css");
+  assert.match(client, /skuSequence/);
+  assert.match(client, /function nextGeneratedSku\(/);
+  assert.match(client, /data-generate-inventory-sku/);
+  assert.match(client, /data-generate-custom-product-sku/);
+  assert.match(styles, /\.admin-sku-input/);
+});
+
+test("admin accounting and delegated delete access are present", async () => {
+  const client = await source("script.js");
+  const adminHtml = await source("admin.html");
+  const customerAdmin = await source("netlify/functions/customer-admin.mjs");
+  const messagesFunction = await source("netlify/functions/messages.mjs");
+  assert.match(adminHtml, /data-admin-view="accounting"/);
+  assert.match(adminHtml, /id="adminAccountingView"/);
+  assert.match(client, /function canAdminDelete\(/);
+  assert.match(client, /data-admin-customer-input="canDelete"/);
+  assert.match(customerAdmin, /Only the owner can change admin access/);
+  assert.match(messagesFunction, /Only Chey or an admin granted delete access/);
+});
+
+test("customer-facing catalog does not expose SKU labels or identifiers", async () => {
+  const client = await source("script.js");
+  const stateFunction = await source("netlify/functions/admin-state.mjs");
+  assert.doesNotMatch(client, /class="product-code"/);
+  assert.doesNotMatch(client, /skuMarkup/);
+  assert.match(stateFunction, /withoutPrivateCatalogIdentifiers/);
+  assert.match(stateFunction, /const \{ sku, productNumber, \.\.\.customerValue \}/);
 });

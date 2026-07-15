@@ -1,6 +1,6 @@
 import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { getStore } from "@netlify/blobs";
-import { verifyAdminRequest } from "./_shared/admin-auth.mjs";
+import { verifyAdminCapability, verifyAdminRequest } from "./_shared/admin-auth.mjs";
 
 const STORE_NAME = "pressed-by-chey";
 const MESSAGE_PREFIX = "messages";
@@ -246,6 +246,10 @@ export default async (request) => {
     }
     const conversation = await readConversation(store, email, payload?.name);
     if (action === "delete-conversation") {
+      const deleteSession = await verifyAdminCapability(request, "delete");
+      if (!deleteSession?.canDelete) {
+        return jsonResponse({ error: "Only Chey or an admin granted delete access can delete conversations." }, { status: 403 });
+      }
       await store.delete(conversationKey(email));
       return jsonResponse({ ok: true, deleted: true, email });
     }

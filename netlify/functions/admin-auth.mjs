@@ -64,9 +64,10 @@ export default async (request, context = {}) => {
   }
 
   let result = authenticateAdminCredentials(email, password);
-  if (!result.ok && !isOwnerEmail(email)) {
-    const customer = await getStore({ name: CUSTOMER_STORE_NAME, consistency: "strong" }).get(customerKey(email), { type: "json" });
-    if (customer?.isAdmin === true && verifyPassword(password, customer.passwordHash)) {
+  let customerAdminRecord = null;
+  if (!isOwnerEmail(email)) {
+    customerAdminRecord = await getStore({ name: CUSTOMER_STORE_NAME, consistency: "strong" }).get(customerKey(email), { type: "json" });
+    if (!result.ok && customerAdminRecord?.isAdmin === true && verifyPassword(password, customerAdminRecord.passwordHash)) {
       result = { ok: true, configured: true, email, dynamic: true };
     }
   }
@@ -81,5 +82,11 @@ export default async (request, context = {}) => {
 
   await store.delete(key);
   const session = issueAdminToken(result.email, now, { allowDynamic: Boolean(result.dynamic) });
-  return jsonResponse({ ok: true, session });
+  return jsonResponse({
+    ok: true,
+    session: {
+      ...session,
+      canDelete: isOwnerEmail(result.email) || customerAdminRecord?.canDelete === true
+    }
+  });
 };
