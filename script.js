@@ -553,6 +553,7 @@ let pageScrollSyncFrame = 0;
 let scrollChromeFrame = 0;
 let removeBubbleFrame = 0;
 let pageNavigationLockTimer = null;
+let pageTransitionTimer = null;
 let isPageNavigationLocked = false;
 let lastScrollProgress = "";
 let lastNavScrolled = false;
@@ -1725,11 +1726,23 @@ function scheduleScrollChrome() {
 
 function finishPageTransition(nextPage) {
   if (!nextPage) return;
+  const shouldAnimate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches && !nextPage.classList.contains("is-active");
+  window.clearTimeout(pageTransitionTimer);
   sitePages().forEach((page) => {
     page.hidden = page !== nextPage;
-    page.classList.remove("is-turning-out", "is-turning-in");
+    page.classList.remove("is-turning-out", "is-turning-in", "page-transition-in");
     page.classList.toggle("is-active", page === nextPage);
   });
+  if (shouldAnimate) {
+    nextPage.classList.add("page-transition-in");
+    pageBook?.classList.add("is-page-switching");
+    pageTransitionTimer = window.setTimeout(() => {
+      nextPage.classList.remove("page-transition-in");
+      pageBook?.classList.remove("is-page-switching");
+    }, 420);
+  } else {
+    pageBook?.classList.remove("is-page-switching");
+  }
   updateBookStatus(nextPage.dataset.pagePanel || currentPageKey);
 }
 
