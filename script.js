@@ -898,6 +898,16 @@ const categoryOptions = [
   ...nailShapeOptions
 ];
 
+const productBadgeOptions = [
+  ["", "No badge"],
+  ["New from Chey", "New from Chey"],
+  ["Fresh Drop", "Fresh Drop"],
+  ["Limited", "Limited"],
+  ["Best Seller", "Best Seller"],
+  ["Handmade by Chey", "Handmade by Chey"],
+  ["Last Chance", "Last Chance"]
+];
+
 const productCollectionOptions = [
   ["inventory", "Main Inventory"],
   ["fresh-drops", "Fresh Drops"]
@@ -1006,7 +1016,10 @@ function inventoryQuantityInputAttributes(item = {}) {
 
 function optionMarkup(options, selectedValue) {
   const selected = String(selectedValue || "");
-  return options
+  const safeOptions = selected && !options.some(([value]) => value === selected)
+    ? [[selected, selected + " (saved)"], ...options]
+    : options;
+  return safeOptions
     .map(([value, label]) => `<option value="${escapeAttribute(value)}"${value === selected ? " selected" : ""}>${escapeHTML(label)}</option>`)
     .join("");
 }
@@ -2788,10 +2801,18 @@ function renderAdminInventoryPanel() {
                 <input type="number" min="0" step="1" inputmode="numeric" data-inventory-index="${look.index}" data-inventory-field="inventoryCount" value="${inventoryCountFor(look) ?? ""}" placeholder="Made to order"${inventoryQuantityInputAttributes(look)} />
               </label>
               <label>Badge
-                <input data-inventory-index="${look.index}" data-inventory-field="tag" value="${escapeAttribute(look.tag)}" placeholder="New from Chey" />
+                <select data-inventory-index="${look.index}" data-inventory-field="tag">
+                  ${optionMarkup(productBadgeOptions, look.tag)}
+                </select>
+              </label>
+              <label>Shop placement
+                <select data-inventory-index="${look.index}" data-inventory-field="collection">
+                  ${productCollectionOptionsMarkup(look.collection)}
+                </select>
               </label>
             </div>
           </section>
+          <label class="admin-hot-drop-toggle"><input type="checkbox" data-inventory-index="${look.index}" data-inventory-field="hotDrop"${look.hotDrop ? " checked" : ""} /><span>Post to Hot Drop</span><small>Spotlight this set until you remove it.</small></label>
           <section class="admin-inventory-section">
             <div class="admin-inventory-section-head">
               <h3>Descriptions and notes</h3>
@@ -2843,7 +2864,9 @@ function updateInventoryField(field, refreshPanel = false) {
     ? normalizeMoneyValue(field.value)
     : key === "inventoryCount"
       ? normalizeInventoryCount(field.value, null)
-      : field.value.trim();
+      : field.type === "checkbox"
+        ? field.checked
+        : field.value.trim();
   adminState.lookDetails[index][key] = value;
   if (key === "stock") adminState.lookDetails[index].inventoryCount = defaultInventoryCountForStock(value);
   applyAutomaticDiscount(adminState.lookDetails[index], key);
@@ -9831,19 +9854,31 @@ function renderAdminLookPhotos() {
           <span class="admin-look-status-chip" data-catalog-stock-label>${escapeHTML(inventoryDisplayLabel(look))}</span>
           <span class="admin-look-status-chip" data-catalog-number-label>${escapeHTML(productNumberFor(look, index))}</span>
         </div>
-        <label>Name <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].name) || "")}" placeholder="${escapeAttribute(look.name)}" data-look-detail="${index}" data-look-field="name" /></label>
-        <div class="admin-field-row">
-          <label>Price <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].price) || "")}" inputmode="decimal" placeholder="45" data-look-detail="${index}" data-look-field="price" /></label>
-          <label>Style <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].finish) || "")}" placeholder="chrome, aura, french" data-look-detail="${index}" data-look-field="finish" /></label>
+       <label>Name <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].name) || "")}" placeholder="${escapeAttribute(look.name)}" data-look-detail="${index}" data-look-field="name" /></label>
+       <div class="admin-field-row">
+         <label>Price <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].price) || "")}" inputmode="decimal" placeholder="45" data-look-detail="${index}" data-look-field="price" /></label>
+          <label>Nail shape
+            <select data-look-detail="${index}" data-look-field="finish">
+              ${optionMarkup(categoryOptions, look.finish)}
+            </select>
+          </label>
           <label>Stock/status
             <select data-look-detail="${index}" data-look-field="stock">
               ${optionMarkup(stockOptions, look.stock || "Available")}
             </select>
-          </label>
-        </div>
-        <div class="admin-field-row">
-          <label>Product number
-            <span class="admin-sku-input">
+         </label>
+      </div>
+      <div class="admin-field-row">
+         <label>Sale price <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].salePrice) || "")}" inputmode="decimal" placeholder="Auto from discount" data-look-detail="${index}" data-look-field="salePrice" /></label>
+         <label>Discount
+           <select data-look-detail="${index}" data-look-field="discount">
+             ${optionMarkup(discountOptions, look.discount)}
+           </select>
+         </label>
+       </div>
+       <div class="admin-field-row">
+         <label>Product number
+           <span class="admin-sku-input">
               <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].sku) || productNumberFor(look, index))}" placeholder="PBC-001" data-look-detail="${index}" data-look-field="sku" />
               <button class="sku-generate-button" type="button" data-generate-look-sku="${index}" title="Generate the next SKU">Generate</button>
             </span>
@@ -9857,9 +9892,13 @@ function renderAdminLookPhotos() {
         </label>
         <label class="admin-hot-drop-toggle"><input type="checkbox" data-look-detail="${index}" data-look-field="hotDrop"${look.hotDrop ? " checked" : ""} /><span>Post to Hot Drop</span><small>Spotlight this set until you remove it.</small></label>
         <label>Description <textarea data-look-detail="${index}" data-look-field="copy" placeholder="Tell customers about the shape, finish, color, charms, and vibe.">${escapeTextarea((adminState.lookDetails[index] && adminState.lookDetails[index].copy) || "")}</textarea></label>
-        <details class="admin-optional">
-          <summary>Optional product details</summary>
-          <label>Shop tag <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].tag) || "")}" placeholder="New drop" data-look-detail="${index}" data-look-field="tag" /></label>
+       <details class="admin-optional">
+         <summary>Optional product details</summary>
+          <label>Badge
+            <select data-look-detail="${index}" data-look-field="tag">
+              ${optionMarkup(productBadgeOptions, look.tag)}
+            </select>
+          </label>
           <label>Private maker notes <textarea data-look-detail="${index}" data-look-field="notes" placeholder="Private notes for Chey only.">${escapeTextarea((adminState.lookDetails[index] && adminState.lookDetails[index].notes) || "")}</textarea></label>
         </details>
         <div class="look-publish-actions">
@@ -9987,13 +10026,18 @@ function renderAdminLookPhotos() {
       adminState.lookDetails[index] = adminState.lookDetails[index] || {};
       const value = field.type === "checkbox"
         ? field.checked
-        : key === "price"
-        ? normalizeMoneyValue(field.value)
-        : key === "inventoryCount"
-          ? normalizeInventoryCount(field.value, null)
-          : field.value.trim();
+        : key === "price" || key === "salePrice"
+          ? normalizeMoneyValue(field.value)
+          : key === "inventoryCount"
+            ? normalizeInventoryCount(field.value, null)
+            : field.value.trim();
       adminState.lookDetails[index][key] = value;
       const look = readLookData(Number(index));
+      applyAutomaticDiscount(adminState.lookDetails[index], key);
+      if (key === "price" || key === "discount") {
+        const saleField = field.closest("[data-look-card]")?.querySelector('[data-look-field="salePrice"]');
+        if (saleField) saleField.value = adminState.lookDetails[index].salePrice || "";
+      }
       if (look.published) {
         syncInventoryLookToPublishedProduct(Number(index));
         renderCustomProducts();
@@ -10083,10 +10127,14 @@ function renderAdminProducts() {
         <label class="admin-hot-drop-toggle"><input type="checkbox" data-custom-product="${index}" data-field="hotDrop"${product.hotDrop ? " checked" : ""} /><span>Post to Hot Drop</span><small>Spotlight this set until you remove it.</small></label>
         <label>Description <textarea data-custom-product="${index}" data-field="description">${escapeTextarea(product.description)}</textarea></label>
         <label>Maker notes <textarea data-custom-product="${index}" data-field="notes" placeholder="Private notes: polish colors, pigments, charms, sizing, timing, or customer preferences.">${escapeTextarea(product.notes || "")}</textarea></label>
-        <details class="admin-optional">
-          <summary>Optional tag</summary>
-          <label>Tag <input data-custom-product="${index}" data-field="tag" value="${escapeAttribute(product.tag)}" /></label>
-        </details>
+       <details class="admin-optional">
+         <summary>Optional tag</summary>
+          <label>Badge
+            <select data-custom-product="${index}" data-field="tag">
+              ${optionMarkup(productBadgeOptions, product.tag)}
+            </select>
+          </label>
+       </details>
       </div>
     `;
     adminProductList.appendChild(card);
@@ -11830,12 +11878,17 @@ function renderCustomProducts() {
             <label>Units in stock
               <input type="number" min="0" step="1" inputmode="numeric" data-inline-product-index="${index}" data-inline-product-input="inventoryCount" value="${inventoryCountFor(product) ?? ""}" placeholder="Made to order"${inventoryQuantityInputAttributes(product)} />
             </label>
-            <label>Nail shape
-              <select data-inline-product-index="${index}" data-inline-product-input="category">
-                ${optionMarkup(categoryOptions, product.category)}
+           <label>Nail shape
+             <select data-inline-product-index="${index}" data-inline-product-input="category">
+               ${optionMarkup(categoryOptions, product.category)}
+             </select>
+           </label>
+            <label>Badge
+              <select data-inline-product-index="${index}" data-inline-product-input="tag">
+                ${optionMarkup(productBadgeOptions, product.tag)}
               </select>
             </label>
-            <label>Shop placement
+           <label>Shop placement
               <select data-inline-product-index="${index}" data-inline-product-input="collection">
                 ${productCollectionOptionsMarkup(product.collection)}
               </select>
