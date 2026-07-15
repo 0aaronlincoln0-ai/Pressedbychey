@@ -536,9 +536,9 @@
       <div class="admin-editor">
         <div class="admin-header">
           <div>
-            <p class="eyebrow">Admin</p>
-            <h2>Chey Dashboard</h2>
-            <p class="admin-header-subtitle">A private workspace for incoming orders, products to make, and live shop products.</p>
+            <p class="eyebrow">Admin Command Center</p>
+            <h2>Chey Operations</h2>
+            <p class="admin-header-subtitle">A private operations workspace for orders, product drops, customer requests, and Chey's build notes.</p>
           </div>
           <button class="button secondary" type="button" id="adminLogout">Admin Log Out</button>
         </div>
@@ -547,6 +547,7 @@
           <button type="button" data-admin-view="products">Products</button>
           <button type="button" data-admin-view="site">Site Editor</button>
           <button type="button" data-admin-view="ideas">Design Studio</button>
+          <button type="button" data-admin-view="notes">Pro Notes</button>
         </div>
         <div class="admin-view-panel" id="adminOrdersView" data-admin-view-panel="orders">
           <section class="admin-section dashboard-hero">
@@ -824,6 +825,82 @@
               <p class="admin-status" id="ideaStatusMessage" role="status"></p>
             </div>
             <div class="idea-list" id="ideaList"></div>
+          </section>
+        </div>
+        <div class="admin-view-panel" id="adminProNotesView" data-admin-view-panel="notes" hidden>
+          <section class="admin-section pro-notes-section">
+            <div class="admin-section-title pro-notes-title">
+              <div>
+                <p class="eyebrow">Private Ops Notes</p>
+                <h3>Pro Notes</h3>
+                <p>Track color recipes, supply reminders, customer follow-ups, vendor notes, and launch ideas without losing them in order scroll.</p>
+              </div>
+              <div class="admin-section-actions">
+                <span id="proNotesCountBadge">0 notes</span>
+              </div>
+            </div>
+            <div class="pro-notes-layout">
+              <div class="admin-control pro-note-composer" aria-labelledby="pro-note-title">
+                <div class="quick-add-head">
+                  <div>
+                    <strong id="pro-note-title">Add A Pro Note</strong>
+                    <p>Use this like a clean production notebook for everything Chey needs to remember.</p>
+                  </div>
+                </div>
+                <label>Title <input id="proNoteTitle" placeholder="Builder gel restock, VIP rush order, chrome recipe" /></label>
+                <div class="admin-field-row">
+                  <label>Category
+                    <select id="proNoteCategory">
+                      <option value="Order">Order</option>
+                      <option value="Product">Product</option>
+                      <option value="Customer">Customer</option>
+                      <option value="Supplies">Supplies</option>
+                      <option value="Content">Content</option>
+                      <option value="Launch">Launch</option>
+                    </select>
+                  </label>
+                  <label>Priority
+                    <select id="proNotePriority">
+                      <option value="High">High</option>
+                      <option value="Medium" selected>Medium</option>
+                      <option value="Low">Low</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="admin-field-row">
+                  <label>Status
+                    <select id="proNoteStatus">
+                      <option value="Open">Open</option>
+                      <option value="Working">Working</option>
+                      <option value="Waiting">Waiting</option>
+                      <option value="Done">Done</option>
+                    </select>
+                  </label>
+                  <label>Due date <input id="proNoteDue" type="date" /></label>
+                </div>
+                <label>Details <textarea class="large-notes" id="proNoteBody" placeholder="Write the exact polish, layers, charms, customer preference, vendor link, deadline, or next action."></textarea></label>
+                <button type="button" class="button primary wide" id="saveProNoteButton">Save Pro Note</button>
+                <p class="admin-status" id="proNotesStatusMessage" role="status"></p>
+              </div>
+              <div class="pro-note-board">
+                <div class="admin-order-tools pro-note-tools" aria-label="Pro note tools">
+                  <label>Search
+                    <input id="proNotesSearch" type="search" placeholder="Search notes, colors, customers, supplies" />
+                  </label>
+                  <label>Show
+                    <select id="proNotesFilter">
+                      <option value="all">All notes</option>
+                      <option value="open">Open</option>
+                      <option value="working">Working</option>
+                      <option value="waiting">Waiting</option>
+                      <option value="done">Done</option>
+                      <option value="high">High priority</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="pro-notes-list" id="proNotesList"></div>
+              </div>
+            </div>
           </section>
         </div>
       </div>

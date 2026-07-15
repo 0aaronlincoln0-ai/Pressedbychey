@@ -3278,7 +3278,15 @@ figcaption {
 }
 
 .dashboard-hero .admin-order-tools {
-  grid-template-columns: minmax(180px, 1.25fr) repeat(3, minmax(128px, 0.8fr)) repeat(2, minmax(118px, 0.7fr)) repeat(3, auto);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.dashboard-hero .admin-order-tools > * {
+  min-width: 0;
+}
+
+.dashboard-hero .admin-order-tools label:first-child {
+  grid-column: span 2;
 }
 
 .admin-order-scale-layout {
@@ -3368,8 +3376,20 @@ figcaption {
 
 .admin-order-row-list {
   display: grid;
+  align-content: start;
   max-height: min(72vh, 760px);
+  min-height: 280px;
   overflow: auto;
+}
+
+.admin-order-empty-row {
+  display: grid;
+  min-height: 220px;
+  place-content: center;
+  padding: 1rem;
+  color: var(--muted);
+  font-weight: 900;
+  text-align: center;
 }
 
 .admin-order-row {
@@ -3475,6 +3495,14 @@ figcaption {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .pro-notes-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pro-note-composer {
+    position: static;
+  }
+
   .admin-order-detail-panel {
     position: static;
     max-height: none;
@@ -3483,6 +3511,7 @@ figcaption {
 
 @media (max-width: 760px) {
   .dashboard-hero .admin-order-tools,
+  .pro-note-tools,
   .admin-order-browser-head,
   .admin-order-row-head,
   .admin-order-row,
@@ -3996,7 +4025,7 @@ figcaption {
 
 .admin-view-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.6rem;
 }
 
@@ -4042,31 +4071,97 @@ figcaption {
 }
 
 .admin-dedicated-page .admin-page {
-  width: min(1320px, calc(100% - 32px));
+  width: min(1480px, calc(100% - 32px));
   min-height: calc(100vh - 120px);
   margin: 0 auto clamp(2rem, 4vw, 4rem);
-  padding-top: 1rem;
+  padding: clamp(0.85rem, 2vw, 1.25rem);
+  border-color: rgba(36, 16, 24, 0.1);
+  background:
+    linear-gradient(135deg, rgba(255, 246, 250, 0.95), rgba(255, 250, 247, 0.9)),
+    radial-gradient(circle at 92% 2%, rgba(203, 46, 114, 0.16), transparent 22rem);
 }
 
 .admin-dedicated-page .admin-editor {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 264px minmax(0, 1fr);
   align-items: start;
   gap: 1rem;
 }
 
 .admin-dedicated-page .admin-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
   grid-column: 1 / -1;
+  padding: clamp(1rem, 2.2vw, 1.35rem);
+  border: 1px solid rgba(36, 16, 24, 0.1);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, rgba(36, 16, 24, 0.94), rgba(76, 34, 54, 0.9)),
+    linear-gradient(90deg, rgba(203, 46, 114, 0.45), transparent);
+  color: white;
+  box-shadow: 0 18px 48px rgba(36, 16, 24, 0.18);
+}
+
+.admin-dedicated-page .admin-header .eyebrow,
+.admin-dedicated-page .admin-header-subtitle {
+  color: rgba(255, 235, 244, 0.82);
+}
+
+.admin-dedicated-page .admin-header h2 {
+  margin: 0;
+  color: white;
+  font-size: clamp(2rem, 4vw, 4rem);
+  line-height: 0.95;
+}
+
+.admin-dedicated-page #adminLogout {
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
 }
 
 .admin-dedicated-page .admin-view-tabs {
   position: sticky;
   top: 92px;
   grid-template-columns: 1fr;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(36, 16, 24, 0.1);
+  border-radius: var(--radius);
+  background: rgba(36, 16, 24, 0.92);
+  box-shadow: 0 18px 44px rgba(36, 16, 24, 0.16);
+}
+
+.admin-dedicated-page .admin-view-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 48px;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: rgba(255, 238, 246, 0.78);
+  text-align: left;
+}
+
+.admin-dedicated-page .admin-view-tabs button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.admin-dedicated-page .admin-view-tabs button.active {
+  background: linear-gradient(135deg, var(--pink-600), var(--berry));
+  color: white;
+  box-shadow: 0 12px 28px rgba(203, 46, 114, 0.28);
 }
 
 .admin-dedicated-page .admin-view-panel {
   min-width: 0;
+}
+
+.admin-dedicated-page .admin-edit-toolbar {
+  display: none !important;
 }
 
 .dashboard-hero {
@@ -4116,6 +4211,181 @@ figcaption {
   font-size: 0.84rem;
   font-weight: 700;
   line-height: 1.35;
+}
+
+.admin-dedicated-page .dashboard-hero,
+.admin-dedicated-page .product-library-section,
+.admin-dedicated-page .idea-studio,
+.admin-dedicated-page .pro-notes-section,
+.admin-dedicated-page .admin-publish-note {
+  border-color: rgba(36, 16, 24, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 248, 252, 0.86)),
+    linear-gradient(135deg, rgba(203, 46, 114, 0.08), transparent);
+  box-shadow: 0 18px 42px rgba(36, 16, 24, 0.08);
+}
+
+.admin-dedicated-page .dashboard-hero {
+  padding: clamp(1rem, 2vw, 1.35rem);
+}
+
+.admin-dedicated-page .admin-section-title h3 {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(1.55rem, 2.6vw, 2.4rem);
+  line-height: 1;
+}
+
+.admin-dedicated-page .admin-dashboard-summary article {
+  min-height: 118px;
+  border-color: rgba(36, 16, 24, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 243, 249, 0.86));
+}
+
+.admin-dedicated-page .admin-dashboard-summary article:first-child {
+  border-color: rgba(203, 46, 114, 0.3);
+  box-shadow: inset 0 4px 0 var(--pink-600), 0 14px 34px rgba(143, 29, 81, 0.1);
+}
+
+.admin-dedicated-page .admin-order-browser,
+.admin-dedicated-page .admin-order-detail-panel {
+  border-color: rgba(36, 16, 24, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.admin-dedicated-page .admin-order-browser-head {
+  background: rgba(36, 16, 24, 0.94);
+}
+
+.admin-dedicated-page .admin-order-browser-head strong,
+.admin-dedicated-page .admin-order-browser-head p {
+  color: white;
+}
+
+.admin-dedicated-page .admin-order-browser-head p {
+  color: rgba(255, 235, 244, 0.76);
+}
+
+.pro-notes-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.78fr) minmax(0, 1.22fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.pro-note-composer,
+.pro-note-board,
+.pro-note-card {
+  border: 1px solid rgba(36, 16, 24, 0.1);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 14px 34px rgba(36, 16, 24, 0.07);
+}
+
+.pro-note-composer {
+  position: sticky;
+  top: 106px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.pro-note-board {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.85rem;
+}
+
+.pro-note-tools {
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.45fr);
+}
+
+.pro-notes-list {
+  display: grid;
+  gap: 0.75rem;
+  max-height: min(74vh, 820px);
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.pro-note-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+}
+
+.pro-note-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.pro-note-card-head strong {
+  color: var(--ink);
+  font-size: 1.06rem;
+  font-weight: 950;
+}
+
+.pro-note-card-head p,
+.pro-note-empty p {
+  margin: 0.18rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.pro-note-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pro-note-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 1px solid rgba(143, 29, 81, 0.13);
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+  background: rgba(255, 244, 249, 0.86);
+  color: var(--berry);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pro-note-chip.priority-high {
+  border-color: rgba(178, 15, 79, 0.22);
+  background: rgba(178, 15, 79, 0.1);
+  color: var(--ruby);
+}
+
+.pro-note-chip.priority-low,
+.pro-note-chip.status-done {
+  border-color: rgba(120, 143, 125, 0.25);
+  background: rgba(120, 143, 125, 0.12);
+  color: #526a58;
+}
+
+.pro-note-chip.status-working {
+  border-color: rgba(203, 46, 114, 0.22);
+  background: rgba(203, 46, 114, 0.12);
+}
+
+.pro-note-chip.status-waiting {
+  border-color: rgba(172, 130, 64, 0.24);
+  background: rgba(243, 215, 184, 0.4);
+  color: #7a5a29;
+}
+
+.pro-note-empty {
+  display: grid;
+  min-height: 180px;
+  place-content: center;
+  text-align: center;
 }
 
 .admin-actions {
@@ -8270,6 +8540,10 @@ body.admin-inventory-open {
   }
 
   .admin-dedicated-page .admin-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-dedicated-page .admin-header {
     grid-template-columns: 1fr;
   }
 

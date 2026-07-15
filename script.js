@@ -88,6 +88,18 @@ const ideaPrice = document.querySelector("#ideaPrice");
 const saveIdeaButton = document.querySelector("#saveIdeaButton");
 const ideaStatusMessage = document.querySelector("#ideaStatusMessage");
 const ideaList = document.querySelector("#ideaList");
+const proNotesCountBadge = document.querySelector("#proNotesCountBadge");
+const proNoteTitle = document.querySelector("#proNoteTitle");
+const proNoteCategory = document.querySelector("#proNoteCategory");
+const proNotePriority = document.querySelector("#proNotePriority");
+const proNoteStatus = document.querySelector("#proNoteStatus");
+const proNoteDue = document.querySelector("#proNoteDue");
+const proNoteBody = document.querySelector("#proNoteBody");
+const saveProNoteButton = document.querySelector("#saveProNoteButton");
+const proNotesStatusMessage = document.querySelector("#proNotesStatusMessage");
+const proNotesSearch = document.querySelector("#proNotesSearch");
+const proNotesFilter = document.querySelector("#proNotesFilter");
+const proNotesList = document.querySelector("#proNotesList");
 const productGrid = document.querySelector(".product-grid");
 const productDetailContent = document.querySelector("#productDetailContent");
 const filterRow = document.querySelector("#shopFilters");
@@ -280,6 +292,7 @@ let adminState = {
   lookPhotoTransforms: {},
   lookDetails: {},
   ideas: [],
+  proNotes: [],
   customPages: [],
     customBlocks: [],
     hiddenText: {},
@@ -562,6 +575,7 @@ function defaultAdminState() {
     lookPhotoTransforms: {},
     lookDetails: {},
     ideas: [],
+    proNotes: [],
     customPages: [],
     customBlocks: [],
     hiddenText: {},
@@ -1242,6 +1256,7 @@ function normalizeAdminState(saved = {}) {
     lookPhotoTransforms: normalizePhotoTransformMap(saved.lookPhotoTransforms || {}),
     lookDetails: saved.lookDetails || {},
     ideas: Array.isArray(saved.ideas) ? saved.ideas : [],
+    proNotes: Array.isArray(saved.proNotes) ? saved.proNotes : [],
     customPages: Array.isArray(saved.customPages)
       ? saved.customPages
           .filter((page) => page && page.key)
@@ -5192,7 +5207,7 @@ function adminOrderRowMarkup(order = {}) {
 function adminOrderDetailMarkup(order) {
   if (!order) {
     return `
-      <aside class="admin-order-detail-panel">
+      <aside class="admin-order-detail-panel" data-order-detail-id="">
         <div class="admin-order-detail-empty">
           <strong>No order selected</strong>
           <p>Use search or filters to find paid orders and custom quotes.</p>
@@ -5208,7 +5223,7 @@ function adminOrderDetailMarkup(order) {
   const quoteCents = quoteAmountCents(order);
   const quoteSentFeedback = quoteSentFeedbackOrderIds.has(orderId);
   return `
-    <aside class="admin-order-detail-panel ${paid ? "is-paid" : "is-pending"} ${quoteOrder ? "is-quote-order" : ""} ${quoteSentFeedback ? "is-quote-sent-feedback" : ""}">
+    <aside class="admin-order-detail-panel ${paid ? "is-paid" : "is-pending"} ${quoteOrder ? "is-quote-order" : ""} ${quoteSentFeedback ? "is-quote-sent-feedback" : ""}" data-order-detail-id="${escapeAttribute(orderId)}">
       <div class="admin-order-detail-head">
         <div>
           <span class="payment-pill ${paid ? "is-paid" : "is-pending"}">${escapeHTML(paymentLabel)}</span>
@@ -5281,7 +5296,50 @@ function adminOrderDetailMarkup(order) {
   `;
 }
 
-function renderAdminLiveOrders() {
+function adminOrderShellMarkup() {
+  return `
+    <div class="admin-order-scale-layout" data-admin-order-shell="true">
+      <section class="admin-order-browser" aria-label="Order browser">
+        <div class="admin-order-browser-head">
+          <div>
+            <strong data-order-count>0 orders</strong>
+            <p data-order-showing>Showing 0 orders</p>
+          </div>
+          <div class="admin-order-pagination" data-order-pagination></div>
+        </div>
+        <div class="admin-order-row-head" aria-hidden="true">
+          <span>Customer</span>
+          <span>Items</span>
+          <span>Payment</span>
+          <span>Status</span>
+          <span>Total</span>
+        </div>
+        <div class="admin-order-row-list" data-order-row-list></div>
+      </section>
+      ${adminOrderDetailMarkup(null)}
+    </div>
+  `;
+}
+
+function ensureAdminOrderShell() {
+  if (!adminLiveOrderList) return null;
+  let shell = adminLiveOrderList.querySelector("[data-admin-order-shell]");
+  if (!shell) {
+    adminLiveOrderList.innerHTML = adminOrderShellMarkup();
+    shell = adminLiveOrderList.querySelector("[data-admin-order-shell]");
+  }
+  return shell;
+}
+
+function orderPaginationMarkup(pageCount) {
+  return `
+    <button type="button" data-order-page="prev"${adminOrderPage <= 1 ? " disabled" : ""}>Prev</button>
+    <span>Page ${adminOrderPage} / ${pageCount}</span>
+    <button type="button" data-order-page="next"${adminOrderPage >= pageCount ? " disabled" : ""}>Next</button>
+  `;
+}
+
+function renderAdminLiveOrders({ preserveDetail = false } = {}) {
   if (!adminLiveOrderList) return;
   const visibleOrders = filteredLiveOrders();
   updateAdminDashboardSummary(visibleOrders);
@@ -5292,36 +5350,30 @@ function renderAdminLiveOrders() {
   const selected = adminSelectedOrder(visibleOrders);
   const showingStart = visibleOrders.length ? startIndex + 1 : 0;
   const showingEnd = Math.min(startIndex + pageOrders.length, visibleOrders.length);
-  adminLiveOrderList.innerHTML = visibleOrders.length
-    ? `
-      <div class="admin-order-scale-layout">
-        <section class="admin-order-browser" aria-label="Order browser">
-          <div class="admin-order-browser-head">
-            <div>
-              <strong>${visibleOrders.length.toLocaleString()} orders</strong>
-              <p>Showing ${showingStart.toLocaleString()}-${showingEnd.toLocaleString()} of ${visibleOrders.length.toLocaleString()}</p>
-            </div>
-            <div class="admin-order-pagination">
-              <button type="button" data-order-page="prev"${adminOrderPage <= 1 ? " disabled" : ""}>Prev</button>
-              <span>Page ${adminOrderPage} / ${pageCount}</span>
-              <button type="button" data-order-page="next"${adminOrderPage >= pageCount ? " disabled" : ""}>Next</button>
-            </div>
-          </div>
-          <div class="admin-order-row-head" aria-hidden="true">
-            <span>Customer</span>
-            <span>Items</span>
-            <span>Payment</span>
-            <span>Status</span>
-            <span>Total</span>
-          </div>
-          <div class="admin-order-row-list">
-            ${pageOrders.map(adminOrderRowMarkup).join("")}
-          </div>
-        </section>
-        ${adminOrderDetailMarkup(selected)}
-      </div>
-    `
-    : `<div class="admin-user-card"><p>${liveOrders.length ? "No orders match the selected filters." : "No live paid orders yet. New checkout orders will show here after customers start checkout."}</p></div>`;
+  const shell = ensureAdminOrderShell();
+  if (!shell) return;
+  const count = shell.querySelector("[data-order-count]");
+  const showing = shell.querySelector("[data-order-showing]");
+  const pagination = shell.querySelector("[data-order-pagination]");
+  const rows = shell.querySelector("[data-order-row-list]");
+  const detail = shell.querySelector(".admin-order-detail-panel");
+  if (count) count.textContent = `${visibleOrders.length.toLocaleString()} order${visibleOrders.length === 1 ? "" : "s"}`;
+  if (showing) {
+    showing.textContent = visibleOrders.length
+      ? `Showing ${showingStart.toLocaleString()}-${showingEnd.toLocaleString()} of ${visibleOrders.length.toLocaleString()}`
+      : liveOrders.length
+        ? "No orders match the selected filters"
+        : "No live paid orders yet";
+  }
+  if (pagination) pagination.innerHTML = orderPaginationMarkup(pageCount);
+  if (rows) {
+    rows.innerHTML = pageOrders.length
+      ? pageOrders.map(adminOrderRowMarkup).join("")
+      : `<div class="admin-order-empty-row">${liveOrders.length ? "No orders match the selected filters." : "New checkout orders will show here after customers start checkout."}</div>`;
+  }
+  if (detail && (!preserveDetail || detail.dataset.orderDetailId !== (selected?.id || ""))) {
+    detail.outerHTML = adminOrderDetailMarkup(selected);
+  }
   autoGrowTextareas(adminLiveOrderList);
 }
 
@@ -5338,7 +5390,7 @@ function setLiveOrderFilterStatus(prefix = "Showing") {
 
 function applyLiveOrderDateFilters({ message = true } = {}) {
   adminOrderPage = 1;
-  renderAdminLiveOrders();
+  renderAdminLiveOrders({ preserveDetail: true });
   if (message) setLiveOrderFilterStatus();
 }
 
@@ -6092,6 +6144,7 @@ async function setupAdmin() {
   renderAdminGuestOrders();
   renderAdminLiveOrders();
   renderIdeas();
+  renderProNotes();
 
   if (IS_ADMIN_PAGE) {
     showAdminPage();
@@ -6114,6 +6167,7 @@ async function setupAdmin() {
     renderAdminProducts();
     renderAdminLookPhotos();
     renderIdeas();
+    renderProNotes();
     if (IS_ADMIN_PAGE) {
       switchAdminView("orders");
       setAdminSaveMessage(adminContentStatus, liveSyncSuccessMessage());
@@ -6186,6 +6240,13 @@ async function setupAdmin() {
   saveIdeaButton.addEventListener("click", addDesignIdea);
   ideaList.addEventListener("click", handleIdeaListClick);
   ideaList.addEventListener("input", updateIdeaFromCard);
+  if (saveProNoteButton) saveProNoteButton.addEventListener("click", addProNote);
+  if (proNotesList) {
+    proNotesList.addEventListener("click", handleProNotesClick);
+    proNotesList.addEventListener("input", updateProNoteFromCard);
+  }
+  if (proNotesSearch) proNotesSearch.addEventListener("input", renderProNotes);
+  if (proNotesFilter) proNotesFilter.addEventListener("change", renderProNotes);
   document.addEventListener("click", handleInlineImageClick, true);
   document.addEventListener("click", handleInlineEditableClick, true);
   document.addEventListener("input", handleInlineEditableInput);
@@ -6215,6 +6276,7 @@ function switchAdminView(view) {
     panel.hidden = panel.dataset.adminViewPanel !== view;
   });
   if (view === "orders") fetchAdminLiveOrders();
+  if (view === "notes") renderProNotes();
   syncAdminLiveOrderAutoRefresh();
   autoGrowTextareas();
 }
@@ -6697,6 +6759,7 @@ function applyAdminState() {
   markInlineImageTargets();
   syncInlineEditMode();
   renderIdeas();
+  renderProNotes();
   renderAdminContentFields();
   renderAdminLayoutControls();
 }
@@ -8860,6 +8923,182 @@ async function handleIdeaListClick(event) {
     if (!idea) return;
     await copyIdeaToProductLibrary(idea);
   }
+}
+
+function proNoteStatusOptions(selected) {
+  return ["Open", "Working", "Waiting", "Done"]
+    .map((status) => `<option value="${status}"${selected === status ? " selected" : ""}>${status}</option>`)
+    .join("");
+}
+
+function proNotePriorityOptions(selected) {
+  return ["High", "Medium", "Low"]
+    .map((priority) => `<option value="${priority}"${selected === priority ? " selected" : ""}>${priority}</option>`)
+    .join("");
+}
+
+function proNoteCategoryOptions(selected) {
+  return ["Order", "Product", "Customer", "Supplies", "Content", "Launch"]
+    .map((category) => `<option value="${category}"${selected === category ? " selected" : ""}>${category}</option>`)
+    .join("");
+}
+
+function normalizedProNoteText(note) {
+  return [
+    note.title,
+    note.body,
+    note.category,
+    note.priority,
+    note.status,
+    note.due
+  ].join(" ").toLowerCase();
+}
+
+function filteredProNotes() {
+  const notes = Array.isArray(adminState.proNotes) ? adminState.proNotes : [];
+  const query = (proNotesSearch?.value || "").trim().toLowerCase();
+  const filter = (proNotesFilter?.value || "all").toLowerCase();
+  return notes
+    .map((note, index) => ({ note, index }))
+    .filter(({ note }) => {
+      if (query && !normalizedProNoteText(note).includes(query)) return false;
+      if (filter === "all") return true;
+      if (filter === "high") return String(note.priority || "").toLowerCase() === "high";
+      return String(note.status || "").toLowerCase() === filter;
+    });
+}
+
+function proNoteMeta(note) {
+  const priority = note.priority || "Medium";
+  const status = note.status || "Open";
+  const category = note.category || "Order";
+  return `
+    <div class="pro-note-meta">
+      <span class="pro-note-chip priority-${escapeAttribute(priority.toLowerCase())}">${escapeHTML(priority)}</span>
+      <span class="pro-note-chip status-${escapeAttribute(status.toLowerCase())}">${escapeHTML(status)}</span>
+      <span class="pro-note-chip">${escapeHTML(category)}</span>
+      ${note.due ? `<span class="pro-note-chip">Due ${escapeHTML(note.due)}</span>` : ""}
+    </div>
+  `;
+}
+
+function renderProNotes() {
+  if (!proNotesList) return;
+  adminState.proNotes = Array.isArray(adminState.proNotes) ? adminState.proNotes : [];
+  const visibleNotes = filteredProNotes();
+  if (proNotesCountBadge) {
+    proNotesCountBadge.textContent = `${adminState.proNotes.length} note${adminState.proNotes.length === 1 ? "" : "s"}`;
+  }
+  proNotesList.innerHTML = visibleNotes.length
+    ? visibleNotes.map(({ note, index }) => `
+        <article class="pro-note-card admin-control" data-pro-note-card="${index}">
+          <div class="pro-note-card-head">
+            <div>
+              <strong>${escapeHTML(note.title || "Untitled note")}</strong>
+              <p>${escapeHTML(note.updatedAt || note.createdAt || "Saved note")}</p>
+            </div>
+            <button class="delete-product" type="button" data-delete-pro-note="${index}">Remove</button>
+          </div>
+          ${proNoteMeta(note)}
+          <label>Title <input data-pro-note="${index}" data-field="title" value="${escapeAttribute(note.title || "")}" /></label>
+          <div class="admin-field-row">
+            <label>Category
+              <select data-pro-note="${index}" data-field="category">${proNoteCategoryOptions(note.category || "Order")}</select>
+            </label>
+            <label>Priority
+              <select data-pro-note="${index}" data-field="priority">${proNotePriorityOptions(note.priority || "Medium")}</select>
+            </label>
+          </div>
+          <div class="admin-field-row">
+            <label>Status
+              <select data-pro-note="${index}" data-field="status">${proNoteStatusOptions(note.status || "Open")}</select>
+            </label>
+            <label>Due date <input type="date" data-pro-note="${index}" data-field="due" value="${escapeAttribute(note.due || "")}" /></label>
+          </div>
+          <label>Details <textarea class="large-notes" data-pro-note="${index}" data-field="body">${escapeTextarea(note.body || "")}</textarea></label>
+        </article>
+      `).join("")
+    : `<div class="admin-control pro-note-empty">
+        <strong>No matching notes</strong>
+        <p>Add a note for recipes, customer follow-ups, supply reminders, or launch planning.</p>
+      </div>`;
+  autoGrowTextareas(proNotesList);
+}
+
+async function addProNote() {
+  if (!proNoteTitle || !proNoteBody) return;
+  const title = proNoteTitle.value.trim();
+  const bodyText = proNoteBody.value.trim();
+  if (!title && !bodyText) {
+    setAdminSaveMessage(proNotesStatusMessage, "Add a title or details first.");
+    return;
+  }
+  adminState.proNotes = Array.isArray(adminState.proNotes) ? adminState.proNotes : [];
+  adminState.proNotes.unshift({
+    id: `pro-note-${Date.now()}`,
+    createdAt: new Date().toLocaleString(),
+    updatedAt: new Date().toLocaleString(),
+    title: title || "Untitled pro note",
+    category: proNoteCategory?.value || "Order",
+    priority: proNotePriority?.value || "Medium",
+    status: proNoteStatus?.value || "Open",
+    due: proNoteDue?.value || "",
+    body: bodyText
+  });
+  const result = await saveAdminState({
+    statusTarget: proNotesStatusMessage,
+    savingMessage: "Saving pro note to the live website...",
+    successMessage: "Pro note saved to the live website."
+  });
+  renderProNotes();
+  if (!result.ok) return;
+  [proNoteTitle, proNoteDue, proNoteBody].forEach((input) => {
+    if (input) input.value = "";
+  });
+  if (proNoteCategory) proNoteCategory.value = "Order";
+  if (proNotePriority) proNotePriority.value = "Medium";
+  if (proNoteStatus) proNoteStatus.value = "Open";
+  setAdminSaveMessage(proNotesStatusMessage, "Pro note saved to the live website.");
+  autoGrowTextareas();
+}
+
+function updateProNoteFromCard(event) {
+  const field = event.target.closest("[data-pro-note]");
+  if (!field) return;
+  const index = Number(field.dataset.proNote);
+  const key = field.dataset.field;
+  if (!adminState.proNotes?.[index] || !key) return;
+  adminState.proNotes[index][key] = field.value;
+  adminState.proNotes[index].updatedAt = new Date().toLocaleString();
+  localSaveAdminState();
+  scheduleRemoteAdminStateSave({
+    statusTarget: proNotesStatusMessage,
+    savingMessage: "Saving pro note changes to the live website...",
+    showSuccess: true,
+    successMessage: "Pro note changes saved to the live website."
+  });
+  const card = field.closest(".pro-note-card");
+  if (card && ["title", "category", "priority", "status", "due"].includes(key)) {
+    const title = card.querySelector(".pro-note-card-head strong");
+    if (title) title.textContent = adminState.proNotes[index].title || "Untitled note";
+    const meta = card.querySelector(".pro-note-meta");
+    if (meta) meta.outerHTML = proNoteMeta(adminState.proNotes[index]);
+  }
+}
+
+async function handleProNotesClick(event) {
+  const deleteButton = event.target.closest("[data-delete-pro-note]");
+  if (!deleteButton) return;
+  const index = Number(deleteButton.dataset.deleteProNote);
+  if (!adminState.proNotes?.[index]) return;
+  adminState.proNotes.splice(index, 1);
+  const result = await saveAdminState({
+    statusTarget: proNotesStatusMessage,
+    savingMessage: "Removing pro note from the live website...",
+    successMessage: "Pro note removed from the live website."
+  });
+  renderProNotes();
+  if (!result.ok) return;
 }
 
 function adminInlineEditingActive() {
