@@ -4098,12 +4098,15 @@ function renderMessageThread(thread, conversation, emptyLabel, viewer, contextKe
   if (!thread) return false;
   const renderKey = `${contextKey}|${viewer}|${messageConversationKey(conversation)}|${emptyLabel}`;
   if (thread.dataset.renderKey === renderKey) return false;
+  const previousScrollTop = thread.scrollTop;
+  const wasNearBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 96;
   const existingMessageIds = new Set([...thread.querySelectorAll("[data-message-id]")].map((message) => message.dataset.messageId));
   thread.innerHTML = messageThreadMarkup(conversation, emptyLabel, viewer);
   thread.dataset.renderKey = renderKey;
   thread.querySelectorAll("[data-message-id]").forEach((message) => {
     if (existingMessageIds.has(message.dataset.messageId)) message.classList.add("is-existing");
   });
+  thread.scrollTop = wasNearBottom ? thread.scrollHeight : Math.min(previousScrollTop, Math.max(0, thread.scrollHeight - thread.clientHeight));
   return true;
 }
 
@@ -4359,9 +4362,11 @@ async function fetchAdminMessageRecipients() {
   try {
     const data = await adminCustomersRequest("list", { teamOnly: false, status: "active", page: 1, pageSize: 100 });
     const customers = Array.isArray(data.customers) ? data.customers : [];
-    adminMessageCustomerSelect.innerHTML = '<option value="">Choose a customer...</option>' + customers.map((customer) => `<option value="${escapeAttribute(customer.email)}">${escapeHTML(customer.name || customer.email)} - ${escapeHTML(customer.email)}</option>`).join("");
+    const nextOptions = '<option value="">Choose a customer...</option>' + customers.map((customer) => `<option value="${escapeAttribute(customer.email)}">${escapeHTML(customer.name || customer.email)} - ${escapeHTML(customer.email)}</option>`).join("");
+    const selectedEmail = activeAdminMessageEmail || adminMessageCustomerSelect.value;
+    if (adminMessageCustomerSelect.innerHTML !== nextOptions) adminMessageCustomerSelect.innerHTML = nextOptions;
+    if (selectedEmail && customers.some((customer) => customer.email === selectedEmail)) adminMessageCustomerSelect.value = selectedEmail;
     if (activeAdminMessageEmail && customers.some((customer) => customer.email === activeAdminMessageEmail)) {
-      adminMessageCustomerSelect.value = activeAdminMessageEmail;
       if (adminMessageForm) adminMessageForm.dataset.recipientEmail = activeAdminMessageEmail;
     }
   } catch (error) {
@@ -4466,7 +4471,7 @@ function renderAdminMessageThread() {
   }
   if (adminMessageSend) adminMessageSend.disabled = false;
   if (adminMessageCount) adminMessageCount.textContent = `${String(adminMessageInput?.value || "").length}/2400`;
-  if (threadChanged) adminMessageThread.lastElementChild?.scrollIntoView({ block: "nearest" });
+  if (threadChanged) adminMessageThread.dataset.lastUpdatedAt = new Date().toISOString();
 }
 
 async function fetchAdminConversation(email, { showStatus = true } = {}) {
@@ -4474,9 +4479,12 @@ async function fetchAdminConversation(email, { showStatus = true } = {}) {
   const recipient = String(email).trim().toLowerCase();
   if (!syncAdminMessageRecipient(recipient)) return;
   const loadId = ++adminConversationLoadId;
-  activeAdminConversation = null;
-  renderAdminMessageList();
-  renderAdminMessageThread();
+  const keepVisibleConversation = activeAdminMessageEmail === recipient && activeAdminConversation?.email === recipient;
+  if (!keepVisibleConversation) {
+    activeAdminConversation = null;
+    renderAdminMessageList();
+    renderAdminMessageThread();
+  }
   if (showStatus && adminMessagesStatus) adminMessagesStatus.textContent = "Loading conversation...";
   try {
     let data = await adminMessagesRequest("get", { email: recipient });

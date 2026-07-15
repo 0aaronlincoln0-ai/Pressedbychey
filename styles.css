@@ -10116,11 +10116,30 @@ body.admin-inventory-open {
   }
 
   .admin-conversation-list {
-    max-height: 260px;
+    max-height: min(28vh, 260px);
+    max-height: min(28dvh, 260px);
+    -webkit-overflow-scrolling: touch;
   }
 
   .admin-conversation-panel {
     min-height: 0;
+  }
+
+  .chat-thread {
+    min-height: min(52vh, 420px);
+    min-height: min(52dvh, 420px);
+    max-height: min(58vh, 520px);
+    max-height: min(58dvh, 520px);
+    padding: 0.8rem 0.7rem;
+  }
+
+  .chat-composer textarea {
+    font-size: 16px;
+  }
+
+  .chat-composer,
+  .admin-message-recipient-tools {
+    -webkit-tap-highlight-color: transparent;
   }
 
   .customer-message-form-footer,
@@ -11038,7 +11057,9 @@ body.admin-inventory-open {
   max-height: 520px;
   padding: 1rem 1.05rem;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  scroll-padding-bottom: 1rem;
   border: 0;
   border-radius: 0;
   background:

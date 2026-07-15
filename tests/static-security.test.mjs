@@ -120,6 +120,10 @@ test("admin messages provide a direct customer picker", async () => {
   assert.match(client, /adminMessageCustomerSelect\?\.addEventListener\("change"/);
   assert.match(client, /dataset\.recipientEmail/);
   assert.match(client, /adminConversationLoadId/);
+  assert.match(client, /keepVisibleConversation/);
+  assert.match(client, /wasNearBottom/);
   assert.match(styles, /\.admin-message-recipient-tools/);
   assert.match(styles, /\.chat-new-message-button/);
+  assert.match(styles, /-webkit-overflow-scrolling:\s*touch/);
+  assert.match(styles, /\.chat-composer textarea[\s\S]*font-size:\s*16px/);
 });
