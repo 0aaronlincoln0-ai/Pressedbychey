@@ -116,6 +116,17 @@ test("the secondary owner keeps permanent owner capabilities", async () => {
   assert.match(client, /ADMIN_OWNER_EMAILS/);
 });
 
+test("product command center uses the full responsive admin workspace", async () => {
+  const adminHtml = await source("admin.html");
+  const styles = await source("styles.css");
+  assert.match(adminHtml, /id="adminProductsView"/);
+  assert.match(adminHtml, /Product Command Center/);
+  assert.match(styles, /\.admin-dedicated-page \.admin-view-panel\s*\{[\s\S]*grid-column: 2/);
+  assert.match(styles, /#adminProductsView \.admin-look-list/);
+  assert.match(styles, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 430px\), 1fr\)\)/);
+  assert.match(styles, /\.admin-dedicated-page \.admin-page[\s\S]*width: calc\(100% - 16px\)/);
+});
+
 test("admin messages provide a direct customer picker", async () => {
   const client = await source("script.js");
   const adminHtml = await source("admin.html");

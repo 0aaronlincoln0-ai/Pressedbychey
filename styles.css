@@ -5298,7 +5298,7 @@ figcaption {
 }
 
 .admin-dedicated-page .admin-page {
-  width: min(1480px, calc(100% - 32px));
+  width: min(1680px, calc(100% - 24px));
   min-height: calc(100vh - 120px);
   margin: 0 auto clamp(2rem, 4vw, 4rem);
   padding: clamp(0.85rem, 2vw, 1.25rem);
@@ -5313,6 +5313,36 @@ figcaption {
   grid-template-columns: 264px minmax(0, 1fr);
   align-items: start;
   gap: 1rem;
+}
+
+.admin-dedicated-page .admin-header {
+  min-width: 0;
+}
+
+.admin-dedicated-page .admin-view-tabs {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.admin-dedicated-page .admin-view-panel {
+  grid-column: 2;
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-dedicated-page #adminProductsView,
+.admin-dedicated-page #adminProductsView .product-library-section {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-dedicated-page #adminProductsView .admin-look-list {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr));
+}
+
+.admin-dedicated-page #adminProductsView .admin-look-card,
+.admin-dedicated-page #adminProductsView .admin-product-card {
+  min-width: 0;
 }
 
 .admin-dedicated-page .admin-header {
@@ -5772,6 +5802,11 @@ figcaption {
 @media (max-width: 1040px) {
   .admin-dedicated-page .admin-editor {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-dedicated-page .admin-view-tabs,
+  .admin-dedicated-page .admin-view-panel {
+    grid-column: 1;
   }
 
   .admin-dedicated-page .admin-view-tabs {
@@ -10075,6 +10110,11 @@ body.admin-inventory-open {
 
   .admin-dedicated-page .admin-editor {
     grid-template-columns: 1fr;
+  }
+
+  .admin-dedicated-page .admin-page {
+    width: calc(100% - 16px);
+    padding: 0.7rem;
   }
 
   .admin-dedicated-page .admin-header {
