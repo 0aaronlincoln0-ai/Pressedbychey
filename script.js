@@ -1,6 +1,7 @@
 const body = document.body;
 const cartButton = document.querySelector(".cart-button");
 const accountButton = document.querySelector(".account-button");
+const accountPanel = document.querySelector(".account-panel");
 const closeCart = document.querySelector(".close-cart");
 const closeAccount = document.querySelector(".close-account");
 const scrim = document.querySelector(".scrim");
@@ -1980,7 +1981,8 @@ function closeCartDrawer() {
 function openAccount(message = "") {
   closeCartDrawer();
   body.classList.add("account-open");
-  document.querySelector(".account-panel").setAttribute("aria-hidden", "false");
+  accountPanel?.classList.add("is-open");
+  accountPanel?.setAttribute("aria-hidden", "false");
   if (message) accountStatus.textContent = message;
   renderAccount();
   syncCustomerQuoteRefresh();
@@ -1989,7 +1991,8 @@ function openAccount(message = "") {
 
 function closeAccountPanel() {
   body.classList.remove("account-open");
-  document.querySelector(".account-panel").setAttribute("aria-hidden", "true");
+  accountPanel?.classList.remove("is-open");
+  accountPanel?.setAttribute("aria-hidden", "true");
   syncCustomerQuoteRefresh();
 }
 
@@ -4314,6 +4317,7 @@ function openAdminCustomerMessages(email) {
 function renderAccount() {
   const adminSignedIn = isAdminSignedIn();
   const user = currentCustomer();
+  if (accountButton) accountButton.textContent = adminSignedIn || user ? "My Account" : "Log In";
   accountAuth.classList.toggle("admin-session-active", adminSignedIn);
   if (adminSessionCard) adminSessionCard.hidden = !adminSignedIn;
   accountStatus.hidden = adminSignedIn;
@@ -4545,6 +4549,16 @@ async function registerCustomer() {
 async function loginCustomer() {
   const email = loginEmail.value.trim().toLowerCase();
   const password = loginPassword.value;
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    accountStatus.textContent = "Enter a valid email address.";
+    loginEmail.focus();
+    return;
+  }
+  if (!password) {
+    accountStatus.textContent = "Enter your password.";
+    loginPassword.focus();
+    return;
+  }
   if (email === ADMIN_OWNER_EMAIL || (IS_ADMIN_PAGE && isAdminEmail(email))) {
     accountStatus.textContent = "Checking secure admin access...";
     try {
@@ -6367,6 +6381,12 @@ accountButton.addEventListener("click", openCustomerAccountDestination);
 closeAccount.addEventListener("click", closeAccountPanel);
 customerRegister.addEventListener("click", registerCustomer);
 customerLogin.addEventListener("click", loginCustomer);
+loginEmail.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") loginCustomer();
+});
+loginPassword.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") loginCustomer();
+});
 customerLogout.addEventListener("click", logoutCustomer);
 adminContinueEditing?.addEventListener("click", showAdminPage);
 adminOpenOrders?.addEventListener("click", showAdminOrdersPage);

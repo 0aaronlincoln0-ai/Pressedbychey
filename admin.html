@@ -37,7 +37,7 @@
           <a href="index.html#account" id="messagesNav" data-open-messages hidden>Messages <span class="messages-nav-badge" id="messagesNavBadge" hidden>0</span></a>
           <a href="admin.html" id="adminNav">Admin</a>
         </nav>
-        <button class="account-button" type="button">Account</button>
+        <button class="account-button" type="button">Log In</button>
         <button class="cart-button" type="button" aria-label="Open cart">
           <span class="cart-icon" aria-hidden="true">&hearts;</span>
           <span class="cart-count">0</span>
@@ -491,9 +491,9 @@
         </div>
         <div class="auth-card">
           <h3>Welcome Back</h3>
-          <input id="loginEmail" type="text" placeholder="Email" autocomplete="email" />
-          <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" />
-          <button class="button primary wide" type="button" id="customerLogin">Open My Profile</button>
+          <input id="loginEmail" type="email" placeholder="Email" autocomplete="email" required />
+          <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" required />
+          <button class="button primary wide" type="button" id="customerLogin">Log In</button>
           <button class="account-link-button" type="button" id="forgotPasswordButton">Forgot password?</button>
         </div>
         <div class="auth-card password-reset-card" id="passwordResetCard" hidden>

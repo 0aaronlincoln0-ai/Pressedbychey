@@ -2400,6 +2400,11 @@ figcaption {
   pointer-events: auto;
 }
 
+.account-panel.is-open {
+  transform: translateX(0) !important;
+  pointer-events: auto;
+}
+
 .cart-header,
 .account-header,
 .admin-header {
