@@ -23,6 +23,8 @@ test("client code does not contain a literal admin password", async () => {
 test("Netlify applies baseline browser protections", async () => {
   const config = await source("netlify.toml");
   assert.match(config, /Content-Security-Policy/);
+  assert.match(config, /script-src 'self' 'wasm-unsafe-eval'/);
+  assert.doesNotMatch(config, /script-src[^\n]*'unsafe-eval'/);
   assert.match(config, /frame-ancestors 'none'/);
   assert.match(config, /X-Content-Type-Options\s*=\s*"nosniff"/);
   assert.match(config, /X-Robots-Tag\s*=\s*"noindex/);
