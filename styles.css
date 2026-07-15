@@ -12355,33 +12355,61 @@ body.sizer-open {
   }
 }
 
-/* Home hero — warm glitter border with falling sparkle and soft fog */
-.hero-visual {
-  border-color: rgba(243, 215, 184, 0.9);
-  box-shadow:
-    0 0 0 1px rgba(255, 241, 216, 0.7),
-    0 0 34px rgba(243, 215, 184, 0.55),
-    0 10px 46px rgba(255, 196, 217, 0.34),
-    0 32px 80px rgba(62, 24, 42, 0.15);
+/* Shop promo band — sparkler glitter border with falling sparks */
+.shop-promo-band {
+  position: relative;
 }
 
-.hero-glitter {
+.shop-promo-copy,
+.shop-promo-actions {
+  position: relative;
+  z-index: 1;
+}
+
+/* Shimmering champagne rim that travels around the border */
+.shop-promo-band::before {
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  padding: 2px;
+  border-radius: 26px;
+  background: linear-gradient(
+      115deg,
+      rgba(243, 215, 184, 0) 0%,
+      rgba(255, 233, 201, 0.9) 12%,
+      rgba(255, 255, 255, 1) 20%,
+      rgba(243, 215, 184, 0.85) 30%,
+      rgba(255, 196, 217, 0.6) 44%,
+      rgba(243, 215, 184, 0) 58%,
+      rgba(255, 233, 201, 0.75) 74%,
+      rgba(255, 255, 255, 0.9) 82%,
+      rgba(243, 215, 184, 0) 100%
+    );
+  background-size: 300% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  content: "";
+  pointer-events: none;
+  animation: promoRimShimmer 7s linear infinite;
+}
+
+/* Sparks falling inside the band, brightest along the edges */
+.promo-glitter {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 0;
   overflow: hidden;
   border-radius: inherit;
   pointer-events: none;
-  background:
-    linear-gradient(180deg, rgba(255, 241, 216, 0.3), transparent 24%),
-    linear-gradient(0deg, rgba(255, 232, 223, 0.44), transparent 32%);
-  -webkit-mask-image: radial-gradient(ellipse 74% 68% at 50% 46%, transparent 44%, #000 94%);
-  mask-image: radial-gradient(ellipse 74% 68% at 50% 46%, transparent 44%, #000 94%);
-  animation: heroFogBreathe 9s ease-in-out infinite;
+  background: linear-gradient(180deg, rgba(255, 233, 201, 0.16), transparent 30%);
+  -webkit-mask-image: radial-gradient(ellipse 82% 66% at 50% 50%, transparent 38%, #000 96%);
+  mask-image: radial-gradient(ellipse 82% 66% at 50% 50%, transparent 38%, #000 96%);
 }
 
-.hero-glitter::before,
-.hero-glitter::after {
+.promo-glitter::before,
+.promo-glitter::after {
   position: absolute;
   left: 0;
   right: 0;
@@ -12391,32 +12419,32 @@ body.sizer-open {
   background-repeat: repeat;
 }
 
-.hero-glitter::before {
-  --fall: 260px;
+.promo-glitter::before {
+  --fall: 240px;
   background-image:
-    radial-gradient(2.2px 2.2px at 24px 36px, rgba(255, 255, 255, 0.95) 50%, transparent 52%),
-    radial-gradient(1.6px 1.6px at 96px 120px, rgba(255, 241, 216, 0.9) 50%, transparent 52%),
-    radial-gradient(2px 2px at 168px 60px, rgba(255, 214, 170, 0.85) 50%, transparent 52%),
-    radial-gradient(1.4px 1.4px at 210px 190px, rgba(255, 255, 255, 0.8) 50%, transparent 52%),
-    radial-gradient(1.8px 1.8px at 60px 220px, rgba(255, 196, 217, 0.8) 50%, transparent 52%),
-    radial-gradient(1.3px 1.3px at 140px 246px, rgba(243, 215, 184, 0.9) 50%, transparent 52%);
-  background-size: 260px 260px;
-  animation: heroGlitterFall 16s linear infinite, heroGlitterTwinkle 3.4s ease-in-out infinite;
+    radial-gradient(2.4px 2.4px at 26px 34px, rgba(255, 255, 255, 0.95) 50%, transparent 54%),
+    radial-gradient(1.6px 7px at 118px 88px, rgba(255, 233, 201, 0.9) 50%, transparent 56%),
+    radial-gradient(2px 2px at 176px 52px, rgba(243, 215, 184, 0.95) 50%, transparent 54%),
+    radial-gradient(1.5px 6px at 64px 150px, rgba(255, 255, 255, 0.85) 50%, transparent 56%),
+    radial-gradient(1.8px 1.8px at 214px 182px, rgba(255, 196, 217, 0.9) 50%, transparent 54%),
+    radial-gradient(1.4px 5px at 150px 214px, rgba(255, 233, 201, 0.85) 50%, transparent 56%);
+  background-size: 240px 240px;
+  animation: promoSparkFall 11s linear infinite, promoSparkTwinkle 2.8s ease-in-out infinite;
 }
 
-.hero-glitter::after {
-  --fall: 320px;
+.promo-glitter::after {
+  --fall: 300px;
   background-image:
-    radial-gradient(1.3px 1.3px at 40px 60px, rgba(255, 255, 255, 0.55) 50%, transparent 52%),
-    radial-gradient(1px 1px at 150px 30px, rgba(255, 241, 216, 0.5) 50%, transparent 52%),
-    radial-gradient(1.5px 1.5px at 230px 140px, rgba(255, 214, 170, 0.48) 50%, transparent 52%),
-    radial-gradient(1px 1px at 90px 200px, rgba(255, 228, 238, 0.5) 50%, transparent 52%),
-    radial-gradient(1.2px 1.2px at 200px 280px, rgba(255, 255, 255, 0.42) 50%, transparent 52%);
-  background-size: 320px 320px;
-  animation: heroGlitterFall 26s linear infinite, heroGlitterTwinkle 4.6s ease-in-out 1.2s infinite;
+    radial-gradient(1.4px 1.4px at 44px 66px, rgba(255, 255, 255, 0.6) 50%, transparent 54%),
+    radial-gradient(1px 4px at 154px 34px, rgba(255, 233, 201, 0.55) 50%, transparent 56%),
+    radial-gradient(1.5px 1.5px at 236px 148px, rgba(243, 215, 184, 0.55) 50%, transparent 54%),
+    radial-gradient(1px 1px at 96px 208px, rgba(255, 228, 238, 0.55) 50%, transparent 54%),
+    radial-gradient(1.2px 5px at 204px 262px, rgba(255, 255, 255, 0.45) 50%, transparent 56%);
+  background-size: 300px 300px;
+  animation: promoSparkFall 19s linear infinite, promoSparkTwinkle 3.9s ease-in-out 1.1s infinite;
 }
 
-@keyframes heroGlitterFall {
+@keyframes promoSparkFall {
   from {
     transform: translateY(0);
   }
@@ -12425,30 +12453,30 @@ body.sizer-open {
   }
 }
 
-@keyframes heroGlitterTwinkle {
+@keyframes promoSparkTwinkle {
   0%,
   100% {
-    opacity: 0.6;
+    opacity: 0.65;
   }
   50% {
     opacity: 1;
   }
 }
 
-@keyframes heroFogBreathe {
-  0%,
-  100% {
-    opacity: 0.85;
+@keyframes promoRimShimmer {
+  from {
+    background-position: 0% 50%;
   }
-  50% {
-    opacity: 1;
+  to {
+    background-position: 300% 50%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-glitter,
-  .hero-glitter::before,
-  .hero-glitter::after {
+  .shop-promo-band::before,
+  .promo-glitter,
+  .promo-glitter::before,
+  .promo-glitter::after {
     animation: none !important;
   }
 }
