@@ -4649,7 +4649,7 @@ function renderAdminCustomerList() {
   adminCustomerList.innerHTML = adminCustomers.length
     ? adminCustomers.map((customer) => `
       <button class="admin-customer-row ${customer.email === activeAdminCustomerEmail ? "is-active" : ""}" type="button" data-admin-customer-email="${escapeAttribute(customer.email)}">
-        <span class="admin-customer-row-head"><strong>${escapeHTML(customer.name || customer.email)}</strong><span><b class="admin-account-status is-${escapeAttribute(customer.accountStatus)}">${escapeHTML(adminCustomerStatusLabel(customer.accountStatus))}</b>${customer.canDelete ? " <b class=\"admin-account-status is-delete\">Delete access</b>" : ""}</span></span>
+        <span class="admin-customer-row-head"><strong>${escapeHTML(customer.name || customer.email)}</strong><span><b class="admin-account-status is-${escapeAttribute(customer.accountStatus)}">${escapeHTML(adminCustomerStatusLabel(customer.accountStatus))}</b>${customer.canDelete && !ADMIN_OWNER_EMAILS.includes(customer.email) ? " <b class=\"admin-account-status is-delete\">Delete access</b>" : ""}</span></span>
         <small>${escapeHTML(customer.email)}</small>
         <span class="admin-customer-row-stats"><span>${customer.orderCount || 0} orders</span><span>${customer.savedProductCount || 0} saved</span></span>
         <time>Last seen ${escapeHTML(messageDateLabel(customer.lastLogin || customer.createdAt) || "not yet")}</time>
@@ -4721,7 +4721,7 @@ function renderAdminTeamList() {
   adminTeamList.innerHTML = adminTeamMembers.length
     ? adminTeamMembers.map((member) => `
       <button class="admin-customer-row ${member.email === activeAdminTeamEmail ? "is-active" : ""}" type="button" data-admin-team-email="${escapeAttribute(member.email)}">
-        <span class="admin-customer-row-head"><strong>${escapeHTML(member.name || member.email)}</strong><span><b class="admin-account-status is-team">${escapeHTML(adminTeamRoleLabel(member.adminRole))}</b>${member.canDelete ? " <b class=\"admin-account-status is-delete\">Delete access</b>" : ""}</span></span>
+        <span class="admin-customer-row-head"><strong>${escapeHTML(member.name || member.email)}</strong><span><b class="admin-account-status is-team">${escapeHTML(adminTeamRoleLabel(member.adminRole))}</b>${member.canDelete && !ADMIN_OWNER_EMAILS.includes(member.email) ? " <b class=\"admin-account-status is-delete\">Delete access</b>" : ""}</span></span>
         <small>${escapeHTML(member.email)}</small>
         <span class="admin-customer-row-stats"><span>${member.orderCount || 0} orders</span><span>${member.savedProductCount || 0} saved</span></span>
         <time>Last seen ${escapeHTML(messageDateLabel(member.lastLogin || member.createdAt) || "not yet")}</time>

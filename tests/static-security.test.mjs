@@ -129,6 +129,8 @@ test("the secondary owner keeps permanent owner capabilities", async () => {
   assert.match(customerAdmin, /adminRole: nextRole/);
   assert.match(customerAdmin, /canDelete: protectedOwner \|\|/);
   assert.match(client, /data-admin-team-input="accountStatus"\$\{ADMIN_OWNER_EMAILS\.includes\(member\.email\) \? " disabled" : ""\}/);
+  assert.match(client, /member\.canDelete && !ADMIN_OWNER_EMAILS\.includes\(member\.email\)/);
+  assert.match(client, /customer\.canDelete && !ADMIN_OWNER_EMAILS\.includes\(customer\.email\)/);
 });
 
 test("product command center uses the full responsive admin workspace", async () => {
