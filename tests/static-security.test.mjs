@@ -154,6 +154,21 @@ test("order summary cards navigate to matching workflow details", async () => {
   assert.match(styles, /\.admin-dashboard-summary-card:focus-visible/);
 });
 
+test("order saves update the dashboard optimistically and roll back failures", async () => {
+  const client = await source("script.js");
+  assert.match(client, /function applyOptimisticAdminOrderUpdate\(orderId, update = \{\}\)/);
+  assert.match(client, /const previousOrder = recoveredLocalOrder \? null : applyOptimisticAdminOrderUpdate\(orderId, update\)/);
+  assert.match(client, /Saving order update\.\.\. Dashboard updated\./);
+  assert.match(client, /previousOrder\) \{[\s\S]*liveOrders = liveOrders\.map\(\(item\) => \(String\(item\.id/);
+  assert.doesNotMatch(client, /payload\.error \|\| "Could not save order update/);
+});
+
+test("order browser columns stay inside narrow workspaces", async () => {
+  const styles = await source("styles.css");
+  assert.match(styles, /\.admin-order-row-list\s*\{[\s\S]*overflow-x: hidden/);
+  assert.match(styles, /\.admin-order-row-head,\s*\.admin-order-row\s*\{[\s\S]*grid-template-columns: minmax\(0, 1\.15fr\)/);
+});
+
 test("admin markup has no patch marker artifacts", async () => {
   const adminHtml = await source("admin.html");
   const indexHtml = await source("index.html");

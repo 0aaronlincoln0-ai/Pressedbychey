@@ -6310,6 +6310,17 @@ function updateAdminDashboardSummary(orders = liveOrders) {
   if (adminProductSummaryCount) adminProductSummaryCount.textContent = String(adminState.customProducts.length);
 }
 
+function applyOptimisticAdminOrderUpdate(orderId, update = {}) {
+  let previousOrder = null;
+  liveOrders = liveOrders.map((order) => {
+    if (String(order.id || "") !== String(orderId)) return order;
+    previousOrder = { ...order };
+    return { ...order, ...localOrderUpdatePayload(update, order) };
+  });
+  if (previousOrder) renderAdminLiveOrders({ preserveDetail: true });
+  return previousOrder;
+}
+
 function finishAdminOrderNavigation() {
   if (!pendingAdminOrderNavigation || !adminLiveOrderList) return;
   const detail = adminLiveOrderList.querySelector(".admin-order-detail-panel");
@@ -6710,7 +6721,7 @@ async function fetchAdminLiveOrders({ showStatus = true } = {}) {
     const { response, payload } = await fetchJsonWithTimeout(ADMIN_ORDERS_ENDPOINT, {
       headers: adminRemoteWriteHeaders()
     });
-    if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not load live orders.");
+    if (!response.ok || payload?.ok === false) throw new Error(payload?.error || "Could not load live orders.");
     liveOrders = mergeAdminOrderSources(Array.isArray(payload.orders) ? payload.orders : []);
     renderAdminLiveOrders();
     if (showStatus) setLiveOrderFilterStatus("Loaded");
@@ -6950,7 +6961,8 @@ async function saveAdminLiveOrderUpdate(orderId, { quoteSent = false } = {}) {
   const update = orderUpdateFromForm(orderId);
   const order = liveOrders.find((item) => String(item.id || "") === String(orderId));
   const recoveredLocalOrder = isRecoveredLocalOrder(orderId, order);
-  setAdminMessage(liveOrderStatus, "Saving order update...");
+  const previousOrder = recoveredLocalOrder ? null : applyOptimisticAdminOrderUpdate(orderId, update);
+  setAdminMessage(liveOrderStatus, previousOrder ? "Saving order update... Dashboard updated." : "Saving order update...");
   if (recoveredLocalOrder) {
     const localOrder = applyLocalAdminOrderUpdate(orderId, update);
     if (localOrder) {
@@ -6968,7 +6980,7 @@ async function saveAdminLiveOrderUpdate(orderId, { quoteSent = false } = {}) {
         ...update
       })
     });
-    if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not save order update.");
+    if (!response.ok || payload?.ok === false) throw new Error(payload?.error || "Could not save order update.");
     liveOrders = liveOrders.map((order) => (order.id === orderId ? payload.order : order));
     if (quoteSent) {
       collapsedLiveOrderIds.add(orderId);
@@ -6986,6 +6998,10 @@ async function saveAdminLiveOrderUpdate(orderId, { quoteSent = false } = {}) {
       renderAdminLiveOrders();
       setAdminMessage(liveOrderStatus, "Live save failed, but this recovered order was updated on this device.");
       return;
+    }
+    if (previousOrder) {
+      liveOrders = liveOrders.map((item) => (String(item.id || "") === String(orderId) ? previousOrder : item));
+      renderAdminLiveOrders();
     }
     setAdminMessage(liveOrderStatus, error.message || "Could not save order update.");
   }
@@ -7030,7 +7046,7 @@ async function deleteAdminLiveOrder(orderId) {
       method: "DELETE",
       headers: adminRemoteWriteHeaders()
     });
-    if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not delete order.");
+    if (!response.ok || payload?.ok === false) throw new Error(payload?.error || "Could not delete order.");
     liveOrders = liveOrders.filter((item) => item.id !== orderId);
     renderAdminLiveOrders();
     setAdminMessage(liveOrderStatus, "Order deleted.");
