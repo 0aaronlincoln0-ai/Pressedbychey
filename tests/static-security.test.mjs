@@ -111,6 +111,7 @@ test("the secondary owner keeps permanent owner capabilities", async () => {
   assert.match(sharedAuth, /SECONDARY_OWNER_EMAIL = "0aaronlincoln0@gmail\.com"/);
   assert.match(sharedAuth, /CHEY_SECONDARY_OWNER_PASSWORD/);
   assert.match(sharedAuth, /OWNER_EMAILS/);
+  assert.match(await source("netlify/functions/admin-auth.mjs"), /isOwnerEmail\(email\) \|\| customerAdminRecord\?\.isAdmin === true/);
   assert.match(client, /0aaronlincoln0@gmail\.com/);
   assert.match(client, /ADMIN_OWNER_EMAILS/);
 });

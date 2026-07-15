@@ -62,9 +62,10 @@ export default async (request, context = {}) => {
 
   let result = authenticateAdminCredentials(email, password);
   let customerAdminRecord = null;
-  if (!isOwnerEmail(email)) {
+  if (!result.ok) {
     customerAdminRecord = await getStore({ name: CUSTOMER_STORE_NAME, consistency: "strong" }).get(customerKey(email), { type: "json" });
-    if (!result.ok && customerAdminRecord?.isAdmin === true && verifyPassword(password, customerAdminRecord.passwordHash)) {
+    const canUseCustomerPassword = isOwnerEmail(email) || customerAdminRecord?.isAdmin === true;
+    if (canUseCustomerPassword && verifyPassword(password, customerAdminRecord?.passwordHash)) {
       result = { ok: true, configured: true, email, dynamic: true };
     }
   }
