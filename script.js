@@ -156,6 +156,9 @@ const adminGuestOrderList = document.querySelector("#adminGuestOrderList");
 const adminLiveOrderList = document.querySelector("#adminLiveOrderList");
 const liveOrderStatus = document.querySelector("#liveOrderStatus");
 const refreshLiveOrdersButton = document.querySelector("#refreshLiveOrders");
+const orderSearchInput = document.querySelector("#orderSearchInput");
+const orderPaymentFilter = document.querySelector("#orderPaymentFilter");
+const orderStatusFilter = document.querySelector("#orderStatusFilter");
 const orderDatePreset = document.querySelector("#orderDatePreset");
 const orderDateFrom = document.querySelector("#orderDateFrom");
 const orderDateTo = document.querySelector("#orderDateTo");
@@ -246,6 +249,7 @@ const CUSTOM_ORDER_MAX_PHOTO_SIZE = 1600;
 const LIVE_REQUEST_TIMEOUT_MS = 18000;
 const ADMIN_ORDER_REFRESH_MS = 10000;
 const CUSTOMER_QUOTE_REFRESH_MS = 5000;
+const ADMIN_ORDER_PAGE_SIZE = 25;
 let customerState = {
   users: [],
   currentEmail: ""
@@ -255,6 +259,8 @@ let guestOrders = [];
 let liveOrders = [];
 let collapsedLiveOrderIds = new Set();
 let quoteSentFeedbackOrderIds = new Set();
+let adminOrderPage = 1;
+let selectedAdminOrderId = "";
 let adminLiveOrderRefreshTimer = null;
 let customerQuoteRefreshTimer = null;
 let adminSession = null;
@@ -4962,14 +4968,60 @@ function activeOrderDateRange() {
   return { preset: "all", start: null, end: null };
 }
 
+function orderStatusGroup(status = "") {
+  const incomingStatuses = new Set(["Payment pending", "Needs review"]);
+  const workingStatuses = new Set(["Needs making", "Making", "Packing", "Ready to ship", "Shipped"]);
+  const doneStatuses = new Set(["Completed", "Canceled"]);
+  if (incomingStatuses.has(status)) return "incoming";
+  if (workingStatuses.has(status)) return "working";
+  if (doneStatuses.has(status)) return "done";
+  return "incoming";
+}
+
+function orderSearchText(order = {}) {
+  return [
+    order.id,
+    orderCustomerName(order),
+    orderCustomerEmail(order),
+    orderCustomerPhone(order),
+    orderWorkflowStatus(order),
+    orderPaymentStatusLabel(order),
+    order.quoteStatus,
+    order.quoteMessage,
+    order.adminNote,
+    orderSizingSummary(order),
+    ...(order.items || []).flatMap((item) => [item.name, item.category, item.shape, item.length, item.sizePreference, item.note])
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function orderMatchesPaymentFilter(order = {}) {
+  const filter = orderPaymentFilter?.value || "all";
+  if (filter === "all") return true;
+  if (filter === "paid") return order.paymentStatus === "paid";
+  if (filter === "quote") return orderHasCustomQuote(order);
+  if (filter === "unpaid") return order.paymentStatus !== "paid";
+  return true;
+}
+
+function orderMatchesStatusFilter(order = {}) {
+  const filter = orderStatusFilter?.value || "all";
+  if (filter === "all") return true;
+  return orderStatusGroup(orderWorkflowStatus(order)) === filter;
+}
+
 function filteredLiveOrders() {
   const { start, end } = activeOrderDateRange();
+  const search = (orderSearchInput?.value || "").trim().toLowerCase();
   return liveOrders.filter((order) => {
-    if (!start && !end) return true;
-    const date = orderDateForFiltering(order);
-    if (!date) return false;
-    if (start && date < start) return false;
-    if (end && date >= end) return false;
+    if (start || end) {
+      const date = orderDateForFiltering(order);
+      if (!date) return false;
+      if (start && date < start) return false;
+      if (end && date >= end) return false;
+    }
+    if (search && !orderSearchText(order).includes(search)) return false;
+    if (!orderMatchesPaymentFilter(order)) return false;
+    if (!orderMatchesStatusFilter(order)) return false;
     return true;
   });
 }
@@ -4988,15 +5040,8 @@ function orderPaymentDetail(order = {}) {
 }
 
 function updateAdminDashboardSummary(orders = liveOrders) {
-  const incomingStatuses = new Set(["Payment pending", "Needs review"]);
-  const workingStatuses = new Set(["Needs making", "Making", "Packing", "Ready to ship", "Shipped"]);
-  const doneStatuses = new Set(["Completed", "Canceled"]);
   const counts = orders.reduce((summary, order) => {
-    const status = orderWorkflowStatus(order);
-    if (incomingStatuses.has(status)) summary.incoming += 1;
-    else if (workingStatuses.has(status)) summary.working += 1;
-    else if (doneStatuses.has(status)) summary.done += 1;
-    else summary.incoming += 1;
+    summary[orderStatusGroup(orderWorkflowStatus(order))] += 1;
     return summary;
   }, { incoming: 0, working: 0, done: 0 });
   if (adminNewOrdersCount) adminNewOrdersCount.textContent = String(counts.incoming);
@@ -5106,6 +5151,180 @@ function renderAdminLiveOrders() {
   autoGrowTextareas(adminLiveOrderList);
 }
 
+function adminOrderPageCount(total) {
+  return Math.max(1, Math.ceil(total / ADMIN_ORDER_PAGE_SIZE));
+}
+
+function adminSelectedOrder(orders = []) {
+  if (!orders.length) {
+    selectedAdminOrderId = "";
+    return null;
+  }
+  const selected = orders.find((order) => order.id === selectedAdminOrderId);
+  if (selected) return selected;
+  selectedAdminOrderId = orders[0].id || "";
+  return orders[0];
+}
+
+function adminOrderRowMarkup(order = {}) {
+  const orderId = order.id || "";
+  const status = orderWorkflowStatus(order);
+  const paid = order.paymentStatus === "paid";
+  const paymentLabel = orderPaymentStatusLabel(order);
+  const quoteOrder = orderHasCustomQuote(order);
+  const isSelected = selectedAdminOrderId === orderId;
+  const items = (order.items || []).map((item) => item.name || "Product").filter(Boolean).slice(0, 2).join(", ");
+  return `
+    <button class="admin-order-row${isSelected ? " is-selected" : ""}${paid ? " is-paid" : " is-pending"}" type="button" data-select-live-order="${escapeAttribute(orderId)}" aria-pressed="${isSelected ? "true" : "false"}">
+      <span class="admin-order-row-main">
+        <strong>${escapeHTML(orderCustomerName(order))}</strong>
+        <small>${escapeHTML(orderId || "Order")} - ${escapeHTML(orderDateSummary(order))}</small>
+      </span>
+      <span class="admin-order-row-products">${escapeHTML(items || "No products saved")}</span>
+      <span class="payment-pill ${paid ? "is-paid" : "is-pending"}">${escapeHTML(paymentLabel)}</span>
+      ${quoteOrder ? `<span class="admin-order-mini-pill">Quote</span>` : ""}
+      <span class="admin-order-row-status">${escapeHTML(status)}</span>
+      <span class="admin-order-row-total">${formatOrderMoney(orderDisplayTotalCents(order), order.currency)}</span>
+    </button>
+  `;
+}
+
+function adminOrderDetailMarkup(order) {
+  if (!order) {
+    return `
+      <aside class="admin-order-detail-panel">
+        <div class="admin-order-detail-empty">
+          <strong>No order selected</strong>
+          <p>Use search or filters to find paid orders and custom quotes.</p>
+        </div>
+      </aside>
+    `;
+  }
+  const orderId = order.id || "";
+  const status = orderWorkflowStatus(order);
+  const paid = order.paymentStatus === "paid";
+  const paymentLabel = orderPaymentStatusLabel(order);
+  const quoteOrder = orderHasCustomQuote(order);
+  const quoteCents = quoteAmountCents(order);
+  const quoteSentFeedback = quoteSentFeedbackOrderIds.has(orderId);
+  return `
+    <aside class="admin-order-detail-panel ${paid ? "is-paid" : "is-pending"} ${quoteOrder ? "is-quote-order" : ""} ${quoteSentFeedback ? "is-quote-sent-feedback" : ""}">
+      <div class="admin-order-detail-head">
+        <div>
+          <span class="payment-pill ${paid ? "is-paid" : "is-pending"}">${escapeHTML(paymentLabel)}</span>
+          ${quoteSentFeedback ? `<span class="quote-sent-confirmation">Quote accepted and sent</span>` : ""}
+          ${order.localSource ? `<span class="quote-sent-confirmation">Recovered from ${escapeHTML(order.localSource)}</span>` : ""}
+          <h4>${escapeHTML(orderCustomerName(order))}</h4>
+          <p>${escapeHTML(orderId || "Order")} - ${escapeHTML(orderDateSummary(order))}</p>
+        </div>
+        <strong>${formatOrderMoney(orderDisplayTotalCents(order), order.currency)}</strong>
+      </div>
+      <div class="admin-live-order-grid">
+        <section>
+          <h4>Products to make / ship</h4>
+          ${(order.items || []).map(orderItemWorkflowMarkup).join("") || "<p>No product line items saved.</p>"}
+        </section>
+        <section>
+          <h4>Customer</h4>
+          <p>${escapeHTML(orderCustomerEmail(order) || "No email saved")}</p>
+          <p>${escapeHTML(orderCustomerPhone(order) || "No phone saved")}</p>
+        </section>
+        <section>
+          <h4>Sizing</h4>
+          <p>${escapeHTML(orderSizingSummary(order) || "No sizing saved with this order")}</p>
+        </section>
+        <section>
+          <h4>Shipping</h4>
+          <p>${escapeHTML(orderShippingSummary(order))}</p>
+        </section>
+        <section class="admin-live-order-payment">
+          <h4>Payment</h4>
+          <p><strong>${escapeHTML(paymentLabel)}</strong></p>
+          <p>${escapeHTML(orderPaymentDetail(order))}</p>
+        </section>
+        ${quoteOrder ? `
+          <section class="admin-live-order-quote">
+            <h4>Custom quote</h4>
+            <p><strong>${quoteCents ? formatOrderMoney(quoteCents, order.currency) : "Needs price"}</strong></p>
+            <p>${escapeHTML(order.quoteMessage || "Add a quote message for the customer.")}</p>
+            <p>${escapeHTML(order.quoteStatus || "Needs quote")}</p>
+          </section>
+        ` : ""}
+      </div>
+      <div class="admin-live-order-actions">
+        <label>Status
+          <select data-live-order-status="${escapeAttribute(orderId)}">
+            ${fulfillmentStatusOptions(status)}
+          </select>
+        </label>
+        ${quoteOrder ? `
+          <label>Quote price
+            <input data-live-order-quote-amount="${escapeAttribute(orderId)}" inputmode="decimal" placeholder="45" value="${escapeAttribute(quoteCents ? centsToDollars(quoteCents) : "")}" />
+          </label>
+          <label>Quote status
+            <select data-live-order-quote-status="${escapeAttribute(orderId)}">
+              ${quoteStatusOptions(order.quoteStatus)}
+            </select>
+          </label>
+          <label>Customer quote message
+            <textarea data-live-order-quote-message="${escapeAttribute(orderId)}" placeholder="Example: I can make this as a medium almond set with chrome accents. Accept and pay here when ready.">${escapeTextarea(order.quoteMessage || "")}</textarea>
+          </label>
+        ` : ""}
+        <label>Chey notes
+          <textarea data-live-order-note="${escapeAttribute(orderId)}" placeholder="Sizing, make notes, tracking, pickup plan...">${escapeTextarea(order.adminNote || "")}</textarea>
+        </label>
+        <button type="button" data-save-live-order="${escapeAttribute(orderId)}">Save Order Update</button>
+        ${quoteOrder ? `<button class="quote-send" type="button" data-send-live-quote="${escapeAttribute(orderId)}">Accept & Send Quote</button>` : ""}
+        <button class="danger" type="button" data-delete-live-order="${escapeAttribute(orderId)}">Delete Order</button>
+      </div>
+    </aside>
+  `;
+}
+
+function renderAdminLiveOrders() {
+  if (!adminLiveOrderList) return;
+  const visibleOrders = filteredLiveOrders();
+  updateAdminDashboardSummary(visibleOrders);
+  const pageCount = adminOrderPageCount(visibleOrders.length);
+  adminOrderPage = Math.min(Math.max(adminOrderPage, 1), pageCount);
+  const startIndex = (adminOrderPage - 1) * ADMIN_ORDER_PAGE_SIZE;
+  const pageOrders = visibleOrders.slice(startIndex, startIndex + ADMIN_ORDER_PAGE_SIZE);
+  const selected = adminSelectedOrder(visibleOrders);
+  const showingStart = visibleOrders.length ? startIndex + 1 : 0;
+  const showingEnd = Math.min(startIndex + pageOrders.length, visibleOrders.length);
+  adminLiveOrderList.innerHTML = visibleOrders.length
+    ? `
+      <div class="admin-order-scale-layout">
+        <section class="admin-order-browser" aria-label="Order browser">
+          <div class="admin-order-browser-head">
+            <div>
+              <strong>${visibleOrders.length.toLocaleString()} orders</strong>
+              <p>Showing ${showingStart.toLocaleString()}-${showingEnd.toLocaleString()} of ${visibleOrders.length.toLocaleString()}</p>
+            </div>
+            <div class="admin-order-pagination">
+              <button type="button" data-order-page="prev"${adminOrderPage <= 1 ? " disabled" : ""}>Prev</button>
+              <span>Page ${adminOrderPage} / ${pageCount}</span>
+              <button type="button" data-order-page="next"${adminOrderPage >= pageCount ? " disabled" : ""}>Next</button>
+            </div>
+          </div>
+          <div class="admin-order-row-head" aria-hidden="true">
+            <span>Customer</span>
+            <span>Items</span>
+            <span>Payment</span>
+            <span>Status</span>
+            <span>Total</span>
+          </div>
+          <div class="admin-order-row-list">
+            ${pageOrders.map(adminOrderRowMarkup).join("")}
+          </div>
+        </section>
+        ${adminOrderDetailMarkup(selected)}
+      </div>
+    `
+    : `<div class="admin-user-card"><p>${liveOrders.length ? "No orders match the selected filters." : "No live paid orders yet. New checkout orders will show here after customers start checkout."}</p></div>`;
+  autoGrowTextareas(adminLiveOrderList);
+}
+
 function setLiveOrderFilterStatus(prefix = "Showing") {
   if (!liveOrderStatus) return;
   if (!liveOrders.length) {
@@ -5113,11 +5332,12 @@ function setLiveOrderFilterStatus(prefix = "Showing") {
     return;
   }
   const visibleCount = filteredLiveOrders().length;
-  const suffix = visibleCount === liveOrders.length ? "" : ` after date filter`;
+  const suffix = visibleCount === liveOrders.length ? "" : " after filters";
   setAdminMessage(liveOrderStatus, `${prefix} ${visibleCount} of ${liveOrders.length} live order${liveOrders.length === 1 ? "" : "s"}${suffix}.`);
 }
 
 function applyLiveOrderDateFilters({ message = true } = {}) {
+  adminOrderPage = 1;
   renderAdminLiveOrders();
   if (message) setLiveOrderFilterStatus();
 }
@@ -5130,22 +5350,21 @@ function toggleLiveOrderCollapse(orderId) {
 }
 
 function collapseVisibleLiveOrders() {
-  filteredLiveOrders().forEach((order) => {
-    if (order.id) collapsedLiveOrderIds.add(order.id);
-  });
+  adminOrderPage = 1;
   renderAdminLiveOrders();
-  setLiveOrderFilterStatus("Collapsed");
+  setLiveOrderFilterStatus("Showing newest page of");
 }
 
 function expandVisibleLiveOrders() {
-  filteredLiveOrders().forEach((order) => {
-    if (order.id) collapsedLiveOrderIds.delete(order.id);
-  });
+  adminOrderPage = adminOrderPageCount(filteredLiveOrders().length);
   renderAdminLiveOrders();
-  setLiveOrderFilterStatus("Expanded");
+  setLiveOrderFilterStatus("Showing oldest page of");
 }
 
 function clearLiveOrderDateFilters() {
+  if (orderSearchInput) orderSearchInput.value = "";
+  if (orderPaymentFilter) orderPaymentFilter.value = "all";
+  if (orderStatusFilter) orderStatusFilter.value = "all";
   if (orderDatePreset) orderDatePreset.value = "all";
   if (orderDateFrom) orderDateFrom.value = "";
   if (orderDateTo) orderDateTo.value = "";
@@ -5266,6 +5485,24 @@ async function deleteAdminLiveOrder(orderId) {
 }
 
 function handleAdminLiveOrderClick(event) {
+  const pageButton = event.target.closest("[data-order-page]");
+  if (pageButton) {
+    const visibleOrders = filteredLiveOrders();
+    const pageCount = adminOrderPageCount(visibleOrders.length);
+    adminOrderPage += pageButton.dataset.orderPage === "next" ? 1 : -1;
+    adminOrderPage = Math.min(Math.max(adminOrderPage, 1), pageCount);
+    const nextPageOrder = visibleOrders[(adminOrderPage - 1) * ADMIN_ORDER_PAGE_SIZE];
+    selectedAdminOrderId = nextPageOrder?.id || selectedAdminOrderId;
+    renderAdminLiveOrders();
+    setLiveOrderFilterStatus("Showing");
+    return;
+  }
+  const selectButton = event.target.closest("[data-select-live-order]");
+  if (selectButton) {
+    selectedAdminOrderId = selectButton.dataset.selectLiveOrder || "";
+    renderAdminLiveOrders();
+    return;
+  }
   const toggleButton = event.target.closest("[data-toggle-live-order]");
   if (toggleButton) {
     toggleLiveOrderCollapse(toggleButton.dataset.toggleLiveOrder);
@@ -5329,6 +5566,9 @@ guestCheckoutOpen.addEventListener("click", () => openGuestCheckout());
 guestCheckoutButton.addEventListener("click", checkoutGuest);
 refreshLiveOrdersButton?.addEventListener("click", () => fetchAdminLiveOrders());
 adminLiveOrderList?.addEventListener("click", handleAdminLiveOrderClick);
+orderSearchInput?.addEventListener("input", () => applyLiveOrderDateFilters());
+orderPaymentFilter?.addEventListener("change", () => applyLiveOrderDateFilters());
+orderStatusFilter?.addEventListener("change", () => applyLiveOrderDateFilters());
 orderDatePreset?.addEventListener("change", () => applyLiveOrderDateFilters());
 orderDateFrom?.addEventListener("change", () => {
   if (orderDatePreset) orderDatePreset.value = "custom";

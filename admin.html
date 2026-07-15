@@ -583,6 +583,25 @@
             </div>
             <p class="admin-status" id="liveOrderStatus" role="status"></p>
             <div class="admin-order-tools" aria-label="Order display tools">
+              <label>Search
+                <input id="orderSearchInput" type="search" placeholder="Name, email, order ID, product" />
+              </label>
+              <label>Payment
+                <select id="orderPaymentFilter">
+                  <option value="all">All payments</option>
+                  <option value="paid">Paid</option>
+                  <option value="quote">Quotes</option>
+                  <option value="unpaid">Unpaid / pending</option>
+                </select>
+              </label>
+              <label>Status
+                <select id="orderStatusFilter">
+                  <option value="all">All statuses</option>
+                  <option value="incoming">Incoming</option>
+                  <option value="working">Working</option>
+                  <option value="done">Done</option>
+                </select>
+              </label>
               <label>Date filter
                 <select id="orderDatePreset">
                   <option value="all">All dates</option>
@@ -599,8 +618,8 @@
                 <input id="orderDateTo" type="date" />
               </label>
               <button type="button" id="clearOrderDateFilters">Clear Dates</button>
-              <button type="button" id="collapseAllOrders">Collapse All</button>
-              <button type="button" id="expandAllOrders">Expand All</button>
+              <button type="button" id="collapseAllOrders">Newest Page</button>
+              <button type="button" id="expandAllOrders">Oldest Page</button>
             </div>
             <div class="admin-live-order-list" id="adminLiveOrderList"></div>
           </section>
