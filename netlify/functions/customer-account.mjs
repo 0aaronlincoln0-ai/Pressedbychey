@@ -182,6 +182,7 @@ async function publicCustomer(customer = {}, store = null) {
   return {
     name: customer.name || "",
     email,
+    accountStatus: customer.accountStatus || "active",
     sizes: normalizeSizes(customer.sizes),
     savedProducts: Array.isArray(customer.savedProducts) ? customer.savedProducts : [],
     orders: mergeOrderLists(customer.orders, liveOrders),
@@ -291,6 +292,7 @@ export default async (request) => {
       sizes: normalizeSizes(payload?.sizes),
       savedProducts: [],
       orders: [],
+      accountStatus: "active",
       createdAt: now,
       lastLogin: now
     };
@@ -300,6 +302,9 @@ export default async (request) => {
 
   if (!savedCustomer) {
     return jsonResponse({ error: "No account found with that email. Create a profile first." }, { status: 404 });
+  }
+  if (["paused", "blocked"].includes(String(savedCustomer.accountStatus || "active").toLowerCase())) {
+    return jsonResponse({ error: "This customer account is temporarily unavailable. Please contact Chey for help." }, { status: 403 });
   }
   if (!verifyPassword(password, savedCustomer.passwordHash)) {
     return jsonResponse({ error: "That password does not match this account." }, { status: 401 });

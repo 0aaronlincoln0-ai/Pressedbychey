@@ -3668,7 +3668,7 @@ figcaption {
 
   .admin-dedicated-page .admin-view-tabs {
     position: static;
-    grid-template-columns: repeat(6, minmax(132px, 1fr));
+    grid-template-columns: repeat(7, minmax(132px, 1fr));
     overflow-x: auto;
   }
 
@@ -4201,7 +4201,7 @@ figcaption {
 
 .admin-view-tabs {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.6rem;
 }
 
@@ -4330,6 +4330,267 @@ figcaption {
 .admin-message-thread {
   min-height: 280px;
   max-height: none;
+}
+
+.admin-customers-section {
+  min-width: 0;
+}
+
+.admin-customer-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(180px, 0.7fr) auto;
+  align-items: end;
+  gap: 0.7rem;
+  padding: 0.8rem;
+  border: 1px solid rgba(143, 29, 81, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 250, 252, 0.78);
+}
+
+.admin-customer-tools label,
+.admin-customer-form label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-customer-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
+  gap: 1rem;
+  min-width: 0;
+}
+
+.admin-customer-directory,
+.admin-customer-detail {
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid rgba(143, 29, 81, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.admin-customer-directory {
+  display: grid;
+  align-content: start;
+  gap: 0.7rem;
+}
+
+.admin-customer-directory-head,
+.admin-customer-pagination,
+.admin-customer-row-head,
+.admin-customer-detail-head,
+.admin-customer-detail-actions,
+.admin-customer-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.admin-customer-pagination button {
+  min-height: 32px;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: white;
+  color: var(--berry);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.admin-customer-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.admin-customer-pagination span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.admin-customer-list {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 680px;
+  overflow: auto;
+}
+
+.admin-customer-row {
+  display: grid;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-customer-row:hover,
+.admin-customer-row.is-active {
+  border-color: rgba(203, 46, 114, 0.22);
+  background: rgba(255, 226, 238, 0.62);
+}
+
+.admin-customer-row-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-customer-row small,
+.admin-customer-row time {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.admin-customer-row-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.admin-account-status {
+  flex: 0 0 auto;
+  padding: 0.28rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.admin-account-status.is-active {
+  background: rgba(120, 143, 125, 0.14);
+  color: var(--sage);
+}
+
+.admin-account-status.is-paused {
+  background: rgba(219, 170, 76, 0.18);
+  color: #8d6814;
+}
+
+.admin-account-status.is-blocked {
+  background: rgba(176, 57, 75, 0.12);
+  color: var(--ruby);
+}
+
+.admin-customer-detail {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.admin-customer-detail-head {
+  align-items: start;
+}
+
+.admin-customer-detail-head h4,
+.admin-customer-detail-head p {
+  margin: 0;
+}
+
+.admin-customer-detail-head h4 {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.admin-customer-detail-head p:not(.eyebrow) {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.admin-customer-quick-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.admin-customer-quick-stats article {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(143, 29, 81, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 247, 250, 0.76);
+}
+
+.admin-customer-quick-stats span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-customer-quick-stats strong {
+  color: var(--berry);
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.admin-customer-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.admin-customer-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.admin-customer-sizing {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(143, 29, 81, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 250, 252, 0.72);
+}
+
+.admin-customer-subhead {
+  align-items: start;
+}
+
+.admin-customer-subhead span,
+.admin-customer-form-help {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.admin-customer-form-help {
+  margin: 0;
+}
+
+.admin-customer-size-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.admin-customer-size-grid label {
+  text-transform: none;
+}
+
+.admin-customer-detail-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
 }
 
 .admin-dedicated-page .site-shell {
@@ -4499,6 +4760,7 @@ figcaption {
 .admin-dedicated-page .product-library-section,
 .admin-dedicated-page .idea-studio,
 .admin-dedicated-page .pro-notes-section,
+.admin-dedicated-page .admin-customers-section,
 .admin-dedicated-page .admin-publish-note {
   border-color: rgba(36, 16, 24, 0.1);
   background:
@@ -4821,7 +5083,7 @@ figcaption {
 
   .admin-dedicated-page .admin-view-tabs {
     position: static;
-    grid-template-columns: repeat(5, minmax(132px, 1fr));
+    grid-template-columns: repeat(7, minmax(132px, 1fr));
     overflow-x: auto;
   }
 
@@ -9073,6 +9335,23 @@ body.admin-inventory-open {
 
   .admin-message-layout {
     grid-template-columns: 1fr;
+  }
+
+  .admin-customer-tools,
+  .admin-customer-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-customer-list {
+    max-height: 360px;
+  }
+
+  .admin-customer-size-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-customer-detail-actions .button {
+    width: 100%;
   }
 
   .admin-conversation-list {

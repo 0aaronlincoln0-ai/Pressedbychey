@@ -150,6 +150,19 @@ const adminMessageForm = document.querySelector("#adminMessageForm");
 const adminMessageInput = document.querySelector("#adminMessageInput");
 const adminMessageSend = document.querySelector("#adminMessageSend");
 const adminMessagesTabBadge = document.querySelector("#adminMessagesTabBadge");
+const adminCustomerCountBadge = document.querySelector("#adminCustomerCountBadge");
+const adminCustomerSummary = document.querySelector("#adminCustomerSummary");
+const adminCustomersStatus = document.querySelector("#adminCustomersStatus");
+const refreshAdminCustomersButton = document.querySelector("#refreshAdminCustomers");
+const adminCustomerSearch = document.querySelector("#adminCustomerSearch");
+const adminCustomerStatusFilter = document.querySelector("#adminCustomerStatusFilter");
+const clearAdminCustomerFiltersButton = document.querySelector("#clearAdminCustomerFilters");
+const adminCustomerDirectoryCount = document.querySelector("#adminCustomerDirectoryCount");
+const adminCustomerPageLabel = document.querySelector("#adminCustomerPageLabel");
+const adminCustomerPrev = document.querySelector("#adminCustomerPrev");
+const adminCustomerNext = document.querySelector("#adminCustomerNext");
+const adminCustomerList = document.querySelector("#adminCustomerList");
+const adminCustomerDetail = document.querySelector("#adminCustomerDetail");
 const resetEmail = document.querySelector("#resetEmail");
 const sendResetCode = document.querySelector("#sendResetCode");
 const resetCodeStep = document.querySelector("#resetCodeStep");
@@ -282,6 +295,7 @@ const ADMIN_ORDERS_ENDPOINT = "/.netlify/functions/admin-orders";
 const CUSTOMER_ACCOUNT_ENDPOINT = "/.netlify/functions/customer-account";
 const CUSTOM_REQUEST_ENDPOINT = "/.netlify/functions/custom-request";
 const MESSAGES_ENDPOINT = "/.netlify/functions/messages";
+const CUSTOMER_ADMIN_ENDPOINT = "/.netlify/functions/customer-admin";
 const CHECKOUT_PENDING_ORDER_KEY = "pressedByCheyPendingCheckoutOrder";
 const nailSizeOptions = ["", "000", "00", "0", "0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
 const sizeFingerKeys = ["thumb", "index", "middle", "ring", "pinky"];
@@ -292,6 +306,7 @@ const ADMIN_ORDER_REFRESH_MS = 10000;
 const CUSTOMER_QUOTE_REFRESH_MS = 5000;
 const CUSTOMER_MESSAGE_REFRESH_MS = 10000;
 const ADMIN_ORDER_PAGE_SIZE = 25;
+const ADMIN_CUSTOMER_PAGE_SIZE = 25;
 const PRO_NOTE_PAGE_SIZE = 12;
 let customerState = {
   users: [],
@@ -315,6 +330,13 @@ let customerConversation = null;
 let adminConversations = [];
 let activeAdminMessageEmail = "";
 let activeAdminConversation = null;
+let adminCustomers = [];
+let adminCustomerPage = 1;
+let adminCustomerPageCount = 1;
+let adminCustomerTotal = 0;
+let activeAdminCustomerEmail = "";
+let activeAdminCustomer = null;
+let adminCustomerSearchTimer = null;
 let adminState = {
   texts: {},
   images: {},
@@ -3586,6 +3608,7 @@ function mergeCustomerIntoLocal(customer = {}, password = "") {
     ...existing,
     name: customer.name || existing.name || email.split("@")[0],
     email,
+    accountStatus: customer.accountStatus || existing.accountStatus || "active",
     sizes: normalizeCustomerSizes(customer.sizes || existing.sizes),
     savedProducts: Array.isArray(customer.savedProducts) ? customer.savedProducts : existing.savedProducts || [],
     orders: Array.isArray(customer.orders) ? customer.orders : existing.orders || [],
@@ -3969,6 +3992,175 @@ async function sendAdminMessage(event) {
   } finally {
     if (adminMessageSend) adminMessageSend.disabled = false;
   }
+}
+
+async function adminCustomersRequest(action, payload = {}) {
+  const { response, payload: data } = await fetchJsonWithTimeout(CUSTOMER_ADMIN_ENDPOINT, {
+    method: "POST",
+    headers: adminRemoteWriteHeaders(),
+    body: JSON.stringify({ action, ...payload })
+  });
+  if (!response.ok || data?.ok === false) throw new Error(data?.error || "Customer accounts are temporarily unavailable.");
+  return data;
+}
+
+function adminCustomerStatusLabel(status = "active") {
+  return status === "blocked" ? "Blocked" : status === "paused" ? "Paused" : "Active";
+}
+
+function adminCustomerSizeInputs(sizes = {}) {
+  return sizeHandKeys.flatMap((hand) => sizeFingerKeys.map((finger) => `
+    <label>${hand === "left" ? "Left" : "Right"} ${finger}
+      <input data-admin-customer-size-hand="${hand}" data-admin-customer-size-finger="${finger}" value="${escapeAttribute(sizes?.[hand]?.[finger] || "")}" placeholder="Size" />
+    </label>
+  `)).join("");
+}
+
+function renderAdminCustomerList() {
+  if (!adminCustomerList) return;
+  adminCustomerList.innerHTML = adminCustomers.length
+    ? adminCustomers.map((customer) => `
+      <button class="admin-customer-row ${customer.email === activeAdminCustomerEmail ? "is-active" : ""}" type="button" data-admin-customer-email="${escapeAttribute(customer.email)}">
+        <span class="admin-customer-row-head"><strong>${escapeHTML(customer.name || customer.email)}</strong><b class="admin-account-status is-${escapeAttribute(customer.accountStatus)}">${escapeHTML(adminCustomerStatusLabel(customer.accountStatus))}</b></span>
+        <small>${escapeHTML(customer.email)}</small>
+        <span class="admin-customer-row-stats"><span>${customer.orderCount || 0} orders</span><span>${customer.savedProductCount || 0} saved</span></span>
+        <time>Last seen ${escapeHTML(messageDateLabel(customer.lastLogin || customer.createdAt) || "not yet")}</time>
+      </button>
+    `).join("")
+    : `<div class="admin-customer-detail-empty"><strong>No accounts match</strong><span>Try another name, email, or account status.</span></div>`;
+  if (adminCustomerDirectoryCount) adminCustomerDirectoryCount.textContent = `${adminCustomerTotal} account${adminCustomerTotal === 1 ? "" : "s"}`;
+  if (adminCustomerSummary) adminCustomerSummary.textContent = `${adminCustomerTotal} account${adminCustomerTotal === 1 ? "" : "s"}`;
+  if (adminCustomerPageLabel) adminCustomerPageLabel.textContent = `Page ${adminCustomerPage} of ${adminCustomerPageCount}`;
+  if (adminCustomerPrev) adminCustomerPrev.disabled = adminCustomerPage <= 1;
+  if (adminCustomerNext) adminCustomerNext.disabled = adminCustomerPage >= adminCustomerPageCount;
+  if (adminCustomerCountBadge) {
+    adminCustomerCountBadge.hidden = adminCustomerTotal === 0;
+    adminCustomerCountBadge.textContent = adminCustomerTotal > 999 ? "999+" : String(adminCustomerTotal);
+  }
+}
+
+function renderAdminCustomerDetail() {
+  if (!adminCustomerDetail) return;
+  if (!activeAdminCustomer) {
+    adminCustomerDetail.innerHTML = `<div class="admin-customer-detail-empty"><strong>Select a customer</strong><span>Account details and admin controls will appear here.</span></div>`;
+    return;
+  }
+  const customer = activeAdminCustomer;
+  adminCustomerDetail.innerHTML = `
+    <div class="admin-customer-detail-head">
+      <div>
+        <p class="eyebrow">Customer profile</p>
+        <h4>${escapeHTML(customer.name || customer.email)}</h4>
+        <p>${escapeHTML(customer.email)}</p>
+      </div>
+      <span class="admin-account-status is-${escapeAttribute(customer.accountStatus)}">${escapeHTML(adminCustomerStatusLabel(customer.accountStatus))}</span>
+    </div>
+    <div class="admin-customer-quick-stats">
+      <article><span>Orders</span><strong>${customer.orderCount || 0}</strong></article>
+      <article><span>Saved sets</span><strong>${customer.savedProductCount || 0}</strong></article>
+      <article><span>Created</span><strong>${escapeHTML(messageDateLabel(customer.createdAt) || "-")}</strong></article>
+    </div>
+    <form class="admin-customer-form" id="adminCustomerForm">
+      <label>Customer name<input data-admin-customer-input="name" value="${escapeAttribute(customer.name)}" /></label>
+      <label>Account access
+        <select data-admin-customer-input="accountStatus">
+          <option value="active"${customer.accountStatus === "active" ? " selected" : ""}>Active</option>
+          <option value="paused"${customer.accountStatus === "paused" ? " selected" : ""}>Paused</option>
+          <option value="blocked"${customer.accountStatus === "blocked" ? " selected" : ""}>Blocked</option>
+        </select>
+      </label>
+      <div class="admin-customer-sizing">
+        <div class="admin-customer-subhead"><strong>Saved sizing</strong><span>Chey can correct fit details for future orders.</span></div>
+        <div class="admin-customer-size-grid">${adminCustomerSizeInputs(customer.sizes)}</div>
+      </div>
+      <label>Private account note<textarea data-admin-customer-input="adminNote" maxlength="1200" placeholder="Important fit, service, or account notes...">${escapeTextarea(customer.adminNote || "")}</textarea></label>
+      <p class="admin-customer-form-help">Account status controls whether this customer can sign in. Private notes are visible only to Chey.</p>
+      <div class="admin-customer-detail-actions">
+        <button class="button primary" type="submit">Save Account Changes</button>
+        <button class="button secondary" type="button" data-admin-message-customer="${escapeAttribute(customer.email)}">Message Customer</button>
+      </div>
+      <p class="admin-status" data-admin-customer-detail-status role="status"></p>
+    </form>
+  `;
+}
+
+async function fetchAdminCustomer(email) {
+  if (!email || !isAdminSignedIn()) return;
+  activeAdminCustomerEmail = email;
+  renderAdminCustomerList();
+  if (adminCustomersStatus) adminCustomersStatus.textContent = "Loading customer profile...";
+  try {
+    const data = await adminCustomersRequest("get", { email });
+    activeAdminCustomer = data.customer || null;
+    renderAdminCustomerDetail();
+    if (adminCustomersStatus) adminCustomersStatus.textContent = "Customer profile ready";
+  } catch (error) {
+    if (adminCustomersStatus) adminCustomersStatus.textContent = error.message || "Customer profile unavailable.";
+  }
+}
+
+async function fetchAdminCustomers({ resetPage = false, showStatus = true } = {}) {
+  if (!isAdminSignedIn()) return;
+  if (resetPage) adminCustomerPage = 1;
+  if (showStatus && adminCustomersStatus) adminCustomersStatus.textContent = "Loading customer accounts...";
+  try {
+    const data = await adminCustomersRequest("list", {
+      search: adminCustomerSearch?.value || "",
+      status: adminCustomerStatusFilter?.value || "all",
+      page: adminCustomerPage,
+      pageSize: ADMIN_CUSTOMER_PAGE_SIZE
+    });
+    adminCustomers = Array.isArray(data.customers) ? data.customers : [];
+    adminCustomerTotal = Number(data.total || 0);
+    adminCustomerPage = Number(data.page || adminCustomerPage);
+    adminCustomerPageCount = Number(data.pageCount || 1);
+    const nextEmail = adminCustomers.some((customer) => customer.email === activeAdminCustomerEmail)
+      ? activeAdminCustomerEmail
+      : (adminCustomers[0]?.email || "");
+    renderAdminCustomerList();
+    if (nextEmail) await fetchAdminCustomer(nextEmail);
+    else {
+      activeAdminCustomerEmail = "";
+      activeAdminCustomer = null;
+      renderAdminCustomerDetail();
+      if (adminCustomersStatus) adminCustomersStatus.textContent = adminCustomerTotal ? "No customers on this page" : "No customer accounts yet";
+    }
+  } catch (error) {
+    if (adminCustomersStatus) adminCustomersStatus.textContent = error.message || "Customer accounts unavailable.";
+  }
+}
+
+async function saveAdminCustomer(event) {
+  event.preventDefault();
+  if (!activeAdminCustomerEmail) return;
+  const form = event.currentTarget;
+  const input = (name) => form.querySelector(`[data-admin-customer-input="${name}"]`)?.value || "";
+  const sizes = Object.fromEntries(sizeHandKeys.map((hand) => [hand, Object.fromEntries(sizeFingerKeys.map((finger) => [finger,
+    form.querySelector(`[data-admin-customer-size-hand="${hand}"][data-admin-customer-size-finger="${finger}"]`)?.value.trim() || ""
+  ]))]));
+  const status = form.querySelector("[data-admin-customer-detail-status]");
+  if (status) status.textContent = "Saving account changes...";
+  try {
+    const data = await adminCustomersRequest("update", {
+      email: activeAdminCustomerEmail,
+      name: input("name"),
+      accountStatus: input("accountStatus"),
+      adminNote: input("adminNote"),
+      sizes
+    });
+    activeAdminCustomer = data.customer || activeAdminCustomer;
+    renderAdminCustomerDetail();
+    if (adminCustomersStatus) adminCustomersStatus.textContent = "Customer account saved to the live website.";
+    await fetchAdminCustomers({ showStatus: false });
+  } catch (error) {
+    if (status) status.textContent = error.message || "Customer account could not be saved.";
+  }
+}
+
+function openAdminCustomerMessages(email) {
+  if (!email) return;
+  activeAdminMessageEmail = email;
+  switchAdminView("messages");
 }
 
 function renderAccount() {
@@ -6033,6 +6225,38 @@ adminConversationList?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-admin-conversation-email]");
   if (button) fetchAdminConversation(button.dataset.adminConversationEmail);
 });
+refreshAdminCustomersButton?.addEventListener("click", () => fetchAdminCustomers({ resetPage: true, showStatus: true }));
+adminCustomerList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-customer-email]");
+  if (button) fetchAdminCustomer(button.dataset.adminCustomerEmail);
+});
+adminCustomerDetail?.addEventListener("submit", (event) => {
+  if (event.target.matches("#adminCustomerForm")) saveAdminCustomer(event);
+});
+adminCustomerDetail?.addEventListener("click", (event) => {
+  const messageButton = event.target.closest("[data-admin-message-customer]");
+  if (messageButton) openAdminCustomerMessages(messageButton.dataset.adminMessageCustomer);
+});
+adminCustomerSearch?.addEventListener("input", () => {
+  window.clearTimeout(adminCustomerSearchTimer);
+  adminCustomerSearchTimer = window.setTimeout(() => fetchAdminCustomers({ resetPage: true }), 220);
+});
+adminCustomerStatusFilter?.addEventListener("change", () => fetchAdminCustomers({ resetPage: true }));
+clearAdminCustomerFiltersButton?.addEventListener("click", () => {
+  if (adminCustomerSearch) adminCustomerSearch.value = "";
+  if (adminCustomerStatusFilter) adminCustomerStatusFilter.value = "all";
+  fetchAdminCustomers({ resetPage: true });
+});
+adminCustomerPrev?.addEventListener("click", () => {
+  if (adminCustomerPage <= 1) return;
+  adminCustomerPage -= 1;
+  fetchAdminCustomers();
+});
+adminCustomerNext?.addEventListener("click", () => {
+  if (adminCustomerPage >= adminCustomerPageCount) return;
+  adminCustomerPage += 1;
+  fetchAdminCustomers();
+});
 customOrderPhoto?.addEventListener("change", handleCustomOrderPhotoUpload);
 customOrderPhotoRemove?.addEventListener("click", clearCustomOrderPhoto);
 customOrderSubmit?.addEventListener("click", submitCustomOrderRequest);
@@ -6722,6 +6946,7 @@ function switchAdminView(view) {
   });
   if (view === "orders") fetchAdminLiveOrders();
   if (view === "messages") fetchAdminMessages();
+  if (view === "customers") fetchAdminCustomers({ resetPage: true });
   if (view === "notes") renderProNotes();
   syncAdminLiveOrderAutoRefresh();
   autoGrowTextareas();
