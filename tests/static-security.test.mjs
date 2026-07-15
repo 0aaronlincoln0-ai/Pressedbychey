@@ -97,3 +97,14 @@ test("team roles are separated from customer accounts", async () => {
   assert.match(customerAdmin, /Boolean\(payload\.teamOnly\) !== isTeamMember/);
   assert.match(adminAuth, /customerAdminRecord\?\.adminRole/);
 });
+
+test("admin messages provide a direct customer picker", async () => {
+  const client = await source("script.js");
+  const adminHtml = await source("admin.html");
+  const styles = await source("styles.css");
+  assert.match(adminHtml, /id="adminMessageCustomerSelect"/);
+  assert.match(adminHtml, /id="adminStartCustomerMessage"/);
+  assert.match(client, /function fetchAdminMessageRecipients\(/);
+  assert.match(client, /function startAdminCustomerMessage\(/);
+  assert.match(styles, /\.admin-message-recipient-tools/);
+});

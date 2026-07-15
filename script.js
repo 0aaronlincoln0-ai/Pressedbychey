@@ -152,6 +152,8 @@ const customerEmojiButton = document.querySelector("#customerEmojiButton");
 const customerEmojiPicker = document.querySelector("#customerEmojiPicker");
 const adminMessagesStatus = document.querySelector("#adminMessagesStatus");
 const refreshAdminMessagesButton = document.querySelector("#refreshAdminMessages");
+const adminMessageCustomerSelect = document.querySelector("#adminMessageCustomerSelect");
+const adminStartCustomerMessage = document.querySelector("#adminStartCustomerMessage");
 const adminConversationList = document.querySelector("#adminConversationList");
 const adminConversationHeading = document.querySelector("#adminConversationHeading");
 const adminMessageThread = document.querySelector("#adminMessageThread");
@@ -4349,6 +4351,29 @@ function adminUnreadMessageCount() {
   return adminConversations.reduce((total, conversation) => total + Number(conversation.adminUnread || 0), 0);
 }
 
+async function fetchAdminMessageRecipients() {
+  if (!adminMessageCustomerSelect || !isAdminSignedIn()) return;
+  try {
+    const data = await adminCustomersRequest("list", { teamOnly: false, status: "active", page: 1, pageSize: 100 });
+    const customers = Array.isArray(data.customers) ? data.customers : [];
+    adminMessageCustomerSelect.innerHTML = '<option value="">Choose a customer...</option>' + customers.map((customer) => `<option value="${escapeAttribute(customer.email)}">${escapeHTML(customer.name || customer.email)} - ${escapeHTML(customer.email)}</option>`).join("");
+    if (activeAdminMessageEmail && customers.some((customer) => customer.email === activeAdminMessageEmail)) adminMessageCustomerSelect.value = activeAdminMessageEmail;
+  } catch (error) {
+    adminMessageCustomerSelect.innerHTML = '<option value="">Customer list unavailable</option>';
+    if (adminMessagesStatus) adminMessagesStatus.textContent = error.message || "Customer list unavailable.";
+  }
+}
+
+async function startAdminCustomerMessage() {
+  const email = adminMessageCustomerSelect?.value || "";
+  if (!email) {
+    if (adminMessagesStatus) adminMessagesStatus.textContent = "Choose a customer before starting a message.";
+    adminMessageCustomerSelect?.focus();
+    return;
+  }
+  await fetchAdminConversation(email);
+}
+
 function renderAdminMessageList() {
   if (!adminConversationList) return;
   const listKey = JSON.stringify({
@@ -4446,6 +4471,7 @@ async function fetchAdminMessages({ showStatus = true } = {}) {
   adminMessageRefreshInFlight = true;
   if (showStatus && adminMessagesStatus) adminMessagesStatus.textContent = "Loading messages...";
   try {
+    await fetchAdminMessageRecipients();
     if (Date.now() - adminPresenceLastSentAt >= PRESENCE_REFRESH_MS) {
       try {
         await adminMessagesRequest("presence");
@@ -7018,6 +7044,7 @@ adminConversationHeading?.addEventListener("click", (event) => {
   if (event.target.closest("[data-delete-conversation]")) deleteAdminConversation();
 });
 refreshAdminMessagesButton?.addEventListener("click", () => fetchAdminMessages({ showStatus: true }));
+adminStartCustomerMessage?.addEventListener("click", startAdminCustomerMessage);
 adminConversationList?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-admin-conversation-email]");
   if (button) fetchAdminConversation(button.dataset.adminConversationEmail);
