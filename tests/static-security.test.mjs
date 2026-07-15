@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
@@ -35,6 +35,29 @@ test("public page exposes basic search and sharing metadata", async () => {
   assert.match(html, /name="description"/);
   assert.match(html, /rel="canonical"/);
   assert.match(html, /property="og:title"/);
+});
+
+test("HTML documents contain unique ids and alternative text for images", async () => {
+  for (const file of ["index.html", "admin.html"]) {
+    const html = await source(file);
+    const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+    assert.equal(new Set(ids).size, ids.length, `${file} has duplicate ids`);
+    for (const image of html.matchAll(/<img\b[^>]*>/gi)) {
+      assert.match(image[0], /\salt="[^"]*"/i, `${file} image is missing alt text`);
+    }
+  }
+});
+
+test("referenced first-party assets exist with deploy-safe filename casing", async () => {
+  const assetFiles = new Set(await readdir(new URL("../assets/", import.meta.url)));
+  const content = [await source("index.html"), await source("admin.html"), await source("styles.css")].join("\n");
+  const references = new Set(
+    [...content.matchAll(/assets\/([a-zA-Z0-9._-]+)/g)].map((match) => match[1])
+  );
+  for (const filename of references) {
+    assert.equal(assetFiles.has(filename), true, `Missing or case-mismatched asset: ${filename}`);
+    await access(new URL(`../assets/${filename}`, import.meta.url));
+  }
 });
 
 test("admin order deletion handles recovered orders without weakening paid protection", async () => {

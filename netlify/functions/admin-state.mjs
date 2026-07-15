@@ -219,9 +219,14 @@ function stateRemovesRecords(previous = {}, next = {}) {
 }
 
 export default async (request) => {
-  const store = getStore(STORE_NAME);
   const url = new URL(request.url);
   const photoKey = safePhotoKey(url.searchParams.get("photo"));
+  const isProtectedWrite = request.method === "PUT"
+    || (request.method === "POST" && url.searchParams.get("photo") === "upload");
+  if (isProtectedWrite && !isAuthorized(request)) {
+    return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+  }
+  const store = getStore(STORE_NAME);
 
   if (request.method === "GET" && url.searchParams.has("photo")) {
     if (!photoKey) {
@@ -248,10 +253,6 @@ export default async (request) => {
   }
 
   if (request.method === "POST" && url.searchParams.get("photo") === "upload") {
-    if (!isAuthorized(request)) {
-      return jsonResponse({ error: "Unauthorized" }, { status: 401 });
-    }
-
     let payload;
     try {
       payload = await request.json();
@@ -280,10 +281,6 @@ export default async (request) => {
   }
 
   if (request.method === "PUT") {
-    if (!isAuthorized(request)) {
-      return jsonResponse({ error: "Unauthorized" }, { status: 401 });
-    }
-
     let payload;
     try {
       payload = await request.json();
