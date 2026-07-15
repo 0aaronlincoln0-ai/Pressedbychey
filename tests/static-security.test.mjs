@@ -192,6 +192,24 @@ test("home service strip fills its three-column rhythm", async () => {
   assert.match(indexHtml, /Custom by request/);
 });
 
+test("admin exposes the nail size finder tool", async () => {
+  const indexHtml = await source("index.html");
+  const adminHtml = await source("admin.html");
+  const client = await source("script.js");
+  const styles = await source("styles.css");
+  assert.match(indexHtml, /data-admin-view="sizing"/);
+  assert.match(indexHtml, /id="adminSizingView"/);
+  assert.match(indexHtml, /id="adminOpenSizer"/);
+  assert.match(adminHtml, /data-admin-view="sizing"/);
+  assert.match(adminHtml, /id="adminSizingView"/);
+  assert.match(adminHtml, /id="sizerOverlay"/);
+  assert.match(client, /const adminOpenSizer = document\.querySelector\("#adminOpenSizer"\)/);
+  assert.match(client, /const adminMode = IS_ADMIN_PAGE && isAdminSignedIn\(\)/);
+  assert.match(client, /adminOpenSizer\?\.addEventListener\("click", sizerOpen\)/);
+  assert.match(styles, /grid-template-columns: repeat\(10, minmax\(0, 1fr\)/);
+  assert.match(styles, /\.admin-sizing-overview\s*\{/);
+});
+
 test("admin markup has no patch marker artifacts", async () => {
   const adminHtml = await source("admin.html");
   const indexHtml = await source("index.html");

@@ -259,6 +259,8 @@ const adminWorkingOrdersCount = document.querySelector("#adminWorkingOrdersCount
 const adminDoneOrdersCount = document.querySelector("#adminDoneOrdersCount");
 const adminProductSummaryCount = document.querySelector("#adminProductSummaryCount");
 const adminDashboardSummary = document.querySelector(".admin-dashboard-summary");
+const adminOpenSizer = document.querySelector("#adminOpenSizer");
+const adminSizerStatus = document.querySelector("#adminSizerStatus");
 const adminOpenInventory = document.querySelector("#adminOpenInventory");
 const adminCreateProduct = document.querySelector("#adminCreateProduct");
 const adminProductSearch = document.querySelector("#adminProductSearch");
@@ -11365,6 +11367,7 @@ const sizerReadoutMm = document.querySelector("#sizerReadoutMm");
 const sizerReadoutSize = document.querySelector("#sizerReadoutSize");
 const sizerResultsGrid = document.querySelector("#sizerResultsGrid");
 const sizerStatus = document.querySelector("#sizerStatus");
+const sizerSaveProfile = document.querySelector("#sizerSaveProfile");
 
 const sizerState = {
   pxPerMm: 0,
@@ -11489,7 +11492,8 @@ function sizerSetGuideWidthMm(mm) {
 
 function sizerOpen() {
   if (!sizerOverlay) return;
-  if (!currentCustomer() || isAdminSignedIn()) {
+  const adminMode = IS_ADMIN_PAGE && isAdminSignedIn();
+  if (!currentCustomer() && !adminMode) {
     openAccount("Sign in or create your free nail profile to measure and save your sizes.");
     return;
   }
@@ -11497,6 +11501,8 @@ function sizerOpen() {
   document.body.classList.add("sizer-open");
   sizerOverlay.hidden = false;
   if (sizerStatus) sizerStatus.textContent = "";
+  if (sizerSaveProfile) sizerSaveProfile.textContent = adminMode ? "Close Size Finder" : "Save To My Profile";
+  if (adminMode && adminSizerStatus) adminSizerStatus.textContent = "Size Finder opened. Use the results to update the selected customer in Customers.";
   if (!sizerIsTouchDevice()) {
     sizerShowStep("desktop");
     return;
@@ -11539,6 +11545,10 @@ function sizerRenderResults() {
 }
 
 function sizerApplyToProfile() {
+  if (IS_ADMIN_PAGE && isAdminSignedIn()) {
+    sizerClose();
+    return;
+  }
   const user = currentCustomer();
   if (!user) {
     openAccount("Sign in to save your measured sizes.");
@@ -11597,6 +11607,7 @@ function sizerSyncZoomWarning() {
 
 function setupNailSizer() {
   if (!sizerOverlay) return;
+  adminOpenSizer?.addEventListener("click", sizerOpen);
   document.querySelectorAll("[data-sizer-open]").forEach((button) => button.addEventListener("click", sizerOpen));
   document.querySelector("#sizerClose")?.addEventListener("click", sizerClose);
   sizerOverlay.querySelectorAll("[data-sizer-close]").forEach((button) => button.addEventListener("click", sizerClose));

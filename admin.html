@@ -609,6 +609,88 @@
         </section>
       </div>
     </aside>
+    <div class="sizer-overlay" id="sizerOverlay" hidden role="dialog" aria-modal="true" aria-label="Nail size finder">
+      <div class="sizer-top">
+        <div>
+          <p class="sizer-kicker">Pressed by Chey</p>
+          <h2 class="sizer-title" id="sizerTitle">Find My Size</h2>
+        </div>
+        <button class="sizer-close" type="button" id="sizerClose" aria-label="Close size finder">&times;</button>
+      </div>
+      <div class="sizer-progress" id="sizerProgress" hidden aria-hidden="true"></div>
+      <p class="sizer-zoom-warning" id="sizerZoomWarning" hidden>Your screen is zoomed in. Pinch out until the page is back to normal zoom so the measurements stay true to size.</p>
+
+      <section class="sizer-step" id="sizerStepDesktop" hidden>
+        <h3>Grab your phone for this part</h3>
+        <p>The size finder measures real nails against a phone screen, so it only works on a phone or small touch screen.</p>
+        <p>Open <strong>pressedbychey.com</strong> on a phone and start the Size Finder from Operations.</p>
+        <button class="button primary wide" type="button" data-sizer-close>Got it</button>
+      </section>
+
+      <section class="sizer-step" id="sizerStepIntro" hidden>
+        <h3>Measure every nail with your phone</h3>
+        <ol class="sizer-intro-list">
+          <li>Calibrate your screen with any standard card (bank, gift, or ID card).</li>
+          <li>Rest each finger on the screen and match the lines to the nail.</li>
+          <li>Use the results to update the customer's saved sizing record.</li>
+        </ol>
+        <p class="sizer-note">Takes about 3 minutes. Measure the widest part of the nail, not the skin.</p>
+        <button class="button primary wide" type="button" id="sizerStart">Start Measuring</button>
+      </section>
+
+      <section class="sizer-step" id="sizerStepCalibrate" hidden>
+        <h3>Match your card</h3>
+        <p>Hold any standard card upright (short edge across the screen) flat against your phone. Drag the pink handle until the outline is exactly as wide as your card.</p>
+        <div class="sizer-card-stage" id="sizerCardStage">
+          <div class="sizer-card-box" id="sizerCardBox">
+            <span class="sizer-card-hint">Card goes here, standing tall</span>
+            <button class="sizer-handle sizer-card-handle" type="button" id="sizerCardHandle" aria-label="Drag to match card width"><span aria-hidden="true">&#8596;</span></button>
+          </div>
+        </div>
+        <div class="sizer-nudge-row" aria-label="Fine adjust card width">
+          <button class="sizer-nudge" type="button" data-card-nudge="-1">&minus; smaller</button>
+          <button class="sizer-nudge" type="button" data-card-nudge="1">+ bigger</button>
+        </div>
+        <button class="button primary wide" type="button" id="sizerCalibrateDone">My Card Matches Exactly</button>
+      </section>
+
+      <section class="sizer-step" id="sizerStepMeasure" hidden>
+        <h3 id="sizerFingerLabel">Left thumb</h3>
+        <p class="sizer-measure-help">Rest this nail flat on the box below, then drag each pink handle until the lines just touch the <strong>widest part of the nail</strong>.</p>
+        <div class="sizer-measure-stage" id="sizerMeasureStage">
+          <div class="sizer-readout" id="sizerReadout" aria-live="polite">
+            <strong id="sizerReadoutMm">15.0 mm</strong>
+            <span id="sizerReadoutSize">Size 4</span>
+          </div>
+          <div class="sizer-guide" id="sizerGuideLeft">
+            <button class="sizer-handle" type="button" aria-label="Drag left line"><span aria-hidden="true">&#8596;</span></button>
+          </div>
+          <div class="sizer-guide" id="sizerGuideRight">
+            <button class="sizer-handle" type="button" aria-label="Drag right line"><span aria-hidden="true">&#8596;</span></button>
+          </div>
+        </div>
+        <div class="sizer-nudge-row" aria-label="Fine adjust width">
+          <button class="sizer-nudge" type="button" data-measure-nudge="-1">&minus; narrower</button>
+          <button class="sizer-nudge" type="button" data-measure-nudge="1">+ wider</button>
+        </div>
+        <div class="sizer-measure-actions">
+          <button class="button secondary" type="button" id="sizerBack">Back</button>
+          <button class="button secondary" type="button" id="sizerSkip">Skip</button>
+          <button class="button primary" type="button" id="sizerNext">Save &amp; Next</button>
+        </div>
+      </section>
+
+      <section class="sizer-step" id="sizerStepResults" hidden>
+        <h3>Measured sizes</h3>
+        <p class="sizer-note">Use these results to update the selected customer's Saved sizing record in Customers.</p>
+        <div class="sizer-results-grid" id="sizerResultsGrid"></div>
+        <div class="sizer-measure-actions">
+          <button class="button secondary" type="button" id="sizerRestart">Re-measure</button>
+          <button class="button primary" type="button" id="sizerSaveProfile">Close Size Finder</button>
+        </div>
+        <p class="sizer-status" id="sizerStatus" role="status"></p>
+      </section>
+    </div>
     <button class="message-bubble" id="messageBubble" type="button" aria-label="Open messages" hidden>
       <span class="message-bubble-icon" aria-hidden="true">&#9993;</span>
       <span>Messages</span>
@@ -629,6 +711,7 @@
           <button type="button" data-admin-view="accounting">Accounting</button>
           <button type="button" data-admin-view="messages">Messages <span class="admin-messages-tab-badge" id="adminMessagesTabBadge" hidden>0</span></button>
           <button type="button" data-admin-view="customers">Customers <span class="admin-customer-count-badge" id="adminCustomerCountBadge" hidden>0</span></button>
+          <button type="button" data-admin-view="sizing">Size Finder</button>
           <button type="button" data-admin-view="team">Team</button>
           <button type="button" data-admin-view="products">Products</button>
           <button type="button" data-admin-view="site">Site Editor</button>
@@ -911,6 +994,26 @@
                 <div class="admin-customer-detail-empty"><strong>Select a team member</strong><span>Role, access, and account controls will appear here.</span></div>
               </section>
             </div>
+          </section>
+        </div>
+        <div class="admin-view-panel" id="adminSizingView" data-admin-view-panel="sizing" hidden>
+          <section class="admin-section admin-sizing-tool-section">
+            <div class="admin-section-title">
+              <div>
+                <p class="eyebrow">Fit studio</p>
+                <h3>Nail Size Finder</h3>
+                <p>Measure a customer's nails against a calibrated card, then use the results to update their saved sizing in Customers.</p>
+              </div>
+              <div class="admin-section-actions">
+                <button class="button primary" type="button" id="adminOpenSizer">Open Size Finder</button>
+              </div>
+            </div>
+            <div class="admin-sizing-overview" aria-label="Size Finder workflow">
+              <article><strong>1. Calibrate</strong><span>Match a standard card to the phone screen.</span></article>
+              <article><strong>2. Measure</strong><span>Work through every finger with live millimeter readouts.</span></article>
+              <article><strong>3. Save the record</strong><span>Copy the result into the selected customer's Saved sizing fields.</span></article>
+            </div>
+            <p class="admin-status" id="adminSizerStatus" role="status">Ready to measure a customer’s fit.</p>
           </section>
         </div>
         <div class="admin-view-panel" id="adminProductsView" data-admin-view-panel="products" hidden>
