@@ -3755,18 +3755,6 @@ figcaption {
   }
 }
 
-/* Desktop buttons get a small branded brush cursor while specialized controls keep their own feedback. */
-@media (hover: hover) and (pointer: fine) {
-  button:not(:disabled),
-  input[type="button"]:not(:disabled),
-  input[type="submit"]:not(:disabled),
-  input[type="reset"]:not(:disabled),
-  [role="button"],
-  .button {
-    cursor: url("assets/nail-polish-brush-cursor.svg") 4 4, pointer;
-  }
-}
-
 /* Product operations workspace */
 .admin-products-hero {
   display: flex;
@@ -10389,5 +10377,21 @@ body.admin-inventory-open {
 
   .admin-look-details {
     padding: 0.8rem;
+  }
+}
+
+/* Final desktop interaction cursor: tabs, links, checkout actions, and buttons. */
+@media (hover: hover) and (pointer: fine) {
+  a[href],
+  button:not(:disabled):not([data-studio-handle]),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="link"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  details > summary:not([aria-disabled="true"]),
+  label[for] {
+    cursor: url("assets/nail-polish-brush-cursor.svg?v=brush3") 3 3, pointer;
   }
 }
