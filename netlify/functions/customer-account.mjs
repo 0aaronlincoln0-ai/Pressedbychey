@@ -184,6 +184,7 @@ async function publicCustomer(customer = {}, store = null) {
     name: customer.name || "",
     email,
     accountStatus: customer.accountStatus || "active",
+    isAdmin: customer.isAdmin === true,
     sizes: normalizeSizes(customer.sizes),
     savedProducts: Array.isArray(customer.savedProducts) ? customer.savedProducts : [],
     orders: mergeOrderLists(customer.orders, liveOrders),

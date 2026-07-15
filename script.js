@@ -3751,6 +3751,7 @@ function mergeCustomerIntoLocal(customer = {}, password = "") {
     name: customer.name || existing.name || email.split("@")[0],
     email,
     accountStatus: customer.accountStatus || existing.accountStatus || "active",
+    isAdmin: customer.isAdmin === true || existing.isAdmin === true,
     sizes: normalizeCustomerSizes(customer.sizes || existing.sizes),
     savedProducts: Array.isArray(customer.savedProducts) ? customer.savedProducts : existing.savedProducts || [],
     orders: Array.isArray(customer.orders) ? customer.orders : existing.orders || [],
@@ -4566,6 +4567,10 @@ async function loginCustomer() {
   accountStatus.textContent = "Checking your profile...";
   try {
     const cloudCustomer = await customerAccountRequest("login", { email, password });
+    if (cloudCustomer?.isAdmin === true) {
+      await completeAdminLogin(email, password);
+      return;
+    }
     mergeCustomerIntoLocal(cloudCustomer, password);
     exitAdminModeForCustomer();
     accountStatus.textContent = "";
@@ -4706,7 +4711,9 @@ async function verifyPasswordReset() {
 }
 
 function logoutCustomer() {
+  const email = customerState.currentEmail;
   customerState.currentEmail = "";
+  if (email) customerSessionPasswords.delete(email);
   saveCustomerState();
   stopCustomerQuoteRefresh();
   renderAccount();
@@ -6365,7 +6372,7 @@ document.querySelectorAll("[data-name]").forEach((button) => {
 
 function openCustomerAccountDestination() {
   if (currentCustomer()) {
-    showSitePage("account", { updateHash: true, behavior: "smooth", force: true });
+    openAccount();
     return;
   }
   openAccount();
