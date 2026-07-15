@@ -169,6 +169,29 @@ test("order browser columns stay inside narrow workspaces", async () => {
   assert.match(styles, /\.admin-order-row-head,\s*\.admin-order-row\s*\{[\s\S]*grid-template-columns: minmax\(0, 1\.15fr\)/);
 });
 
+test("home page has clear, contextual paths into the shop", async () => {
+  const indexHtml = await source("index.html");
+  const adminHtml = await source("admin.html");
+  const styles = await source("styles.css");
+  assert.match(indexHtml, /class="shop-promo-band"/);
+  assert.match(indexHtml, /id="shopPromoTitle"/);
+  assert.match(indexHtml, /Browse the collection/);
+  assert.match(indexHtml, /Shop after sizing/);
+  assert.ok((indexHtml.match(/data-page-link="shop"/g) || []).length >= 5);
+  assert.match(adminHtml, /class="shop-promo-band"/);
+  assert.match(styles, /\.shop-promo-band\s*\{/);
+  assert.match(styles, /\.shop-promo-actions \.button\.primary/);
+});
+
+test("home service strip fills its three-column rhythm", async () => {
+  const indexHtml = await source("index.html");
+  const adminHtml = await source("admin.html");
+  assert.strictEqual((indexHtml.match(/<section class="service-strip"[\s\S]*?<\/section>/) || [""])[0].match(/<article>/g)?.length, 6);
+  assert.strictEqual((adminHtml.match(/<section class="service-strip"[\s\S]*?<\/section>/) || [""])[0].match(/<article>/g)?.length, 6);
+  assert.match(indexHtml, /Small-batch drops/);
+  assert.match(indexHtml, /Custom by request/);
+});
+
 test("admin markup has no patch marker artifacts", async () => {
   const adminHtml = await source("admin.html");
   const indexHtml = await source("index.html");

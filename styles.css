@@ -8138,6 +8138,88 @@ body::after {
   line-height: 1.5;
 }
 
+.shop-promo-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) auto;
+  align-items: end;
+  gap: clamp(1.2rem, 4vw, 3rem);
+  width: min(1180px, calc(100% - 32px));
+  margin: clamp(1.4rem, 3.5vw, 2.6rem) auto 0;
+  padding: clamp(1.35rem, 3vw, 2.4rem);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 24px;
+  background: linear-gradient(135deg, var(--charcoal), var(--plum));
+  box-shadow: 0 24px 58px rgba(34, 21, 26, 0.18);
+  color: white;
+}
+
+.shop-promo-copy {
+  min-width: 0;
+}
+
+.shop-promo-copy .eyebrow {
+  margin-bottom: 0.6rem;
+  color: var(--pink-200);
+}
+
+.shop-promo-copy h2 {
+  max-width: 720px;
+  margin: 0;
+  color: white;
+  font-family: var(--serif);
+  font-size: clamp(2rem, 5vw, 4.2rem);
+  line-height: 0.94;
+}
+
+.shop-promo-copy p:last-child {
+  max-width: 600px;
+  margin: 0.75rem 0 0;
+  color: rgba(255, 245, 249, 0.8);
+  font-size: 0.96rem;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.shop-promo-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.shop-promo-actions .button.primary {
+  background: white;
+  color: var(--plum);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.16);
+}
+
+.shop-promo-text-link {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-decoration: none;
+  text-underline-offset: 4px;
+}
+
+.shop-promo-text-link:hover,
+.shop-promo-text-link:focus-visible {
+  text-decoration: underline;
+}
+
+.shop-promo-arrow {
+  margin-left: 0.25rem;
+}
+
+.intro-heading > div {
+  min-width: 0;
+}
+
+.intro-heading .button,
+.fit .section-heading .button {
+  flex: 0 0 auto;
+}
+
 .section {
   width: min(1180px, calc(100% - 32px));
   padding: clamp(4.4rem, 8vw, 7.5rem) 0;
@@ -10047,6 +10129,15 @@ body.admin-inventory-open {
 
   .customer-account-grid {
     grid-template-columns: 1fr;
+  }
+
+  .shop-promo-band {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .shop-promo-actions {
+    justify-content: flex-start;
   }
 
   .customer-message-section {
