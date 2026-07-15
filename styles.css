@@ -11071,6 +11071,13 @@ body.admin-inventory-open {
   caret-color: #0a84ff;
 }
 
+/* Never replace the text-entry cursor with the decorative brush cursor. */
+textarea:not(:disabled),
+input:not(:disabled):not([type="button"]):not([type="submit"]):not([type="reset"]),
+[contenteditable="true"] {
+  cursor: text !important;
+}
+
 .header-messages-button {
   position: relative;
   display: inline-grid;
