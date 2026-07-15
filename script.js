@@ -4113,7 +4113,10 @@ async function sendCustomerMessage(event) {
   try {
     const data = await customerMessagesRequest("send", { body });
     customerConversation = data.conversation || customerConversation;
-    if (customerMessageInput) customerMessageInput.value = "";
+    if (customerMessageInput) {
+      customerMessageInput.value = "";
+      syncMessageComposer(customerMessageInput, customerMessageCount);
+    }
     renderCustomerMessages();
     if (customerMessagesStatus) customerMessagesStatus.textContent = "Delivered just now";
     customerMessageThread?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -4128,6 +4131,7 @@ async function sendCustomerMessage(event) {
 function syncMessageComposer(input, count) {
   if (!input) return;
   if (count) count.textContent = `${input.value.length}/2400`;
+  input.closest(".chat-composer")?.classList.toggle("is-typing", Boolean(input.value));
   input.style.height = "auto";
   input.style.height = `${Math.min(Math.max(input.scrollHeight, 48), 150)}px`;
 }
@@ -4368,7 +4372,10 @@ async function sendAdminMessage(event) {
   try {
     const data = await adminMessagesRequest("send", { email: activeAdminMessageEmail, body });
     activeAdminConversation = data.conversation || activeAdminConversation;
-    if (adminMessageInput) adminMessageInput.value = "";
+    if (adminMessageInput) {
+      adminMessageInput.value = "";
+      syncMessageComposer(adminMessageInput, adminMessageCount);
+    }
     renderAdminMessageThread();
     await fetchAdminMessages({ showStatus: false });
   } catch (error) {
