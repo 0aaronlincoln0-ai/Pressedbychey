@@ -3949,6 +3949,18 @@ figcaption {
   color: var(--berry);
 }
 
+.admin-product-card {
+  grid-template-columns: 1fr;
+}
+
+.admin-product-editor-note {
+  margin: -0.15rem 0 0.15rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
 @media (max-width: 1120px) {
   .admin-product-kpis {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -10204,5 +10216,33 @@ body.admin-inventory-open {
 
   .admin-edit-toolbar.is-collapsed {
     width: 52px;
+  }
+}
+
+/* Keep the catalog in an operations-friendly list: one product record, one source photo. */
+.product-library-section .admin-look-list {
+  grid-template-columns: 1fr;
+}
+
+.product-library-section .admin-look-card {
+  grid-template-columns: minmax(180px, 0.25fr) minmax(0, 1fr);
+  gap: 1.15rem;
+}
+
+.product-library-section .admin-look-preview {
+  min-height: 260px;
+}
+
+.admin-published-products .admin-product-card {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 760px) {
+  .product-library-section .admin-look-card {
+    grid-template-columns: 1fr;
+  }
+
+  .product-library-section .admin-look-preview {
+    min-height: 220px;
   }
 }

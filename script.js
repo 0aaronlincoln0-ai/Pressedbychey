@@ -6586,14 +6586,15 @@ function applyLook(look) {
 function readLookData(index) {
   const defaults = lookLibrary[index];
   const detail = (adminState.lookDetails && adminState.lookDetails[index]) || {};
-  const photo = (adminState.lookPhotos && adminState.lookPhotos[index]) || "";
-  const photoFit = sanitizePhotoFit((adminState.lookPhotoFits && adminState.lookPhotoFits[index]) || detail.photoFit);
-  const photoPosition = sanitizePhotoPosition((adminState.lookPhotoPositions && adminState.lookPhotoPositions[index]) || detail.photoPosition);
-  const photoZoom = sanitizePhotoZoom((adminState.lookPhotoZooms && adminState.lookPhotoZooms[index]) || detail.photoZoom);
-  const photoTransform = sanitizePhotoTransform((adminState.lookPhotoTransforms && adminState.lookPhotoTransforms[index]) || detail.photoTransform);
   const customName = detail.name && detail.name.trim() ? detail.name.trim() : "";
   const customCopy = detail.copy && detail.copy.trim() ? detail.copy.trim() : "";
   const productIndex = adminState.customProducts.findIndex((product) => Number(product.sourceLookIndex) === index);
+  const sourceProduct = productIndex >= 0 ? adminState.customProducts[productIndex] : null;
+  const photo = (adminState.lookPhotos && adminState.lookPhotos[index]) || sourceProduct?.image || "";
+  const photoFit = sanitizePhotoFit((adminState.lookPhotoFits && adminState.lookPhotoFits[index]) || detail.photoFit || sourceProduct?.imageFit);
+  const photoPosition = sanitizePhotoPosition((adminState.lookPhotoPositions && adminState.lookPhotoPositions[index]) || detail.photoPosition || sourceProduct?.imagePosition);
+  const photoZoom = sanitizePhotoZoom((adminState.lookPhotoZooms && adminState.lookPhotoZooms[index]) || detail.photoZoom || sourceProduct?.imageZoom);
+  const photoTransform = sanitizePhotoTransform((adminState.lookPhotoTransforms && adminState.lookPhotoTransforms[index]) || detail.photoTransform || sourceProduct?.imageTransform);
   return {
     index,
     slotLabel: `Design Slot ${index + 1}`,
@@ -8624,27 +8625,6 @@ function renderAdminProducts() {
     card.className = "admin-control admin-product-card";
     card.dataset.customProductCard = String(index);
     card.innerHTML = `
-      <div class="admin-product-photo">
-        ${productImageMarkup(product, index)}
-        <label class="professional-upload-zone compact-zone" for="customImage-${index}">
-          <span>${product.image ? "Change Photo" : "Add Photo"}</span>
-          <small>Drop here, or click to choose.</small>
-        </label>
-        <label class="photo-fit-control compact">Photo fit
-          <select data-custom-product-fit="${index}">
-            ${photoFitOptionsMarkup(product.imageFit)}
-          </select>
-        </label>
-        <label class="photo-fit-control compact">Focus
-          <select data-custom-product-position="${index}">
-            ${photoPositionOptionsMarkup(product.imagePosition)}
-          </select>
-        </label>
-        <label class="photo-fit-control compact photo-zoom-control">Zoom <span data-product-zoom-label="${index}">${photoZoomPercent(product.imageZoom)}%</span>
-          <input type="range" min="0.25" max="2.5" step="0.01" value="${sanitizePhotoZoom(product.imageZoom).toFixed(2)}" data-custom-product-zoom="${index}" />
-        </label>
-        <input class="hidden-file-input" id="customImage-${index}" type="file" accept="image/*" capture="environment" data-custom-product-image="${index}" />
-      </div>
       <div class="admin-product-fields">
         <div class="admin-product-head">
           <div>
@@ -8653,7 +8633,8 @@ function renderAdminProducts() {
           </div>
           <button class="delete-product" type="button" data-delete-custom-product="${index}">Withdraw</button>
         </div>
-          <label>Name <input data-custom-product="${index}" data-field="name" value="${escapeAttribute(product.name)}" /></label>
+        <p class="admin-product-editor-note">Photo and framing controls live in the primary catalog record above so each product has one source of truth.</p>
+        <label>Name <input data-custom-product="${index}" data-field="name" value="${escapeAttribute(product.name)}" /></label>
         <div class="admin-field-row">
           <label>Price <input data-custom-product="${index}" data-field="price" value="${escapeAttribute(product.price)}" /></label>
           <label>Sale price <input data-custom-product="${index}" data-field="salePrice" value="${escapeAttribute(product.salePrice || "")}" /></label>
@@ -8688,7 +8669,6 @@ function renderAdminProducts() {
       </div>
     `;
     adminProductList.appendChild(card);
-    bindPhotoDropZone(card.querySelector(".admin-product-photo"), (file) => updatePublishedProductPhotoFromFile(index, file, card.querySelector("[data-custom-product-image]")));
   });
   if (!adminState.customProducts.length) {
     const emptyState = document.createElement("div");
