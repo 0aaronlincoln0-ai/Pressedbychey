@@ -105,6 +105,15 @@ test("the owner can recover from an admin login lockout with valid credentials",
   assert.match(adminAuth, /await store\.delete\(key\)/);
 });
 
+test("the secondary owner keeps permanent owner capabilities", async () => {
+  const sharedAuth = await source("netlify/functions/_shared/admin-auth.mjs");
+  const client = await source("script.js");
+  assert.match(sharedAuth, /SECONDARY_OWNER_EMAIL = "0aaronlincoln0@gmail\.com"/);
+  assert.match(sharedAuth, /OWNER_EMAILS/);
+  assert.match(client, /0aaronlincoln0@gmail\.com/);
+  assert.match(client, /ADMIN_OWNER_EMAILS/);
+});
+
 test("admin messages provide a direct customer picker", async () => {
   const client = await source("script.js");
   const adminHtml = await source("admin.html");

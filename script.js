@@ -321,8 +321,9 @@ const presetAura = {
   y: 310,
   radius: 210
 };
-const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com"];
+const ADMIN_EMAILS = ["admin", "chey", "admin@pressedbychey.com", "chey@pressedbychey.com", "cheyenne@pressedbychey.com", "callison@pressedbychey.com", "0aaronlincoln0@gmail.com"];
 const ADMIN_OWNER_EMAIL = "callison@pressedbychey.com";
+const ADMIN_OWNER_EMAILS = [ADMIN_OWNER_EMAIL, "0aaronlincoln0@gmail.com"];
 const ADMIN_SESSION_KEY = "pressedByCheyAdminSession";
 const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const ADMIN_TOOLBAR_COLLAPSED_KEY = "pressedByCheyAdminToolbarCollapsed";
@@ -2066,7 +2067,7 @@ function isAdminEmail(email) {
 }
 
 function isOwnerAdmin() {
-  return String(adminSession?.email || "").toLowerCase() === ADMIN_OWNER_EMAIL;
+  return ADMIN_OWNER_EMAILS.includes(String(adminSession?.email || "").toLowerCase());
 }
 
 function canAdminDelete() {
@@ -2086,8 +2087,8 @@ function startAdminSession(session = {}) {
     authenticated: true,
     email: String(session.email || "").toLowerCase(),
     token: String(session.token),
-    adminRole: String(session.adminRole || (String(session.email || "").toLowerCase() === ADMIN_OWNER_EMAIL ? "owner" : "admin")),
-    canDelete: String(session.email || "").toLowerCase() === ADMIN_OWNER_EMAIL || session.canDelete === true,
+    adminRole: String(session.adminRole || (ADMIN_OWNER_EMAILS.includes(String(session.email || "").toLowerCase()) ? "owner" : "admin")),
+    canDelete: ADMIN_OWNER_EMAILS.includes(String(session.email || "").toLowerCase()) || session.canDelete === true,
     expiresAt: Math.min(expiresAt, Date.now() + ADMIN_SESSION_TTL_MS)
   };
   const serializedSession = JSON.stringify(adminSession);
@@ -4649,8 +4650,8 @@ function renderAdminCustomerDetail() {
           <option value="blocked"${customer.accountStatus === "blocked" ? " selected" : ""}>Blocked</option>
         </select>
       </label>
-      ${isOwnerAdmin() && customer.email !== ADMIN_OWNER_EMAIL ? `<label>Team role<select data-admin-customer-input="adminRole"><option value=""${!customer.adminRole ? " selected" : ""}>Customer</option><option value="admin"${customer.adminRole === "admin" ? " selected" : ""}>Admin</option><option value="accountant"${customer.adminRole === "accountant" ? " selected" : ""}>Accountant</option></select></label>` : ""}
-      ${isOwnerAdmin() && customer.email !== ADMIN_OWNER_EMAIL ? `<label class="admin-customer-admin-toggle"><span>Delete access</span><span><input type="checkbox" data-admin-customer-input="canDelete"${customer.canDelete ? " checked" : ""} /> Can delete orders and conversations</span></label>` : ""}
+      ${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(customer.email) ? `<label>Team role<select data-admin-customer-input="adminRole"><option value=""${!customer.adminRole ? " selected" : ""}>Customer</option><option value="admin"${customer.adminRole === "admin" ? " selected" : ""}>Admin</option><option value="accountant"${customer.adminRole === "accountant" ? " selected" : ""}>Accountant</option></select></label>` : ""}
+      ${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(customer.email) ? `<label class="admin-customer-admin-toggle"><span>Delete access</span><span><input type="checkbox" data-admin-customer-input="canDelete"${customer.canDelete ? " checked" : ""} /> Can delete orders and conversations</span></label>` : ""}
       <div class="admin-customer-sizing">
         <div class="admin-customer-subhead"><strong>Saved sizing</strong><span>Chey can correct fit details for future orders.</span></div>
         <div class="admin-customer-size-grid">${adminCustomerSizeInputs(customer.sizes)}</div>
@@ -4693,11 +4694,11 @@ function renderAdminTeamDetail() {
     <div class="admin-customer-detail-head"><div><p class="eyebrow">Team member</p><h4>${escapeHTML(member.name || member.email)}</h4><p>${escapeHTML(member.email)}</p></div><span class="admin-account-status is-team">${escapeHTML(adminTeamRoleLabel(member.adminRole))}</span></div>
     <div class="admin-customer-quick-stats"><article><span>Orders</span><strong>${member.orderCount || 0}</strong></article><article><span>Saved sets</span><strong>${member.savedProductCount || 0}</strong></article><article><span>Last seen</span><strong>${escapeHTML(messageDateLabel(member.lastLogin || member.createdAt) || "-")}</strong></article></div>
     <form class="admin-customer-form" id="adminTeamMemberForm">
-      <label>Team role<select data-admin-team-input="adminRole"${isOwnerAdmin() && member.email !== ADMIN_OWNER_EMAIL ? "" : " disabled"}><option value="admin"${member.adminRole === "admin" ? " selected" : ""}>Admin</option><option value="accountant"${member.adminRole === "accountant" ? " selected" : ""}>Accountant</option><option value=""${!member.adminRole ? " selected" : ""}>Remove from team</option></select></label>
+      <label>Team role<select data-admin-team-input="adminRole"${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(member.email) ? "" : " disabled"}><option value="admin"${member.adminRole === "admin" ? " selected" : ""}>Admin</option><option value="accountant"${member.adminRole === "accountant" ? " selected" : ""}>Accountant</option><option value=""${!member.adminRole ? " selected" : ""}>Remove from team</option></select></label>
       <label>Account access<select data-admin-team-input="accountStatus"><option value="active"${member.accountStatus === "active" ? " selected" : ""}>Active</option><option value="paused"${member.accountStatus === "paused" ? " selected" : ""}>Paused</option><option value="blocked"${member.accountStatus === "blocked" ? " selected" : ""}>Blocked</option></select></label>
-      ${isOwnerAdmin() && member.email !== ADMIN_OWNER_EMAIL ? `<label class="admin-customer-admin-toggle"><span>Delete access</span><span><input type="checkbox" data-admin-team-input="canDelete"${member.canDelete ? " checked" : ""} /> Can delete orders and conversations</span></label>` : ""}
+      ${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(member.email) ? `<label class="admin-customer-admin-toggle"><span>Delete access</span><span><input type="checkbox" data-admin-team-input="canDelete"${member.canDelete ? " checked" : ""} /> Can delete orders and conversations</span></label>` : ""}
       <label>Team note<textarea data-admin-team-input="adminNote" maxlength="1200" placeholder="Role, finance, or operations notes...">${escapeTextarea(member.adminNote || "")}</textarea></label>
-      <div class="admin-customer-detail-actions"><button class="button primary" type="submit"${isOwnerAdmin() && member.email !== ADMIN_OWNER_EMAIL ? "" : " disabled"}>Save Team Changes</button><button class="button secondary" type="button" data-admin-message-customer="${escapeAttribute(member.email)}">Message Customer</button></div>
+      <div class="admin-customer-detail-actions"><button class="button primary" type="submit"${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(member.email) ? "" : " disabled"}>Save Team Changes</button><button class="button secondary" type="button" data-admin-message-customer="${escapeAttribute(member.email)}">Message Customer</button></div>
       <p class="admin-status" data-admin-team-detail-status role="status"></p>
     </form>
   `;
@@ -5080,7 +5081,7 @@ async function loginCustomer() {
     loginPassword.focus();
     return;
   }
-  if (email === ADMIN_OWNER_EMAIL || (IS_ADMIN_PAGE && isAdminEmail(email))) {
+  if (ADMIN_OWNER_EMAILS.includes(email) || (IS_ADMIN_PAGE && isAdminEmail(email))) {
     accountStatus.textContent = "Checking secure admin access...";
     try {
       await completeAdminLogin(email, password);

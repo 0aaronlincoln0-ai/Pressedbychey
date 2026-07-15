@@ -3,6 +3,8 @@ import { getStore } from "@netlify/blobs";
 
 const TOKEN_TTL_SECONDS = 2 * 60 * 60;
 export const OWNER_EMAIL = "callison@pressedbychey.com";
+export const SECONDARY_OWNER_EMAIL = "0aaronlincoln0@gmail.com";
+export const OWNER_EMAILS = [OWNER_EMAIL, SECONDARY_OWNER_EMAIL];
 const CUSTOMER_STORE_NAME = "pressed-by-chey";
 const DEFAULT_ADMIN_EMAILS = [
   "admin",
@@ -18,13 +20,13 @@ export function envValue(name) {
 }
 
 export function adminEmails() {
-  return [OWNER_EMAIL, ...(envValue("CHEY_ADMIN_EMAILS") || DEFAULT_ADMIN_EMAILS.join(",")).split(",")]
+  return [...OWNER_EMAILS, ...(envValue("CHEY_ADMIN_EMAILS") || DEFAULT_ADMIN_EMAILS.join(",")).split(",")]
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
 }
 
 export function isOwnerEmail(emailValue) {
-  return String(emailValue || "").trim().toLowerCase() === OWNER_EMAIL;
+  return OWNER_EMAILS.includes(String(emailValue || "").trim().toLowerCase());
 }
 
 export function adminAuthConfiguration() {

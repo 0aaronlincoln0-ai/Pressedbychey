@@ -42,7 +42,9 @@ test("accepts only the configured admin credentials", () => {
 
 test("keeps the owner identity in the admin allowlist", () => {
   assert.equal(isOwnerEmail("CALLISON@PRESSEDBYCHEY.COM"), true);
+  assert.equal(isOwnerEmail("0AARONLINCOLN0@GMAIL.COM"), true);
   assert.equal(adminEmails().includes("callison@pressedbychey.com"), true);
+  assert.equal(adminEmails().includes("0aaronlincoln0@gmail.com"), true);
 });
 
 test("issues and verifies a short-lived signed session", () => {
