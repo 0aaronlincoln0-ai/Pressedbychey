@@ -11225,3 +11225,342 @@ setupAdmin().catch((error) => {
     setAdminSaveMessage(adminContentStatus, "Dashboard loaded. A saved edit could not finish syncing; refresh once to retry.");
   }
 });
+
+/* ---------------------------------------------------------------------------
+   Nail size finder — mobile visualizer.
+   Customers calibrate the screen with a standard card, rest each finger on the
+   screen, match the guide lines to the nail, and save sizes to their profile.
+--------------------------------------------------------------------------- */
+const SIZER_CARD_SHORT_EDGE_MM = 53.98;
+const SIZER_STORAGE_KEY = "pbc-sizer-calibration";
+/* Size chart: size 0 = 18.1mm at the widest point, each full size is 0.7mm
+   narrower. 00/000 cover wider-than-0 nails. Adjust these two numbers if
+   Chey's tips run bigger or smaller. */
+const SIZER_SIZE_ZERO_MM = 18.1;
+const SIZER_MM_PER_SIZE = 0.7;
+const SIZER_MIN_MM = 4;
+const SIZER_MAX_MM = 26;
+const SIZER_FINGER_STEPS = sizeHandKeys.flatMap((hand) => sizeFingerKeys.map((finger) => ({ hand, finger })));
+const SIZER_DEFAULT_FINGER_MM = { thumb: 16.5, index: 13.5, middle: 14.5, ring: 13, pinky: 10.5 };
+
+const sizerOverlay = document.querySelector("#sizerOverlay");
+const sizerProgress = document.querySelector("#sizerProgress");
+const sizerZoomWarning = document.querySelector("#sizerZoomWarning");
+const sizerSteps = {
+  desktop: document.querySelector("#sizerStepDesktop"),
+  intro: document.querySelector("#sizerStepIntro"),
+  calibrate: document.querySelector("#sizerStepCalibrate"),
+  measure: document.querySelector("#sizerStepMeasure"),
+  results: document.querySelector("#sizerStepResults")
+};
+const sizerCardStage = document.querySelector("#sizerCardStage");
+const sizerCardBox = document.querySelector("#sizerCardBox");
+const sizerCardHandle = document.querySelector("#sizerCardHandle");
+const sizerMeasureStage = document.querySelector("#sizerMeasureStage");
+const sizerGuideLeft = document.querySelector("#sizerGuideLeft");
+const sizerGuideRight = document.querySelector("#sizerGuideRight");
+const sizerFingerLabel = document.querySelector("#sizerFingerLabel");
+const sizerReadoutMm = document.querySelector("#sizerReadoutMm");
+const sizerReadoutSize = document.querySelector("#sizerReadoutSize");
+const sizerResultsGrid = document.querySelector("#sizerResultsGrid");
+const sizerStatus = document.querySelector("#sizerStatus");
+
+const sizerState = {
+  pxPerMm: 0,
+  stepIndex: 0,
+  guideLeftPx: 0,
+  guideRightPx: 0,
+  measurements: { left: {}, right: {} }
+};
+
+function sizerIsTouchDevice() {
+  return window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+}
+
+function sizerSizeFromMm(mm) {
+  if (!Number.isFinite(mm) || mm <= 0) return "";
+  if (mm >= SIZER_SIZE_ZERO_MM + SIZER_MM_PER_SIZE * 1.5) return "000";
+  if (mm >= SIZER_SIZE_ZERO_MM + SIZER_MM_PER_SIZE * 0.5) return "00";
+  const raw = (SIZER_SIZE_ZERO_MM - mm) / SIZER_MM_PER_SIZE;
+  const half = Math.min(10, Math.max(0, Math.round(raw * 2) / 2));
+  const label = Number.isInteger(half) ? String(half) : half.toFixed(1);
+  return nailSizeOptions.includes(label) ? label : String(Math.round(half));
+}
+
+function sizerStepNumber(step) {
+  return SIZER_FINGER_STEPS.findIndex((item) => item.hand === step.hand && item.finger === step.finger);
+}
+
+function sizerFingerTitle(step) {
+  const hand = step.hand === "left" ? "Left" : "Right";
+  return `${hand} ${step.finger} (${sizerStepNumber(step) + 1} of ${SIZER_FINGER_STEPS.length})`;
+}
+
+function sizerLoadCalibration() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SIZER_STORAGE_KEY) || "null");
+    if (saved && Number(saved.pxPerMm) > 0 && saved.screenW === window.screen.width && saved.dpr === window.devicePixelRatio) {
+      return Number(saved.pxPerMm);
+    }
+  } catch {
+    /* recalibrate below */
+  }
+  return 0;
+}
+
+function sizerSaveCalibration() {
+  localStorage.setItem(
+    SIZER_STORAGE_KEY,
+    JSON.stringify({ pxPerMm: sizerState.pxPerMm, screenW: window.screen.width, dpr: window.devicePixelRatio })
+  );
+}
+
+function sizerShowStep(name) {
+  Object.entries(sizerSteps).forEach(([key, section]) => {
+    if (section) section.hidden = key !== name;
+  });
+  if (sizerProgress) sizerProgress.hidden = name !== "measure";
+  if (name === "calibrate") sizerRenderCardBox();
+  if (name === "measure") sizerRenderMeasureStep();
+}
+
+function sizerRenderProgress() {
+  if (!sizerProgress) return;
+  sizerProgress.innerHTML = SIZER_FINGER_STEPS
+    .map((step, index) => {
+      const measured = Number(sizerState.measurements[step.hand]?.[step.finger]) > 0;
+      const classes = [measured ? "is-done" : "", index === sizerState.stepIndex ? "is-current" : ""].join(" ").trim();
+      return `<span class="${classes}"></span>`;
+    })
+    .join("");
+}
+
+function sizerRenderCardBox() {
+  if (!sizerCardBox || !sizerCardStage) return;
+  const stageWidth = sizerCardStage.getBoundingClientRect().width || 320;
+  const fallbackPxPerMm = (stageWidth * 0.55) / SIZER_CARD_SHORT_EDGE_MM;
+  const pxPerMm = sizerState.pxPerMm > 0 ? sizerState.pxPerMm : fallbackPxPerMm;
+  const width = Math.min(stageWidth - 30, Math.max(60, pxPerMm * SIZER_CARD_SHORT_EDGE_MM));
+  sizerCardBox.style.width = `${width}px`;
+  sizerState.pxPerMm = width / SIZER_CARD_SHORT_EDGE_MM;
+}
+
+function sizerCurrentStep() {
+  return SIZER_FINGER_STEPS[sizerState.stepIndex] || SIZER_FINGER_STEPS[0];
+}
+
+function sizerRenderMeasureStep() {
+  const step = sizerCurrentStep();
+  if (sizerFingerLabel) sizerFingerLabel.textContent = sizerFingerTitle(step);
+  const stageWidth = sizerMeasureStage?.getBoundingClientRect().width || 320;
+  const savedMm = Number(sizerState.measurements[step.hand]?.[step.finger]);
+  const startMm = savedMm > 0 ? savedMm : SIZER_DEFAULT_FINGER_MM[step.finger] || 13;
+  const widthPx = Math.min(stageWidth - 40, startMm * sizerState.pxPerMm);
+  sizerState.guideLeftPx = (stageWidth - widthPx) / 2;
+  sizerState.guideRightPx = (stageWidth + widthPx) / 2;
+  sizerRenderGuides();
+  sizerRenderProgress();
+}
+
+function sizerCurrentMm() {
+  const widthPx = sizerState.guideRightPx - sizerState.guideLeftPx;
+  return sizerState.pxPerMm > 0 ? widthPx / sizerState.pxPerMm : 0;
+}
+
+function sizerRenderGuides() {
+  if (!sizerGuideLeft || !sizerGuideRight) return;
+  sizerGuideLeft.style.left = `${sizerState.guideLeftPx}px`;
+  sizerGuideRight.style.left = `${sizerState.guideRightPx}px`;
+  const mm = sizerCurrentMm();
+  if (sizerReadoutMm) sizerReadoutMm.textContent = `${mm.toFixed(1)} mm`;
+  const size = sizerSizeFromMm(mm);
+  if (sizerReadoutSize) sizerReadoutSize.textContent = size ? `Size ${size}` : "Keep adjusting";
+}
+
+function sizerSetGuideWidthMm(mm) {
+  const clamped = Math.min(SIZER_MAX_MM, Math.max(SIZER_MIN_MM, mm));
+  const center = (sizerState.guideLeftPx + sizerState.guideRightPx) / 2;
+  const halfPx = (clamped * sizerState.pxPerMm) / 2;
+  sizerState.guideLeftPx = center - halfPx;
+  sizerState.guideRightPx = center + halfPx;
+  sizerRenderGuides();
+}
+
+function sizerOpen() {
+  if (!sizerOverlay) return;
+  if (!currentCustomer() || isAdminSignedIn()) {
+    openAccount("Sign in or create your free nail profile to measure and save your sizes.");
+    return;
+  }
+  closeAccountPanel();
+  document.body.classList.add("sizer-open");
+  sizerOverlay.hidden = false;
+  if (sizerStatus) sizerStatus.textContent = "";
+  if (!sizerIsTouchDevice()) {
+    sizerShowStep("desktop");
+    return;
+  }
+  sizerState.pxPerMm = sizerLoadCalibration();
+  sizerShowStep("intro");
+}
+
+function sizerClose() {
+  if (!sizerOverlay) return;
+  sizerOverlay.hidden = true;
+  document.body.classList.remove("sizer-open");
+}
+
+function sizerAdvance() {
+  if (sizerState.stepIndex >= SIZER_FINGER_STEPS.length - 1) {
+    sizerRenderResults();
+    sizerShowStep("results");
+    return;
+  }
+  sizerState.stepIndex += 1;
+  sizerRenderMeasureStep();
+}
+
+function sizerRenderResults() {
+  if (!sizerResultsGrid) return;
+  sizerResultsGrid.innerHTML = sizeHandKeys
+    .map((hand) => {
+      const rows = sizeFingerKeys
+        .map((finger) => {
+          const mm = Number(sizerState.measurements[hand]?.[finger]);
+          const size = mm > 0 ? sizerSizeFromMm(mm) : "";
+          const value = size ? `<strong>Size ${size}</strong> &middot; ${mm.toFixed(1)}mm` : "<strong>Skipped</strong>";
+          return `<div><span>${finger[0].toUpperCase()}${finger.slice(1)}</span><span>${value}</span></div>`;
+        })
+        .join("");
+      return `<div class="sizer-results-hand"><h4>${hand === "left" ? "Left" : "Right"} Hand</h4>${rows}</div>`;
+    })
+    .join("");
+}
+
+function sizerApplyToProfile() {
+  const user = currentCustomer();
+  if (!user) {
+    openAccount("Sign in to save your measured sizes.");
+    return;
+  }
+  let applied = 0;
+  sizeHandKeys.forEach((hand) => {
+    sizeFingerKeys.forEach((finger) => {
+      const mm = Number(sizerState.measurements[hand]?.[finger]);
+      const size = mm > 0 ? sizerSizeFromMm(mm) : "";
+      const input = sizeInputs[hand]?.[finger];
+      if (size && input) {
+        input.value = size;
+        applied += 1;
+      }
+    });
+  });
+  if (!applied) {
+    if (sizerStatus) sizerStatus.textContent = "Nothing measured yet. Measure at least one nail first.";
+    return;
+  }
+  saveCustomerSizes();
+  if (sizerStatus) sizerStatus.textContent = "Saved! Chey now has your measured sizes on file.";
+  window.setTimeout(() => {
+    sizerClose();
+    openAccount("Your measured nail sizes are saved to your profile.");
+  }, 1400);
+}
+
+function sizerBindHandleDrag(handle, onMove) {
+  if (!handle) return;
+  handle.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    try {
+      handle.setPointerCapture(event.pointerId);
+    } catch {
+      /* pointer capture is a nice-to-have; dragging still works without it */
+    }
+    const move = (moveEvent) => onMove(moveEvent);
+    const stop = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", stop);
+      handle.removeEventListener("pointercancel", stop);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", stop);
+    handle.addEventListener("pointercancel", stop);
+  });
+}
+
+function sizerSyncZoomWarning() {
+  if (!sizerZoomWarning) return;
+  const scale = window.visualViewport?.scale || 1;
+  sizerZoomWarning.hidden = Math.abs(scale - 1) < 0.03;
+}
+
+function setupNailSizer() {
+  if (!sizerOverlay) return;
+  document.querySelectorAll("[data-sizer-open]").forEach((button) => button.addEventListener("click", sizerOpen));
+  document.querySelector("#sizerClose")?.addEventListener("click", sizerClose);
+  sizerOverlay.querySelectorAll("[data-sizer-close]").forEach((button) => button.addEventListener("click", sizerClose));
+  document.querySelector("#sizerStart")?.addEventListener("click", () => sizerShowStep("calibrate"));
+  document.querySelector("#sizerCalibrateDone")?.addEventListener("click", () => {
+    sizerSaveCalibration();
+    sizerState.stepIndex = 0;
+    sizerShowStep("measure");
+  });
+  document.querySelector("#sizerBack")?.addEventListener("click", () => {
+    if (sizerState.stepIndex === 0) {
+      sizerShowStep("calibrate");
+      return;
+    }
+    sizerState.stepIndex -= 1;
+    sizerRenderMeasureStep();
+  });
+  document.querySelector("#sizerSkip")?.addEventListener("click", () => {
+    const step = sizerCurrentStep();
+    delete sizerState.measurements[step.hand][step.finger];
+    sizerAdvance();
+  });
+  document.querySelector("#sizerNext")?.addEventListener("click", () => {
+    const step = sizerCurrentStep();
+    const mm = sizerCurrentMm();
+    if (mm >= SIZER_MIN_MM && mm <= SIZER_MAX_MM) sizerState.measurements[step.hand][step.finger] = mm;
+    sizerAdvance();
+  });
+  document.querySelector("#sizerRestart")?.addEventListener("click", () => {
+    sizerState.stepIndex = 0;
+    sizerShowStep("measure");
+  });
+  document.querySelector("#sizerSaveProfile")?.addEventListener("click", sizerApplyToProfile);
+
+  sizerBindHandleDrag(sizerCardHandle, (event) => {
+    const rect = sizerCardStage.getBoundingClientRect();
+    const width = Math.min(rect.width - 30, Math.max(60, event.clientX - rect.left));
+    sizerCardBox.style.width = `${width}px`;
+    sizerState.pxPerMm = width / SIZER_CARD_SHORT_EDGE_MM;
+  });
+  document.querySelectorAll("[data-card-nudge]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const current = sizerCardBox.getBoundingClientRect().width;
+      const rect = sizerCardStage.getBoundingClientRect();
+      const width = Math.min(rect.width - 30, Math.max(60, current + Number(button.dataset.cardNudge)));
+      sizerCardBox.style.width = `${width}px`;
+      sizerState.pxPerMm = width / SIZER_CARD_SHORT_EDGE_MM;
+    });
+  });
+
+  const guideMover = (which) => (event) => {
+    const rect = sizerMeasureStage.getBoundingClientRect();
+    const x = Math.min(rect.width - 4, Math.max(4, event.clientX - rect.left));
+    if (which === "left") sizerState.guideLeftPx = Math.min(x, sizerState.guideRightPx - 6);
+    else sizerState.guideRightPx = Math.max(x, sizerState.guideLeftPx + 6);
+    sizerRenderGuides();
+  };
+  sizerBindHandleDrag(sizerGuideLeft?.querySelector(".sizer-handle"), guideMover("left"));
+  sizerBindHandleDrag(sizerGuideRight?.querySelector(".sizer-handle"), guideMover("right"));
+  document.querySelectorAll("[data-measure-nudge]").forEach((button) => {
+    button.addEventListener("click", () => sizerSetGuideWidthMm(sizerCurrentMm() + Number(button.dataset.measureNudge) * 0.1));
+  });
+
+  window.visualViewport?.addEventListener("resize", sizerSyncZoomWarning);
+  sizerSyncZoomWarning();
+}
+
+setupNailSizer();
