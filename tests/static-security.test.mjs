@@ -28,6 +28,9 @@ test("Netlify applies baseline browser protections", async () => {
   assert.match(config, /frame-ancestors 'none'/);
   assert.match(config, /X-Content-Type-Options\s*=\s*"nosniff"/);
   assert.match(config, /X-Robots-Tag\s*=\s*"noindex/);
+  assert.match(config, /from\s*=\s*"\/WEBSITE_AUDIT_REPORT\.md"/);
+  assert.match(config, /from\s*=\s*"\/netlify\/\*"/);
+  assert.match(config, /from\s*=\s*"\/tests\/\*"/);
 });
 
 test("public page exposes basic search and sharing metadata", async () => {

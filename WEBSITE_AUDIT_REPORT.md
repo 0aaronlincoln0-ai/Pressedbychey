@@ -196,6 +196,7 @@ The browser smoke pass covered direct page navigation, cart/account opening, vis
 - Paid-order retention, order deduplication, optimistic admin updates with rollback, and scalable admin filters/pagination.
 - Customer order-integrity protection, stronger password-reset behavior, and generic login failures.
 - Security headers, noindex controls, custom 404, SEO metadata, cache policy, responsive images, and WebP delivery.
+- Production redirects prevent direct download of internal tests, function source paths, package metadata, and this audit report from the published static root.
 - Persistent test/build gate and lockfile.
 
 ## 14. Tests Added or Modified
