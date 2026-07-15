@@ -117,12 +117,18 @@ test("the owner can recover from an admin login lockout with valid credentials",
 test("the secondary owner keeps permanent owner capabilities", async () => {
   const sharedAuth = await source("netlify/functions/_shared/admin-auth.mjs");
   const client = await source("script.js");
+  const customerAdmin = await source("netlify/functions/customer-admin.mjs");
   assert.match(sharedAuth, /SECONDARY_OWNER_EMAIL = "0aaronlincoln0@gmail\.com"/);
   assert.match(sharedAuth, /CHEY_SECONDARY_OWNER_PASSWORD/);
   assert.match(sharedAuth, /OWNER_EMAILS/);
   assert.match(await source("netlify/functions/admin-auth.mjs"), /isOwnerEmail\(email\) \|\| customerAdminRecord\?\.isAdmin === true/);
   assert.match(client, /0aaronlincoln0@gmail\.com/);
   assert.match(client, /ADMIN_OWNER_EMAILS/);
+  assert.match(customerAdmin, /const protectedOwner = isOwnerEmail\(email\)/);
+  assert.match(customerAdmin, /accountStatus: protectedOwner \? "active"/);
+  assert.match(customerAdmin, /adminRole: nextRole/);
+  assert.match(customerAdmin, /canDelete: protectedOwner \|\|/);
+  assert.match(client, /data-admin-team-input="accountStatus"\$\{ADMIN_OWNER_EMAILS\.includes\(member\.email\) \? " disabled" : ""\}/);
 });
 
 test("product command center uses the full responsive admin workspace", async () => {

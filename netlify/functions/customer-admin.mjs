@@ -196,29 +196,29 @@ export default async (request) => {
   if (action === "get") return jsonResponse({ ok: true, customer: publicCustomer(customer, true) });
   if (action === "update") {
     const adminSession = verifyAdminRequest(request);
+    const protectedOwner = isOwnerEmail(email);
     const changingAdminRole = typeof payload.isAdmin === "boolean";
     const changingTeamRole = typeof payload.adminRole === "string" || changingAdminRole;
     const changingDeleteAccess = typeof payload.canDelete === "boolean";
     if ((changingTeamRole || changingDeleteAccess) && !isOwnerEmail(adminSession?.sub)) {
       return jsonResponse({ error: "Only the owner can change admin access." }, { status: 403 });
     }
-    if (isOwnerEmail(email) && payload.isAdmin === false) {
-      return jsonResponse({ error: "The owner admin account cannot be removed." }, { status: 400 });
-    }
     const requestedRole = typeof payload.adminRole === "string"
       ? normalizeTeamRole({}, payload.adminRole)
       : (changingAdminRole ? (payload.isAdmin ? "admin" : "") : normalizeTeamRole(customer));
-    const nextRole = isOwnerEmail(email) ? "owner" : (changingTeamRole ? requestedRole : normalizeTeamRole(customer));
-    const nextIsAdmin = Boolean(nextRole);
+    // Both owner identities are permanent. No owner, admin, or malformed
+    // client request can demote, disable, or remove either one.
+    const nextRole = protectedOwner ? "owner" : (changingTeamRole ? requestedRole : normalizeTeamRole(customer));
+    const nextIsAdmin = protectedOwner || Boolean(nextRole);
     const nextCustomer = {
       ...customer,
       name: safeText(payload.name || customer.name, 100),
       sizes: normalizeSizes(payload.sizes || customer.sizes),
-      accountStatus: normalizeStatus(payload.accountStatus || customer.accountStatus),
+      accountStatus: protectedOwner ? "active" : normalizeStatus(payload.accountStatus || customer.accountStatus),
       adminNote: safeText(payload.adminNote || "", 1200),
       isAdmin: nextIsAdmin,
       adminRole: nextRole,
-      canDelete: nextRole === "admin" && (changingDeleteAccess ? payload.canDelete : customer.canDelete === true),
+      canDelete: protectedOwner || (nextRole === "admin" && (changingDeleteAccess ? payload.canDelete : customer.canDelete === true)),
       updatedAt: new Date().toISOString()
     };
     await store.setJSON(key, nextCustomer);
