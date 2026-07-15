@@ -1979,6 +1979,13 @@ function lockPageNavigation(duration = 180) {
   }, duration);
 }
 
+function setShopCollectionFilter(destination = "") {
+  const collection = destination === "fresh-drops" ? "fresh-drops" : "all";
+  const collectionButtons = document.querySelectorAll("#shopFilters [data-collection-filter]");
+  collectionButtons.forEach((button) => button.classList.toggle("active", button.dataset.collectionFilter === collection));
+  applyProductFilter(document.querySelector("#shopFilters [data-filter].active")?.dataset.filter || "all");
+}
+
 function showSitePage(pageKey, options = {}) {
   const { updateHash = true, force = false, behavior = "smooth", track = true, shopDestination = "" } = options;
   const resolvedKey = adminState.hiddenSections[pageKey] ? firstVisiblePageKey() : pageKey;
@@ -2008,6 +2015,8 @@ function showSitePage(pageKey, options = {}) {
   if (updateHash && window.location.hash !== `#${resolvedKey}`) {
     history.replaceState(null, "", `#${resolvedKey}`);
   }
+
+  if (resolvedKey === "shop") setShopCollectionFilter(shopDestination);
 
   const performScroll = () => {
     const shopSection = resolvedKey === "shop" && ["hot-drop", "fresh-drops", "inventory"].includes(shopDestination)
@@ -7339,6 +7348,7 @@ scrim.addEventListener("click", closeAdmin);
 function applyProductFilter(filter) {
   const existingEmptyState = productGrid?.querySelector(".product-filter-empty");
   if (existingEmptyState) existingEmptyState.remove();
+  const collectionFilter = document.querySelector("#shopFilters [data-collection-filter].active")?.dataset.collectionFilter || "all";
   const query = (shopProductSearch?.value || "").trim().toLowerCase();
   const stockFilter = shopStockFilter?.value || "all";
   let visibleCount = 0;
@@ -7350,7 +7360,9 @@ function applyProductFilter(filter) {
     const searchable = `${product.dataset.productNumber || ""} ${product.querySelector("h3")?.textContent || ""} ${product.dataset.productDescription || ""}`.toLowerCase();
     const matchesSearch = !query || searchable.includes(query);
     const matchesStock = stockFilter === "all" || product.dataset.stockState === stockFilter;
-    const isMatch = (filter === "all" || product.dataset.shape === filter) && matchesSearch && matchesStock;
+    const sectionCollection = product.closest("[data-collection-section]")?.dataset.collectionSection || "";
+    const matchesCollection = collectionFilter === "all" || sectionCollection === collectionFilter;
+    const isMatch = (filter === "all" || product.dataset.shape === filter) && matchesCollection && matchesSearch && matchesStock;
     product.classList.toggle("hidden", !isMatch);
     if (isMatch) visibleCount += 1;
   });
@@ -7359,22 +7371,27 @@ function applyProductFilter(filter) {
   });
   if (productGrid && visibleCount === 0) {
     const activeFilterLabel = document.querySelector(`.filter[data-filter="${CSS.escape(filter)}"]`)?.textContent?.trim() || "that shape";
+    const activeCollectionLabel = collectionFilter === "fresh-drops" ? "Fresh Drops" : "all sets";
     const emptyState = document.createElement("article");
     emptyState.className = "store-empty-state product-filter-empty";
     emptyState.innerHTML = `
       <strong>No sets match this view.</strong>
-      <p>Try ${escapeHTML(activeFilterLabel)} with another product number or stock filter.</p>
+      <p>Try ${escapeHTML(activeCollectionLabel)} or ${escapeHTML(activeFilterLabel)} with another product number or stock filter.</p>
     `;
     productGrid.appendChild(emptyState);
   }
 }
 
-document.querySelectorAll(".filter").forEach((button) => {
+document.querySelectorAll("#shopFilters [data-filter]").forEach((button) => {
   button.addEventListener("click", () => {
-    document.querySelectorAll(".filter").forEach((filter) => filter.classList.remove("active"));
+    document.querySelectorAll("#shopFilters [data-filter]").forEach((filter) => filter.classList.remove("active"));
     button.classList.add("active");
     applyProductFilter(button.dataset.filter);
   });
+});
+
+document.querySelectorAll("#shopFilters [data-collection-filter]").forEach((button) => {
+  button.addEventListener("click", () => setShopCollectionFilter(button.dataset.collectionFilter));
 });
 
 shopProductSearch?.addEventListener("input", () => {

@@ -102,8 +102,6 @@
           </div>
           <div class="shop-promo-actions">
             <a class="button primary" href="#shop" data-page-link="shop" data-shop-destination="fresh-drops">Shop Fresh Drops <span class="shop-promo-arrow" aria-hidden="true">&rarr;</span></a>
-            <a class="shop-promo-text-link" href="#shop" data-page-link="shop" data-shop-destination="hot-drop">Shop Hot Drop <span aria-hidden="true">&rarr;</span></a>
-            <a class="shop-promo-text-link" href="#shop" data-page-link="shop" data-shop-destination="inventory">View Main Inventory <span aria-hidden="true">&rarr;</span></a>
           </div>
           <div class="promo-glitter" aria-hidden="true"></div>
         </section>
@@ -239,12 +237,18 @@
             <h2 id="shop-title">Fresh uploads from Chey's current collection.</h2>
           </div>
           <div class="filter-row" id="shopFilters" aria-label="Product filters" data-reveal hidden>
-            <button class="filter active" type="button" data-filter="all">All</button>
-            <button class="filter" type="button" data-filter="almond">Almond</button>
-            <button class="filter" type="button" data-filter="square">Square</button>
-            <button class="filter" type="button" data-filter="coffin">Coffin</button>
-            <button class="filter" type="button" data-filter="oval">Oval</button>
-            <button class="filter" type="button" data-filter="stiletto">Stiletto</button>
+            <div class="shop-filter-group" aria-label="Collection filters">
+              <button class="filter active" type="button" data-collection-filter="all">All sets</button>
+              <button class="filter" type="button" data-collection-filter="fresh-drops">Fresh Drops</button>
+            </div>
+            <div class="shop-filter-group" aria-label="Nail shape filters">
+              <button class="filter active" type="button" data-filter="all">All shapes</button>
+              <button class="filter" type="button" data-filter="almond">Almond</button>
+              <button class="filter" type="button" data-filter="square">Square</button>
+              <button class="filter" type="button" data-filter="coffin">Coffin</button>
+              <button class="filter" type="button" data-filter="oval">Oval</button>
+              <button class="filter" type="button" data-filter="stiletto">Stiletto</button>
+            </div>
             <label class="shop-filter-search">Find a set
               <input id="shopProductSearch" type="search" placeholder="Name or product number" autocomplete="off" />
             </label>

@@ -193,12 +193,17 @@ test("shop separates fresh drops from the complete inventory", async () => {
   assert.match(client, /const productCollectionOptions = \[/);
   assert.match(client, /function productCollectionFor\(product = \{\}\)/);
   assert.match(client, /\["hot-drop", "fresh-drops", "inventory"\]\.forEach/);
+  assert.match(client, /function setShopCollectionFilter\(destination = ""\)/);
+  assert.match(client, /const collectionFilter = document\.querySelector\("#shopFilters \[data-collection-filter\]\.active"\)/);
+  assert.match(client, /matchesCollection/);
   assert.match(client, /data-collection-grid/);
   assert.match(client, /collection: productCollectionFor\(product\)/);
   assert.match(client, /hotDrop: Boolean\(product\.hotDrop\)/);
   assert.match(client, /Post to Hot Drop/);
   assert.match(indexHtml, /data-shop-destination="fresh-drops"/);
-  assert.match(indexHtml, /data-shop-destination="hot-drop"/);
+  assert.match(indexHtml, /data-collection-filter="fresh-drops"/);
+  assert.doesNotMatch(indexHtml, /Shop Hot Drop/);
+  assert.doesNotMatch(indexHtml, /View Main Inventory/);
   assert.match(indexHtml, /data-shop-destination="inventory"/);
   assert.match(client, /Shop placement/);
   assert.match(styles, /\.shop-collection-grid\s*\{/);
