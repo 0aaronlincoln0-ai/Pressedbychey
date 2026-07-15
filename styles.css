@@ -3259,9 +3259,54 @@ figcaption {
   gap: 1rem;
 }
 
+.accounting-command-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 0.85rem;
+  align-items: center;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(143, 29, 81, 0.13);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 241, 248, 0.78));
+}
+
+.accounting-command-bar > div,
+.accounting-control-note {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.accounting-command-bar span,
+.accounting-command-bar small,
+.accounting-control-note span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.accounting-command-bar strong {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.25rem;
+}
+
+.accounting-control-note {
+  padding-left: 0.9rem;
+  border-left: 2px solid rgba(203, 46, 114, 0.28);
+}
+
+.accounting-control-note strong {
+  color: var(--berry);
+  font-family: inherit;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
 .accounting-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.7rem;
 }
 
@@ -3289,6 +3334,233 @@ figcaption {
   color: var(--berry);
   font-family: var(--serif);
   font-size: 1.6rem;
+}
+
+.accounting-reconciliation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 0.85rem;
+}
+
+.accounting-reconciliation-card,
+.accounting-resource-card {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid rgba(143, 29, 81, 0.12);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.accounting-reconciliation-card h4,
+.accounting-resource-card h4 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.15rem;
+}
+
+.accounting-reconciliation-card > p:not(.eyebrow),
+.accounting-resource-card > p:not(.eyebrow) {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.accounting-check-list {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.1rem;
+}
+
+.accounting-check-list span {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.accounting-check-list b {
+  display: grid;
+  flex: 0 0 1.3rem;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  background: var(--pink-100);
+  color: var(--berry);
+  font-size: 0.68rem;
+}
+
+.accounting-resource-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.accounting-resource-tags span {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid rgba(203, 46, 114, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 241, 248, 0.75);
+  color: var(--berry);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.accounting-expense-section {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid rgba(143, 29, 81, 0.12);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.accounting-expense-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+}
+
+.accounting-expense-head > div:first-child {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.accounting-expense-head h4 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.2rem;
+}
+
+.accounting-expense-head p:not(.eyebrow) {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.accounting-expense-total {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 0.2rem;
+  text-align: right;
+}
+
+.accounting-expense-total span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.accounting-expense-total strong {
+  color: var(--berry);
+  font-family: var(--serif);
+  font-size: 1.45rem;
+}
+
+.accounting-expense-form {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.65rem;
+  align-items: end;
+  padding: 0.8rem;
+  border: 1px solid rgba(143, 29, 81, 0.1);
+  border-radius: var(--radius);
+  background: rgba(255, 248, 252, 0.74);
+}
+
+.accounting-expense-form label {
+  display: grid;
+  gap: 0.28rem;
+  color: var(--berry);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.accounting-expense-form input,
+.accounting-expense-form select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.6rem;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+.accounting-expense-form .accounting-expense-memo {
+  grid-column: span 2;
+}
+
+.accounting-expense-form button {
+  min-height: 40px;
+}
+
+.accounting-expense-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.accounting-expense-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) minmax(100px, 0.6fr) auto minmax(140px, 1fr) auto;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(143, 29, 81, 0.1);
+  border-radius: calc(var(--radius) - 2px);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.accounting-expense-row > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.accounting-expense-row strong {
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.accounting-expense-row > strong {
+  color: var(--berry);
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+.accounting-expense-row span,
+.accounting-expense-row time,
+.accounting-expense-row small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accounting-expense-delete {
+  border: 0;
+  background: transparent;
+  color: var(--berry);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 900;
 }
 
 .accounting-tools {
@@ -5923,8 +6195,32 @@ figcaption {
 }
 
 @media (max-width: 1180px) {
+  .accounting-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .accounting-command-bar,
+  .accounting-reconciliation-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .accounting-control-note {
+    padding-top: 0.75rem;
+    padding-left: 0;
+    border-top: 1px solid rgba(203, 46, 114, 0.18);
+    border-left: 0;
+  }
+
   .accounting-tools {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .accounting-expense-form {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .accounting-expense-form .accounting-expense-memo {
+    grid-column: span 2;
   }
 
   .pro-notes-layout {
@@ -5968,6 +6264,11 @@ figcaption {
 }
 
 @media (max-width: 760px) {
+  .accounting-command-bar,
+  .accounting-reconciliation-grid {
+    gap: 0.65rem;
+  }
+
   .accounting-summary-grid,
   .accounting-detail-grid,
   .accounting-entry-columns {
@@ -5976,6 +6277,49 @@ figcaption {
 
   .accounting-tools {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .accounting-expense-head {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .accounting-expense-total {
+    text-align: left;
+  }
+
+  .accounting-expense-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .accounting-expense-form .accounting-expense-memo,
+  .accounting-expense-form button {
+    grid-column: 1 / -1;
+  }
+
+  .accounting-expense-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .accounting-expense-row > strong {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .accounting-expense-row > time {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .accounting-expense-row > small {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    white-space: normal;
+  }
+
+  .accounting-expense-row .accounting-expense-delete {
+    grid-column: 2;
+    grid-row: 2;
   }
 
   .accounting-tools label:first-child,
@@ -11071,8 +11415,13 @@ body.admin-inventory-open {
 }
 
 .admin-look-details {
+  display: none;
   border-top: 1px solid rgba(143, 29, 81, 0.1);
   padding: 1rem;
+}
+
+.admin-look-card[open] > .admin-look-details {
+  display: block;
 }
 
 .admin-look-editor-heading {

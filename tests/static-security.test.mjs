@@ -152,6 +152,35 @@ test("product command center uses the full responsive admin workspace", async ()
   assert.match(client, /card\.dataset\.catalogReadiness/);
 });
 
+test("product cards expand independently and support one-time sets", async () => {
+  const adminHtml = await source("admin.html");
+  const styles = await source("styles.css");
+  const client = await source("script.js");
+  assert.match(adminHtml, /<option value="one-time">One-time set<\/option>/);
+  assert.match(styles, /\.admin-look-details\s*\{[\s\S]*display:\s*none/);
+  assert.match(styles, /\.admin-look-card\[open\]\s*>\s*\.admin-look-details/);
+  assert.match(client, /function isOneTimeStock\(stock = ""\)/);
+  assert.match(client, /key: "one-time", label: "One-time set"/);
+  assert.match(client, /function inventoryQuantityInputAttributes\(item = \{\}\)/);
+});
+
+test("accounting workspace supports period review and accountant exports", async () => {
+  const adminHtml = await source("admin.html");
+  const styles = await source("styles.css");
+  const client = await source("script.js");
+  assert.match(adminHtml, /id="accountingExportCsv"/);
+  assert.match(adminHtml, /id="accountingPrint"/);
+  assert.match(adminHtml, /id="accountingReconciliationStatus"/);
+  assert.match(adminHtml, /id="accountingExpenseForm"/);
+  assert.match(styles, /\.accounting-reconciliation-grid/);
+  assert.match(styles, /\.accounting-expense-section/);
+  assert.match(styles, /\.accounting-resource-card/);
+  assert.match(client, /function accountingPeriodOrders\(\)/);
+  assert.match(client, /async function saveAccountingExpense\(event\)/);
+  assert.match(client, /function exportAccountingCsv\(\)/);
+  assert.match(client, /accountingExportCsvButton\?\.addEventListener/);
+});
+
 test("admin tab changes realign the dedicated workspace", async () => {
   const client = await source("script.js");
   const styles = await source("styles.css");

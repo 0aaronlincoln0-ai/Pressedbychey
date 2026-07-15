@@ -189,6 +189,12 @@ const accountingGrossPaid = document.querySelector("#accountingGrossPaid");
 const accountingPaidCount = document.querySelector("#accountingPaidCount");
 const accountingOutstanding = document.querySelector("#accountingOutstanding");
 const accountingEntryCount = document.querySelector("#accountingEntryCount");
+const accountingAveragePaid = document.querySelector("#accountingAveragePaid");
+const accountingToFulfill = document.querySelector("#accountingToFulfill");
+const accountingQuotePipeline = document.querySelector("#accountingQuotePipeline");
+const accountingPeriodLabel = document.querySelector("#accountingPeriodLabel");
+const accountingReconciliationStatus = document.querySelector("#accountingReconciliationStatus");
+const accountingReconciliationDetail = document.querySelector("#accountingReconciliationDetail");
 const accountingStatus = document.querySelector("#accountingStatus");
 const accountingSearch = document.querySelector("#accountingSearch");
 const accountingPaymentFilter = document.querySelector("#accountingPaymentFilter");
@@ -199,6 +205,17 @@ const accountingDateTo = document.querySelector("#accountingDateTo");
 const clearAccountingFiltersButton = document.querySelector("#clearAccountingFilters");
 const accountingShowing = document.querySelector("#accountingShowing");
 const accountingList = document.querySelector("#accountingList");
+const accountingExportCsvButton = document.querySelector("#accountingExportCsv");
+const accountingPrintButton = document.querySelector("#accountingPrint");
+const accountingExpenseForm = document.querySelector("#accountingExpenseForm");
+const accountingExpenseDate = document.querySelector("#accountingExpenseDate");
+const accountingExpenseVendor = document.querySelector("#accountingExpenseVendor");
+const accountingExpenseCategory = document.querySelector("#accountingExpenseCategory");
+const accountingExpenseAmount = document.querySelector("#accountingExpenseAmount");
+const accountingExpensePaymentMethod = document.querySelector("#accountingExpensePaymentMethod");
+const accountingExpenseMemo = document.querySelector("#accountingExpenseMemo");
+const accountingExpenseTotal = document.querySelector("#accountingExpenseTotal");
+const accountingExpenseList = document.querySelector("#accountingExpenseList");
 const resetEmail = document.querySelector("#resetEmail");
 const sendResetCode = document.querySelector("#sendResetCode");
 const resetCodeStep = document.querySelector("#resetCodeStep");
@@ -411,6 +428,7 @@ let adminState = {
   imageTransforms: {},
   products: {},
   customProducts: [],
+  accountingExpenses: [],
   lookPhotos: {},
   lookPhotoFits: {},
   lookPhotoPositions: {},
@@ -695,6 +713,7 @@ function defaultAdminState() {
     imageTransforms: {},
     products: {},
     customProducts: [],
+    accountingExpenses: [],
     skuSequence: 0,
     lookPhotos: {},
     lookPhotoFits: {},
@@ -896,6 +915,7 @@ function productCollectionOptionsMarkup(selectedValue) {
 
 const stockOptions = [
   ["Available", "In stock"],
+  ["One-time set", "One-time set"],
   ["Made to order", "Made to order"],
   ["Low stock", "Low stock"],
   ["Sold out", "Out of stock"],
@@ -903,6 +923,10 @@ const stockOptions = [
 ];
 
 const INVENTORY_LOW_STOCK_THRESHOLD = 3;
+
+function isOneTimeStock(stock = "") {
+  return /one[\s-]*time/.test(String(stock || "").trim().toLowerCase());
+}
 
 function normalizeInventoryCount(value, fallback = null) {
   if (value === null || value === undefined || String(value).trim() === "") return fallback;
@@ -913,22 +937,27 @@ function normalizeInventoryCount(value, fallback = null) {
 function defaultInventoryCountForStock(stock = "") {
   const value = String(stock || "").trim().toLowerCase();
   if (/sold\s*out|out\s*of\s*stock|unavailable/.test(value)) return 0;
+  if (isOneTimeStock(value)) return 1;
   if (/made\s*to\s*order|coming\s*soon/.test(value)) return null;
   return 10;
 }
 
 function inventoryCountFor(item = {}) {
-  return normalizeInventoryCount(item.inventoryCount, defaultInventoryCountForStock(item.stock));
+  const count = normalizeInventoryCount(item.inventoryCount, defaultInventoryCountForStock(item.stock));
+  if (isOneTimeStock(item.stock) && count !== 0) return 1;
+  return count;
 }
 
 function inventoryStateFor(item = {}) {
   const count = inventoryCountFor(item);
   if (count !== null) {
     if (count <= 0) return { key: "out-of-stock", label: "Out of stock", count };
+    if (isOneTimeStock(item.stock)) return { key: "one-time", label: "One-time set", count: 1 };
     if (count <= INVENTORY_LOW_STOCK_THRESHOLD) return { key: "low-stock", label: "Low stock", count };
     return { key: "in-stock", label: "In stock", count };
   }
   const value = String(item.stock || "Available").trim().toLowerCase();
+  if (isOneTimeStock(value)) return { key: "one-time", label: "One-time set", count: 1 };
   if (/made\s*to\s*order/.test(value)) return { key: "made-to-order", label: "Made to order", count: null };
   if (/coming\s*soon/.test(value)) return { key: "coming-soon", label: "Coming soon", count: null };
   if (/low\s*stock/.test(value)) return { key: "low-stock", label: "Low stock", count: null };
@@ -963,8 +992,15 @@ function nextGeneratedSku() {
 
 function inventoryDisplayLabel(item = {}) {
   const state = inventoryStateFor(item);
+  if (state.key === "one-time") return state.label;
   if (state.count !== null && state.key !== "out-of-stock") return `${state.label} - ${state.count} left`;
   return state.label;
+}
+
+function inventoryQuantityInputAttributes(item = {}) {
+  return isOneTimeStock(item.stock)
+    ? ' readonly title="One-time set inventory is fixed at one until it sells."'
+    : "";
 }
 
 function optionMarkup(options, selectedValue) {
@@ -1488,6 +1524,7 @@ function normalizeAdminState(saved = {}) {
           imageTransform: sanitizePhotoTransform(product.imageTransform)
         }))
       : [],
+    accountingExpenses: Array.isArray(saved.accountingExpenses) ? saved.accountingExpenses : [],
     skuSequence: Math.max(0, Math.floor(Number(saved.skuSequence) || 0)),
     lookPhotos: saved.lookPhotos || {},
     lookPhotoFits: normalizePhotoFitMap(saved.lookPhotoFits || {}),
@@ -2747,7 +2784,7 @@ function renderAdminInventoryPanel() {
                 </span>
               </label>
               <label>Units in stock
-                <input type="number" min="0" step="1" inputmode="numeric" data-inventory-index="${look.index}" data-inventory-field="inventoryCount" value="${inventoryCountFor(look) ?? ""}" placeholder="Made to order" />
+                <input type="number" min="0" step="1" inputmode="numeric" data-inventory-index="${look.index}" data-inventory-field="inventoryCount" value="${inventoryCountFor(look) ?? ""}" placeholder="Made to order"${inventoryQuantityInputAttributes(look)} />
               </label>
               <label>Badge
                 <input data-inventory-index="${look.index}" data-inventory-field="tag" value="${escapeAttribute(look.tag)}" placeholder="New from Chey" />
@@ -6942,6 +6979,118 @@ function accountingDateRange() {
   if (preset === "custom") return { start: localDateInputToDate(accountingDateFrom?.value), end: localDateInputToDate(accountingDateTo?.value, true) };
   return { start: null, end: null };
 }
+
+function accountingPeriodOrders() {
+  const range = accountingDateRange();
+  return accountingOrders.filter((order) => {
+    const date = orderDateForFiltering(order);
+    if (range.start && (!date || date < range.start)) return false;
+    if (range.end && (!date || date >= range.end)) return false;
+    return true;
+  });
+}
+
+function accountingPeriodLabelText() {
+  const preset = accountingDateFilter?.value || "all";
+  if (preset === "today") return "Today";
+  if (preset === "7") return "Last 7 days";
+  if (preset === "30") return "Last 30 days";
+  if (preset === "custom") {
+    const from = accountingDateFrom?.value || "Open start";
+    const to = accountingDateTo?.value || "Open end";
+    return `${from} to ${to}`;
+  }
+  return "All recorded activity";
+}
+
+function normalizedAccountingExpenses() {
+  return (Array.isArray(adminState.accountingExpenses) ? adminState.accountingExpenses : []).map((expense, index) => ({
+    id: String(expense?.id || `expense-${index + 1}`),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(String(expense?.date || "")) ? String(expense.date) : "",
+    vendor: String(expense?.vendor || "").trim().slice(0, 100),
+    category: String(expense?.category || "Other operating").trim().slice(0, 80),
+    amount: normalizeMoneyValue(expense?.amount),
+    paymentMethod: String(expense?.paymentMethod || "Other").trim().slice(0, 60),
+    memo: String(expense?.memo || "").trim().slice(0, 240),
+    createdAt: expense?.createdAt || ""
+  })).filter((expense) => expense.date && expense.vendor && moneyNumber(expense.amount) > 0);
+}
+
+function accountingExpensesForPeriod() {
+  const range = accountingDateRange();
+  return normalizedAccountingExpenses().filter((expense) => {
+    const date = new Date(`${expense.date}T12:00:00`);
+    if (range.start && date < range.start) return false;
+    if (range.end && date >= range.end) return false;
+    return true;
+  }).sort((left, right) => right.date.localeCompare(left.date));
+}
+
+function renderAccountingExpenses() {
+  if (!accountingExpenseList) return;
+  const expenses = accountingExpensesForPeriod();
+  const total = expenses.reduce((sum, expense) => sum + moneyNumber(expense.amount), 0);
+  if (accountingExpenseTotal) accountingExpenseTotal.textContent = `$${total.toFixed(2)}`;
+  accountingExpenseList.innerHTML = expenses.length
+    ? expenses.map((expense) => `
+      <article class="accounting-expense-row">
+        <div><strong>${escapeHTML(expense.vendor)}</strong><span>${escapeHTML(expense.category)} - ${escapeHTML(expense.paymentMethod)}</span></div>
+        <time datetime="${escapeAttribute(expense.date)}">${escapeHTML(expense.date)}</time>
+        <strong>$${escapeHTML(moneyNumber(expense.amount).toFixed(2))}</strong>
+        <small>${escapeHTML(expense.memo || "No memo saved")}</small>
+        ${canAdminDelete() ? `<button type="button" class="accounting-expense-delete" data-accounting-expense-delete="${escapeAttribute(expense.id)}" aria-label="Delete ${escapeAttribute(expense.vendor)} expense">Delete</button>` : ""}
+      </article>
+    `).join("")
+    : '<div class="accounting-empty"><strong>No expenses logged for this period</strong><span>Add supplies, software, fees, and other operating costs above.</span></div>';
+}
+
+async function saveAccountingExpense(event) {
+  event.preventDefault();
+  const date = accountingExpenseDate?.value || "";
+  const vendor = accountingExpenseVendor?.value.trim() || "";
+  const amount = normalizeMoneyValue(accountingExpenseAmount?.value || "");
+  if (!date || !vendor || moneyNumber(amount) <= 0) {
+    if (accountingStatus) accountingStatus.textContent = "Add a date, vendor, and expense amount before saving.";
+    return;
+  }
+  adminState.accountingExpenses = [
+    {
+      id: `expense-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      date,
+      vendor,
+      category: accountingExpenseCategory?.value || "Other operating",
+      amount,
+      paymentMethod: accountingExpensePaymentMethod?.value || "Other",
+      memo: accountingExpenseMemo?.value.trim() || "",
+      createdAt: new Date().toISOString()
+    },
+    ...normalizedAccountingExpenses()
+  ];
+  renderAccountingExpenses();
+  const result = await saveAdminState({
+    statusTarget: accountingStatus,
+    savingMessage: "Saving expense to the private books...",
+    successMessage: "Expense saved to the private accounting register."
+  });
+  if (result.ok) {
+    accountingExpenseForm.reset();
+    if (accountingExpenseDate) accountingExpenseDate.value = new Date().toISOString().slice(0, 10);
+    renderAccountingExpenses();
+  }
+}
+
+async function deleteAccountingExpense(id) {
+  if (!id || !canAdminDelete()) return;
+  const expense = normalizedAccountingExpenses().find((item) => item.id === id);
+  if (!expense || !window.confirm(`Delete the ${expense.vendor} expense record?`)) return;
+  adminState.accountingExpenses = normalizedAccountingExpenses().filter((item) => item.id !== id);
+  renderAccountingExpenses();
+  await saveAdminState({
+    statusTarget: accountingStatus,
+    savingMessage: "Removing expense from the private books...",
+    successMessage: "Expense removed from the private accounting register."
+  });
+}
 function accountingFilteredOrders() {
   const search = String(accountingSearch?.value || "").trim().toLowerCase();
   const payment = accountingPaymentFilter?.value || "all";
@@ -6977,16 +7126,59 @@ function accountingRecordMarkup(order = {}) {
 }
 function renderAccounting() {
   if (!accountingList) return;
-  const paidOrders = accountingOrders.filter((order) => isPaidOrderRecord(order));
+  renderAccountingExpenses();
+  const periodOrders = accountingPeriodOrders();
+  const paidOrders = periodOrders.filter((order) => isPaidOrderRecord(order));
   const grossPaid = paidOrders.reduce((sum, order) => sum + orderDisplayTotalCents(order), 0);
-  const outstanding = accountingOrders.filter((order) => !isPaidOrderRecord(order)).reduce((sum, order) => sum + orderDisplayTotalCents(order), 0);
+  const outstanding = periodOrders.filter((order) => !isPaidOrderRecord(order)).reduce((sum, order) => sum + orderDisplayTotalCents(order), 0);
+  const paidToFulfill = paidOrders.filter((order) => !["Completed", "Canceled"].includes(orderWorkflowStatus(order))).length;
+  const quotePipeline = periodOrders
+    .filter((order) => orderHasCustomQuote(order) && !isPaidOrderRecord(order))
+    .reduce((sum, order) => sum + quoteAmountCents(order), 0);
   const orders = accountingFilteredOrders();
   if (accountingGrossPaid) accountingGrossPaid.textContent = formatOrderMoney(grossPaid);
   if (accountingPaidCount) accountingPaidCount.textContent = String(paidOrders.length);
   if (accountingOutstanding) accountingOutstanding.textContent = formatOrderMoney(outstanding);
-  if (accountingEntryCount) accountingEntryCount.textContent = String(accountingOrders.length);
+  if (accountingEntryCount) accountingEntryCount.textContent = String(periodOrders.length);
+  if (accountingAveragePaid) accountingAveragePaid.textContent = formatOrderMoney(paidOrders.length ? Math.round(grossPaid / paidOrders.length) : 0);
+  if (accountingToFulfill) accountingToFulfill.textContent = String(paidToFulfill);
+  if (accountingQuotePipeline) accountingQuotePipeline.textContent = formatOrderMoney(quotePipeline);
+  if (accountingPeriodLabel) accountingPeriodLabel.textContent = accountingPeriodLabelText();
+  if (accountingReconciliationStatus) accountingReconciliationStatus.textContent = periodOrders.length ? (paidToFulfill || quotePipeline ? "Review before close" : "Ready for review") : "No records in period";
+  if (accountingReconciliationDetail) accountingReconciliationDetail.textContent = periodOrders.length
+    ? `${paidToFulfill} paid order${paidToFulfill === 1 ? "" : "s"} still need fulfillment review and ${quotePipeline ? formatOrderMoney(quotePipeline) : "$0.00"} remains in priced quote pipeline.`
+    : "Choose another period or refresh the ledger when transactions are available.";
   if (accountingShowing) accountingShowing.textContent = `${orders.length} record${orders.length === 1 ? "" : "s"}`;
   accountingList.innerHTML = orders.length ? orders.map(accountingRecordMarkup).join("") : '<div class="accounting-empty"><strong>No accounting records match</strong><span>Adjust the filters or refresh the ledger.</span></div>';
+}
+
+function accountingCsvCell(value = "") {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+function exportAccountingCsv() {
+  const rows = accountingFilteredOrders();
+  const headers = ["Date", "Order ID", "Customer", "Email", "Payment", "Fulfillment", "Currency", "Amount", "Paid At", "Stripe Reference", "Items"];
+  const csv = [headers, ...rows.map((order) => [
+    orderDateSummary(order),
+    order.id || "",
+    orderCustomerName(order),
+    order.customerEmail || order.customer?.email || order.shipping?.email || "",
+    orderPaymentStatusLabel(order),
+    orderWorkflowStatus(order),
+    String(order.currency || "usd").toUpperCase(),
+    (orderDisplayTotalCents(order) / 100).toFixed(2),
+    order.paidAt ? formatOrderDate(order.paidAt) : "",
+    order.stripeSessionId || "",
+    (order.items || []).map((item) => `${item?.name || "Item"} x${item?.quantity || 1}`).join(" | ")
+  ])].map((row) => row.map(accountingCsvCell).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `pressed-by-chey-accounting-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  if (accountingStatus) accountingStatus.textContent = `${rows.length} accounting record${rows.length === 1 ? "" : "s"} exported.`;
 }
 async function fetchAccounting({ showStatus = true } = {}) {
   if (!isAdminSignedIn()) return;
@@ -7424,6 +7616,14 @@ adminDashboardSummary?.addEventListener("click", (event) => {
   navigateFromAdminSummary(summaryButton);
 });
 refreshAccountingButton?.addEventListener("click", () => fetchAccounting());
+accountingExportCsvButton?.addEventListener("click", exportAccountingCsv);
+accountingPrintButton?.addEventListener("click", () => window.print());
+accountingExpenseForm?.addEventListener("submit", saveAccountingExpense);
+accountingExpenseList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-accounting-expense-delete]");
+  if (button) deleteAccountingExpense(button.dataset.accountingExpenseDelete);
+});
+if (accountingExpenseDate && !accountingExpenseDate.value) accountingExpenseDate.value = new Date().toISOString().slice(0, 10);
 accountingSearch?.addEventListener("input", renderAccounting);
 [accountingPaymentFilter, accountingDateFilter, accountingSort].forEach((filter) => filter?.addEventListener("change", renderAccounting));
 [accountingDateFrom, accountingDateTo].forEach((input) => input?.addEventListener("change", () => {
@@ -9569,6 +9769,11 @@ function renderAdminLookPhotos() {
         <div class="admin-field-row">
           <label>Price <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].price) || "")}" inputmode="decimal" placeholder="45" data-look-detail="${index}" data-look-field="price" /></label>
           <label>Style <input value="${escapeAttribute((adminState.lookDetails[index] && adminState.lookDetails[index].finish) || "")}" placeholder="chrome, aura, french" data-look-detail="${index}" data-look-field="finish" /></label>
+          <label>Stock/status
+            <select data-look-detail="${index}" data-look-field="stock">
+              ${optionMarkup(stockOptions, look.stock || "Available")}
+            </select>
+          </label>
         </div>
         <div class="admin-field-row">
           <label>Product number
@@ -9577,7 +9782,7 @@ function renderAdminLookPhotos() {
               <button class="sku-generate-button" type="button" data-generate-look-sku="${index}" title="Generate the next SKU">Generate</button>
             </span>
           </label>
-          <label>Units in stock <input type="number" min="0" step="1" inputmode="numeric" value="${inventoryCountFor(look) ?? ""}" placeholder="Made to order" data-look-detail="${index}" data-look-field="inventoryCount" /></label>
+          <label>Units in stock <input type="number" min="0" step="1" inputmode="numeric" value="${inventoryCountFor(look) ?? ""}" placeholder="Made to order" data-look-detail="${index}" data-look-field="inventoryCount"${inventoryQuantityInputAttributes(look)} /></label>
         </div>
         <label>Shop placement
           <select data-look-detail="${index}" data-look-field="collection">
@@ -9802,7 +10007,7 @@ function renderAdminProducts() {
               <button class="sku-generate-button" type="button" data-generate-custom-product-sku="${index}" title="Generate the next SKU">Generate</button>
             </span>
           </label>
-          <label>Units in stock <input type="number" min="0" step="1" inputmode="numeric" data-custom-product="${index}" data-field="inventoryCount" value="${inventoryCountFor(product) ?? ""}" placeholder="Made to order" /></label>
+          <label>Units in stock <input type="number" min="0" step="1" inputmode="numeric" data-custom-product="${index}" data-field="inventoryCount" value="${inventoryCountFor(product) ?? ""}" placeholder="Made to order"${inventoryQuantityInputAttributes(product)} /></label>
         </div>
         <label>Shop placement
           <select data-custom-product="${index}" data-field="collection">
@@ -11557,7 +11762,7 @@ function renderCustomProducts() {
               </select>
             </label>
             <label>Units in stock
-              <input type="number" min="0" step="1" inputmode="numeric" data-inline-product-index="${index}" data-inline-product-input="inventoryCount" value="${inventoryCountFor(product) ?? ""}" placeholder="Made to order" />
+              <input type="number" min="0" step="1" inputmode="numeric" data-inline-product-index="${index}" data-inline-product-input="inventoryCount" value="${inventoryCountFor(product) ?? ""}" placeholder="Made to order"${inventoryQuantityInputAttributes(product)} />
             </label>
             <label>Nail shape
               <select data-inline-product-index="${index}" data-inline-product-input="category">

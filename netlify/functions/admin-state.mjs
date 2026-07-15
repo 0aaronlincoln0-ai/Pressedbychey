@@ -36,6 +36,7 @@ function defaultAdminState() {
     imageTransforms: {},
     products: {},
     customProducts: [],
+    accountingExpenses: [],
     lookPhotos: {},
     lookPhotoFits: {},
     lookPhotoPositions: {},
@@ -158,6 +159,7 @@ function normalizeAdminState(saved = {}) {
     imageTransforms: saved.imageTransforms || {},
     products: saved.products || {},
     customProducts: Array.isArray(saved.customProducts) ? saved.customProducts : [],
+    accountingExpenses: Array.isArray(saved.accountingExpenses) ? saved.accountingExpenses : [],
     lookPhotos: saved.lookPhotos || {},
     lookPhotoFits: saved.lookPhotoFits || {},
     lookPhotoPositions: saved.lookPhotoPositions || {},
@@ -191,14 +193,15 @@ function withoutPrivateCatalogIdentifiers(value = {}) {
 }
 
 export function publicAdminState(state) {
+  const { accountingExpenses: _privateAccountingExpenses, ...safeState } = state;
   return {
-    ...state,
-    customProducts: (state.customProducts || []).map(withoutPrivateCatalogIdentifiers),
+    ...safeState,
+    customProducts: (safeState.customProducts || []).map(withoutPrivateCatalogIdentifiers),
     lookDetails: Object.fromEntries(
-      Object.entries(state.lookDetails || {}).map(([key, value]) => [key, withoutPrivateCatalogIdentifiers(value)])
+      Object.entries(safeState.lookDetails || {}).map(([key, value]) => [key, withoutPrivateCatalogIdentifiers(value)])
     ),
     products: Object.fromEntries(
-      Object.entries(state.products || {}).map(([key, value]) => [key, withoutPrivateCatalogIdentifiers(value)])
+      Object.entries(safeState.products || {}).map(([key, value]) => [key, withoutPrivateCatalogIdentifiers(value)])
     ),
     ideas: [],
     proNotes: []
@@ -212,7 +215,7 @@ function isAuthorized(request) {
 function stateRemovesRecords(previous = {}, next = {}) {
   const objectCollections = ["images", "products", "lookPhotos", "lookPhotoFits", "lookPhotoPositions", "lookPhotoZooms", "lookPhotoTransforms", "lookDetails"];
   if (objectCollections.some((key) => Object.keys(previous[key] || {}).some((entry) => !Object.prototype.hasOwnProperty.call(next[key] || {}, entry)))) return true;
-  return ["customProducts", "ideas", "proNotes", "customPages", "customBlocks"].some((key) => Array.isArray(next[key]) && Array.isArray(previous[key]) && next[key].length < previous[key].length);
+  return ["customProducts", "accountingExpenses", "ideas", "proNotes", "customPages", "customBlocks"].some((key) => Array.isArray(next[key]) && Array.isArray(previous[key]) && next[key].length < previous[key].length);
 }
 
 export default async (request) => {

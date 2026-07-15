@@ -246,6 +246,7 @@
               <select id="shopStockFilter">
                 <option value="all">All stock</option>
                 <option value="in-stock">In stock</option>
+                <option value="one-time">One-time set</option>
                 <option value="low-stock">Low stock</option>
                 <option value="out-of-stock">Out of stock</option>
                 <option value="made-to-order">Made to order</option>
@@ -818,20 +819,91 @@
             <div class="admin-section-title">
               <div>
                 <p class="eyebrow">Finance workspace</p>
-                <h3>Purchase History &amp; Payments</h3>
-                <p>Review sales, outstanding payments, quotes, and customer purchase history from one organized ledger.</p>
+                <h3>Accounting &amp; Reconciliation</h3>
+                <p>Keep payment history, revenue review, fulfillment exposure, and month-end work together in one controlled ledger.</p>
               </div>
               <div class="admin-section-actions">
                 <button type="button" id="refreshAccounting">Refresh Ledger</button>
+                <button type="button" id="accountingExportCsv">Export CSV</button>
+                <button type="button" id="accountingPrint">Print Report</button>
               </div>
+            </div>
+            <div class="accounting-command-bar">
+              <div>
+                <span>Reporting period</span>
+                <strong id="accountingPeriodLabel">All recorded activity</strong>
+                <small>Use the date controls below to work a close period or review a payout window.</small>
+              </div>
+              <div class="accounting-control-note"><strong>Control point</strong><span>Paid records are read from the live order ledger and duplicate transaction identities are removed before reporting.</span></div>
             </div>
             <div class="accounting-summary-grid" aria-label="Accounting summary">
               <article><span>Gross paid</span><strong id="accountingGrossPaid">$0.00</strong><small>Paid transactions in the ledger</small></article>
               <article><span>Paid orders</span><strong id="accountingPaidCount">0</strong><small>Completed checkout payments</small></article>
               <article><span>Outstanding</span><strong id="accountingOutstanding">$0.00</strong><small>Unpaid and pending order value</small></article>
               <article><span>Ledger entries</span><strong id="accountingEntryCount">0</strong><small>Orders and quote requests</small></article>
+              <article><span>Average paid order</span><strong id="accountingAveragePaid">$0.00</strong><small>Gross paid divided by paid orders</small></article>
+              <article><span>Paid to fulfill</span><strong id="accountingToFulfill">0</strong><small>Paid orders not yet completed</small></article>
+              <article><span>Quote pipeline</span><strong id="accountingQuotePipeline">$0.00</strong><small>Priced quotes not yet paid</small></article>
             </div>
             <p class="admin-status" id="accountingStatus" role="status"></p>
+            <div class="accounting-reconciliation-grid">
+              <section class="accounting-reconciliation-card">
+                <div>
+                  <p class="eyebrow">Month-end control</p>
+                  <h4 id="accountingReconciliationStatus">Ready for review</h4>
+                </div>
+                <p id="accountingReconciliationDetail">Refresh the ledger to calculate the current reconciliation workload.</p>
+                <div class="accounting-check-list" aria-label="Reconciliation checkpoints">
+                  <span><b aria-hidden="true">1</b> Match paid orders to the payment processor payout report.</span>
+                  <span><b aria-hidden="true">2</b> Review paid orders still awaiting fulfillment.</span>
+                  <span><b aria-hidden="true">3</b> Record fees, supplies, and owner draws in the bookkeeping system.</span>
+                </div>
+              </section>
+              <section class="accounting-resource-card">
+                <p class="eyebrow">Accountant resources</p>
+                <h4>Close the period with clean support</h4>
+                <p>Use the exported CSV as the transaction support file, then attach payout statements, processor fees, supply receipts, and tax workpapers to the matching period.</p>
+                <div class="accounting-resource-tags"><span>Revenue support</span><span>AR follow-up</span><span>Tax-ready trail</span></div>
+              </section>
+            </div>
+            <section class="accounting-expense-section" aria-labelledby="accountingExpenseTitle">
+              <div class="accounting-expense-head">
+                <div>
+                  <p class="eyebrow">Private books workspace</p>
+                  <h4 id="accountingExpenseTitle">Operating expense register</h4>
+                  <p>Log supplies, software, shipping, contractor costs, and other business expenses for the selected reporting period.</p>
+                </div>
+                <div class="accounting-expense-total"><span>Logged expenses</span><strong id="accountingExpenseTotal">$0.00</strong></div>
+              </div>
+              <form class="accounting-expense-form" id="accountingExpenseForm">
+                <label>Date <input id="accountingExpenseDate" type="date" required /></label>
+                <label>Vendor <input id="accountingExpenseVendor" placeholder="Vendor or payee" maxlength="100" required /></label>
+                <label>Category
+                  <select id="accountingExpenseCategory">
+                    <option>Supplies &amp; materials</option>
+                    <option>Software &amp; subscriptions</option>
+                    <option>Shipping &amp; delivery</option>
+                    <option>Marketing &amp; advertising</option>
+                    <option>Contractors &amp; labor</option>
+                    <option>Bank &amp; processing fees</option>
+                    <option>Office &amp; equipment</option>
+                    <option>Other operating</option>
+                  </select>
+                </label>
+                <label>Amount <input id="accountingExpenseAmount" inputmode="decimal" placeholder="0.00" required /></label>
+                <label>Paid with
+                  <select id="accountingExpensePaymentMethod">
+                    <option>Business card</option>
+                    <option>Business checking</option>
+                    <option>Cash</option>
+                    <option>Other</option>
+                  </select>
+                </label>
+                <label class="accounting-expense-memo">Memo <input id="accountingExpenseMemo" placeholder="Receipt reference or business purpose" maxlength="240" /></label>
+                <button class="button primary" type="submit">Add Expense</button>
+              </form>
+              <div class="accounting-expense-list" id="accountingExpenseList"></div>
+            </section>
             <div class="accounting-tools" aria-label="Accounting filters">
               <label>Search
                 <input id="accountingSearch" type="search" placeholder="Customer, email, order ID, SKU" />
@@ -1066,6 +1138,7 @@
               <select id="adminProductStockFilter">
                 <option value="all">All stock states</option>
                 <option value="in-stock">In stock</option>
+                <option value="one-time">One-time set</option>
                 <option value="low-stock">Low stock</option>
                 <option value="out-of-stock">Out of stock</option>
                 <option value="made-to-order">Made to order</option>

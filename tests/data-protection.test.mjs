@@ -18,11 +18,13 @@ test("public catalog state strips private maker notes and idea boards", () => {
     lookDetails: { 0: { copy: "Public copy", privateNotes: "do not expose" } },
     products: { 0: { name: "Rose Luxe", adminNote: "private" } },
     ideas: [{ name: "Unreleased collection" }],
-    proNotes: [{ body: "Customer follow-up" }]
+    proNotes: [{ body: "Customer follow-up" }],
+    accountingExpenses: [{ vendor: "Private supplier", amount: "120" }]
   });
   assert.deepEqual(publicState.customProducts, [{ name: "Rose Luxe" }]);
   assert.deepEqual(publicState.lookDetails, { 0: { copy: "Public copy" } });
   assert.deepEqual(publicState.products, { 0: { name: "Rose Luxe" } });
   assert.deepEqual(publicState.ideas, []);
   assert.deepEqual(publicState.proNotes, []);
+  assert.equal(Object.prototype.hasOwnProperty.call(publicState, "accountingExpenses"), false);
 });
