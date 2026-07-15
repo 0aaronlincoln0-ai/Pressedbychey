@@ -109,6 +109,7 @@ test("the secondary owner keeps permanent owner capabilities", async () => {
   const sharedAuth = await source("netlify/functions/_shared/admin-auth.mjs");
   const client = await source("script.js");
   assert.match(sharedAuth, /SECONDARY_OWNER_EMAIL = "0aaronlincoln0@gmail\.com"/);
+  assert.match(sharedAuth, /CHEY_SECONDARY_OWNER_PASSWORD/);
   assert.match(sharedAuth, /OWNER_EMAILS/);
   assert.match(client, /0aaronlincoln0@gmail\.com/);
   assert.match(client, /ADMIN_OWNER_EMAILS/);

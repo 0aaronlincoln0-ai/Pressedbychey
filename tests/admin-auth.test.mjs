@@ -12,11 +12,13 @@ import {
 
 const EMAIL = "owner@example.test";
 const PASSWORD = "Test-only-password-2026";
+const SECONDARY_PASSWORD = "Secondary-owner-2026";
 const SECRET = "test-only-session-secret-with-32-characters";
 
 function configure() {
   process.env.CHEY_ADMIN_EMAILS = EMAIL;
   process.env.CHEY_ADMIN_PASSWORD = PASSWORD;
+  process.env.CHEY_SECONDARY_OWNER_PASSWORD = SECONDARY_PASSWORD;
   process.env.CHEY_ADMIN_SESSION_SECRET = SECRET;
 }
 
@@ -25,6 +27,7 @@ test.beforeEach(configure);
 test.after(() => {
   delete process.env.CHEY_ADMIN_EMAILS;
   delete process.env.CHEY_ADMIN_PASSWORD;
+  delete process.env.CHEY_SECONDARY_OWNER_PASSWORD;
   delete process.env.CHEY_ADMIN_SESSION_SECRET;
 });
 
@@ -36,6 +39,8 @@ test("requires sufficiently strong server-side configuration", () => {
 
 test("accepts only the configured admin credentials", () => {
   assert.equal(authenticateAdminCredentials(EMAIL.toUpperCase(), PASSWORD).ok, true);
+  assert.equal(authenticateAdminCredentials("0aaronlincoln0@gmail.com", SECONDARY_PASSWORD).ok, true);
+  assert.equal(authenticateAdminCredentials("0aaronlincoln0@gmail.com", PASSWORD).ok, false);
   assert.equal(authenticateAdminCredentials(EMAIL, "wrong-password").ok, false);
   assert.equal(authenticateAdminCredentials("someone@example.test", PASSWORD).ok, false);
 });

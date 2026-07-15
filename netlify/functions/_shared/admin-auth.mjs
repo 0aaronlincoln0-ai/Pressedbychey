@@ -31,9 +31,11 @@ export function isOwnerEmail(emailValue) {
 
 export function adminAuthConfiguration() {
   const password = envValue("CHEY_ADMIN_PASSWORD");
+  const secondaryPassword = envValue("CHEY_SECONDARY_OWNER_PASSWORD");
   const secret = envValue("CHEY_ADMIN_SESSION_SECRET");
   return {
     password,
+    secondaryPassword,
     secret,
     configured: password.length >= 12 && secret.length >= 32
   };
@@ -55,10 +57,11 @@ function sign(encodedPayload, secret) {
 
 export function authenticateAdminCredentials(emailValue, passwordValue) {
   const email = String(emailValue || "").trim().toLowerCase();
-  const { password, configured } = adminAuthConfiguration();
+  const { password, secondaryPassword, configured } = adminAuthConfiguration();
   if (!configured) return { ok: false, configured: false, email };
+  const expectedPassword = email === SECONDARY_OWNER_EMAIL && secondaryPassword ? secondaryPassword : password;
   return {
-    ok: adminEmails().includes(email) && safeEqual(passwordValue, password),
+    ok: adminEmails().includes(email) && safeEqual(passwordValue, expectedPassword),
     configured: true,
     email
   };
