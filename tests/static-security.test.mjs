@@ -134,6 +134,9 @@ test("admin tab changes realign the dedicated workspace", async () => {
   assert.match(client, /adminPage\.scrollIntoView\(\{ block: "start", behavior: "auto" \}\)/);
   assert.match(client, /autoGrowTextareas\(\);\s*alignAdminWorkspace\(\);/);
   assert.match(styles, /\.admin-dedicated-page \.admin-page[\s\S]*scroll-margin-top: 92px/);
+  assert.match(styles, /\.admin-dedicated-page \.admin-view-tabs\s*\{[\s\S]*grid-row: 2/);
+  assert.match(styles, /\.admin-dedicated-page \.admin-view-panel\s*\{[\s\S]*grid-row: 2/);
+  assert.match(styles, /\.admin-dedicated-page \.admin-header,[\s\S]*grid-row: auto/);
 });
 
 test("admin messages provide a direct customer picker", async () => {

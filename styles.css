@@ -5313,20 +5313,26 @@ figcaption {
   display: grid;
   grid-template-columns: 264px minmax(0, 1fr);
   align-items: start;
+  align-content: start;
   gap: 1rem;
 }
 
 .admin-dedicated-page .admin-header {
   min-width: 0;
+  grid-row: 1;
 }
 
 .admin-dedicated-page .admin-view-tabs {
   grid-column: 1;
+  grid-row: 2;
   min-width: 0;
+  align-self: start;
 }
 
 .admin-dedicated-page .admin-view-panel {
   grid-column: 2;
+  grid-row: 2;
+  align-self: start;
   width: 100%;
   min-width: 0;
 }
@@ -5805,9 +5811,11 @@ figcaption {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .admin-dedicated-page .admin-header,
   .admin-dedicated-page .admin-view-tabs,
   .admin-dedicated-page .admin-view-panel {
     grid-column: 1;
+    grid-row: auto;
   }
 
   .admin-dedicated-page .admin-view-tabs {
