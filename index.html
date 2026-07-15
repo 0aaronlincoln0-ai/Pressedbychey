@@ -29,6 +29,7 @@
           <a href="#home" data-page-link="home">Home</a>
           <a href="#shop" data-page-link="shop">Shop</a>
           <a href="#reviews" data-page-link="reviews">Reviews</a>
+          <a href="#account" id="messagesNav" data-open-messages hidden>Messages <span class="messages-nav-badge" id="messagesNavBadge" hidden>0</span></a>
           <a href="admin.html" id="adminNav" hidden>Admin</a>
         </nav>
         <button class="account-button" type="button">Account</button>
@@ -374,6 +375,24 @@
                     <p class="account-section-intro">Favorites remain available in the profile editor.</p>
                     <button class="button secondary wide" type="button" id="customerAccountFavoritesOpen">Open Favorites</button>
                   </section>
+                  <section class="account-section customer-message-section" id="customerMessagesSection">
+                    <div class="customer-section-heading">
+                      <div>
+                        <h3>Message Chey</h3>
+                        <p class="account-section-intro">Ask about a fit, a custom design, an order, or your next set.</p>
+                      </div>
+                      <span id="customerMessagesStatus">Live support</span>
+                    </div>
+                    <div class="customer-message-thread" id="customerMessageThread" aria-live="polite"></div>
+                    <form class="customer-message-form" id="customerMessageForm">
+                      <label class="sr-only" for="customerMessageInput">Message Chey</label>
+                      <textarea id="customerMessageInput" maxlength="2400" placeholder="Write a message for Chey..." required></textarea>
+                      <div class="customer-message-form-footer">
+                        <span>Chey will see this in her Messages inbox.</span>
+                        <button class="button primary" type="submit" id="customerMessageSend">Send Message</button>
+                      </div>
+                    </form>
+                  </section>
                 </div>
               </section>
             </div>
@@ -532,6 +551,11 @@
         </section>
       </div>
     </aside>
+    <button class="message-bubble" id="messageBubble" type="button" aria-label="Open messages" hidden>
+      <span class="message-bubble-icon" aria-hidden="true">&#9993;</span>
+      <span>Messages</span>
+      <strong id="messageBubbleBadge" hidden>0</strong>
+    </button>
     <section class="section admin-page" id="adminPage" hidden tabindex="-1" aria-label="Admin dashboard">
       <div class="admin-editor">
         <div class="admin-header">
@@ -544,6 +568,7 @@
         </div>
         <div class="admin-view-tabs" aria-label="Admin pages">
           <button class="active" type="button" data-admin-view="orders">Orders Dashboard</button>
+          <button type="button" data-admin-view="messages">Messages <span class="admin-messages-tab-badge" id="adminMessagesTabBadge" hidden>0</span></button>
           <button type="button" data-admin-view="products">Products</button>
           <button type="button" data-admin-view="site">Site Editor</button>
           <button type="button" data-admin-view="ideas">Design Studio</button>
@@ -636,6 +661,38 @@
           <section class="admin-section admin-publish-note">
             <h3>Daily order workflow</h3>
             <p>Use each order card to move the order from <strong>Needs review</strong> to <strong>Making</strong>, <strong>Packing</strong>, <strong>Shipped</strong>, or <strong>Completed</strong>. Chey's private notes stay with the order.</p>
+          </section>
+        </div>
+        <div class="admin-view-panel" id="adminMessagesView" data-admin-view-panel="messages" hidden>
+          <section class="admin-section admin-messages-section">
+            <div class="admin-section-title">
+              <div>
+                <h3>Customer Messages</h3>
+                <p>Keep every customer conversation, order question, and custom-design update in one place.</p>
+              </div>
+              <div class="admin-section-actions">
+                <button type="button" id="refreshAdminMessages">Refresh Messages</button>
+              </div>
+            </div>
+            <p class="admin-status" id="adminMessagesStatus" role="status"></p>
+            <div class="admin-message-layout">
+              <aside class="admin-conversation-list" id="adminConversationList" aria-label="Customer conversations"></aside>
+              <section class="admin-conversation-panel" aria-label="Selected conversation">
+                <div class="admin-conversation-heading" id="adminConversationHeading">
+                  <strong>Select a customer</strong>
+                  <span>Messages will appear here.</span>
+                </div>
+                <div class="admin-message-thread" id="adminMessageThread" aria-live="polite"></div>
+                <form class="admin-message-form" id="adminMessageForm">
+                  <label class="sr-only" for="adminMessageInput">Message customer</label>
+                  <textarea id="adminMessageInput" maxlength="2400" placeholder="Select a customer to reply..." required disabled></textarea>
+                  <div class="admin-message-form-footer">
+                    <span>Replies appear on the customer account page.</span>
+                    <button class="button primary" type="submit" id="adminMessageSend" disabled>Send Reply</button>
+                  </div>
+                </form>
+              </section>
+            </div>
           </section>
         </div>
         <div class="admin-view-panel" id="adminProductsView" data-admin-view-panel="products" hidden>
@@ -969,6 +1026,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260714-dedicated-admin-route"></script>
+    <script src="script.js?v=20260714-live-customer-messages"></script>
   </body>
 </html>

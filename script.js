@@ -132,6 +132,24 @@ const adminSessionCard = document.querySelector("#adminSessionCard");
 const adminContinueEditing = document.querySelector("#adminContinueEditing");
 const adminOpenOrders = document.querySelector("#adminOpenOrders");
 const adminExitMode = document.querySelector("#adminExitMode");
+const messagesNav = document.querySelector("#messagesNav");
+const messagesNavBadge = document.querySelector("#messagesNavBadge");
+const messageBubble = document.querySelector("#messageBubble");
+const messageBubbleBadge = document.querySelector("#messageBubbleBadge");
+const customerMessagesStatus = document.querySelector("#customerMessagesStatus");
+const customerMessageThread = document.querySelector("#customerMessageThread");
+const customerMessageForm = document.querySelector("#customerMessageForm");
+const customerMessageInput = document.querySelector("#customerMessageInput");
+const customerMessageSend = document.querySelector("#customerMessageSend");
+const adminMessagesStatus = document.querySelector("#adminMessagesStatus");
+const refreshAdminMessagesButton = document.querySelector("#refreshAdminMessages");
+const adminConversationList = document.querySelector("#adminConversationList");
+const adminConversationHeading = document.querySelector("#adminConversationHeading");
+const adminMessageThread = document.querySelector("#adminMessageThread");
+const adminMessageForm = document.querySelector("#adminMessageForm");
+const adminMessageInput = document.querySelector("#adminMessageInput");
+const adminMessageSend = document.querySelector("#adminMessageSend");
+const adminMessagesTabBadge = document.querySelector("#adminMessagesTabBadge");
 const resetEmail = document.querySelector("#resetEmail");
 const sendResetCode = document.querySelector("#sendResetCode");
 const resetCodeStep = document.querySelector("#resetCodeStep");
@@ -263,6 +281,7 @@ const STRIPE_CHECKOUT_STATUS_ENDPOINT = "/.netlify/functions/checkout-status";
 const ADMIN_ORDERS_ENDPOINT = "/.netlify/functions/admin-orders";
 const CUSTOMER_ACCOUNT_ENDPOINT = "/.netlify/functions/customer-account";
 const CUSTOM_REQUEST_ENDPOINT = "/.netlify/functions/custom-request";
+const MESSAGES_ENDPOINT = "/.netlify/functions/messages";
 const CHECKOUT_PENDING_ORDER_KEY = "pressedByCheyPendingCheckoutOrder";
 const nailSizeOptions = ["", "000", "00", "0", "0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
 const sizeFingerKeys = ["thumb", "index", "middle", "ring", "pinky"];
@@ -271,6 +290,7 @@ const CUSTOM_ORDER_MAX_PHOTO_SIZE = 1600;
 const LIVE_REQUEST_TIMEOUT_MS = 18000;
 const ADMIN_ORDER_REFRESH_MS = 10000;
 const CUSTOMER_QUOTE_REFRESH_MS = 5000;
+const CUSTOMER_MESSAGE_REFRESH_MS = 10000;
 const ADMIN_ORDER_PAGE_SIZE = 25;
 const PRO_NOTE_PAGE_SIZE = 12;
 let customerState = {
@@ -287,8 +307,14 @@ let selectedAdminOrderId = "";
 let proNotePage = 1;
 const expandedProNoteIds = new Set();
 let adminLiveOrderRefreshTimer = null;
+let adminMessageRefreshTimer = null;
 let customerQuoteRefreshTimer = null;
+let customerMessageRefreshTimer = null;
 let adminSession = null;
+let customerConversation = null;
+let adminConversations = [];
+let activeAdminMessageEmail = "";
+let activeAdminConversation = null;
 let adminState = {
   texts: {},
   images: {},
@@ -3058,6 +3084,14 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const messageLink = event.target.closest("[data-open-messages]");
+  if (messageLink) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    openCustomerMessages();
+    return;
+  }
+
   const link = event.target.closest("[data-page-link]");
   if (!link) return;
   if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -3673,8 +3707,268 @@ function stopCustomerQuoteRefresh() {
 }
 
 function syncCustomerQuoteRefresh() {
-  if (customerAccountViewIsOpen() && currentCustomer()) startCustomerQuoteRefresh();
-  else stopCustomerQuoteRefresh();
+  const shouldRefreshMessages = currentCustomer() && !isAdminSignedIn();
+  const shouldRefreshQuotes = customerAccountViewIsOpen() && currentCustomer() && !isAdminSignedIn();
+  if (shouldRefreshQuotes) {
+    startCustomerQuoteRefresh();
+  } else {
+    stopCustomerQuoteRefresh();
+  }
+  if (shouldRefreshMessages) startCustomerMessageRefresh();
+  else stopCustomerMessageRefresh();
+}
+
+function messageDateLabel(value = "") {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function customerMessagePassword() {
+  const user = currentCustomer();
+  return customerSessionPasswords.get(String(user?.email || "").toLowerCase()) || "";
+}
+
+async function customerMessagesRequest(action, payload = {}) {
+  const user = currentCustomer();
+  const password = customerMessagePassword();
+  if (!user?.email || !password) throw new Error("Sign in again to access messages.");
+  const { response, payload: data } = await fetchJsonWithTimeout(MESSAGES_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, email: user.email, password, ...payload })
+  });
+  if (!response.ok || data?.ok === false) throw new Error(data?.error || "Messages are temporarily unavailable.");
+  return data;
+}
+
+async function adminMessagesRequest(action, payload = {}) {
+  const { response, payload: data } = await fetchJsonWithTimeout(MESSAGES_ENDPOINT, {
+    method: "POST",
+    headers: adminRemoteWriteHeaders(),
+    body: JSON.stringify({ action, ...payload })
+  });
+  if (!response.ok || data?.ok === false) throw new Error(data?.error || "Messages are temporarily unavailable.");
+  return data;
+}
+
+function messageCountLabel(count = 0) {
+  const value = Math.max(0, Number(count || 0));
+  return `${value} new message${value === 1 ? "" : "s"}`;
+}
+
+function renderMessageChrome() {
+  const signedCustomer = Boolean(currentCustomer() && !isAdminSignedIn());
+  const unread = Math.max(0, Number(customerConversation?.customerUnread || 0));
+  const showCustomerMessageControls = signedCustomer && !IS_ADMIN_PAGE;
+  if (messagesNav) messagesNav.hidden = !showCustomerMessageControls;
+  if (messageBubble) messageBubble.hidden = !showCustomerMessageControls;
+  [messagesNavBadge, messageBubbleBadge].forEach((badge) => {
+    if (!badge) return;
+    badge.hidden = unread === 0;
+    badge.textContent = unread > 99 ? "99+" : String(unread);
+  });
+}
+
+function messageThreadMarkup(conversation, emptyLabel = "Your conversation with Chey will appear here.") {
+  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+  if (!messages.length) return `<div class="message-thread-empty"><strong>No messages yet</strong><span>${escapeHTML(emptyLabel)}</span></div>`;
+  return messages.map((message) => `
+    <article class="message-bubble-row ${message.sender === "customer" ? "is-customer" : "is-chey"}">
+      <div class="message-bubble-card">
+        <span>${message.sender === "customer" ? "You" : "Chey"}</span>
+        <p>${escapeHTML(message.body)}</p>
+        <small>${escapeHTML(messageDateLabel(message.createdAt))}</small>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderCustomerMessages() {
+  const user = currentCustomer();
+  renderMessageChrome();
+  if (!customerMessageThread || !customerMessageForm) return;
+  const hasAccess = Boolean(user && customerMessagePassword());
+  customerMessageThread.innerHTML = user
+    ? messageThreadMarkup(customerConversation, hasAccess ? "Send Chey a message about your order or design." : "Sign in again to load your live conversation.")
+    : `<div class="message-thread-empty"><strong>Sign in to message Chey</strong><span>Your customer account keeps your conversation and order updates together.</span></div>`;
+  if (customerMessageInput) {
+    customerMessageInput.disabled = !hasAccess;
+    customerMessageInput.placeholder = hasAccess ? "Write a message for Chey..." : "Sign in again to message Chey...";
+  }
+  if (customerMessageSend) customerMessageSend.disabled = !hasAccess;
+  if (customerMessagesStatus) {
+    const unread = Number(customerConversation?.customerUnread || 0);
+    customerMessagesStatus.textContent = unread ? messageCountLabel(unread) : (hasAccess ? "Live support" : "Sign in required");
+  }
+}
+
+async function refreshCustomerMessages({ silent = true } = {}) {
+  if (!currentCustomer() || isAdminSignedIn()) {
+    renderCustomerMessages();
+    return;
+  }
+  try {
+    const data = await customerMessagesRequest("get");
+    customerConversation = data.conversation || null;
+    renderCustomerMessages();
+    if (customerAccountPageIsOpen() && Number(customerConversation?.customerUnread || 0) > 0) {
+      const readData = await customerMessagesRequest("mark-read");
+      customerConversation = readData.conversation || customerConversation;
+      renderCustomerMessages();
+    }
+  } catch (error) {
+    if (!silent && customerMessagesStatus) customerMessagesStatus.textContent = error.message || "Messages unavailable";
+    renderCustomerMessages();
+  }
+}
+
+function startCustomerMessageRefresh() {
+  if (customerMessageRefreshTimer) return;
+  refreshCustomerMessages();
+  customerMessageRefreshTimer = window.setInterval(() => refreshCustomerMessages(), CUSTOMER_MESSAGE_REFRESH_MS);
+}
+
+function stopCustomerMessageRefresh() {
+  if (!customerMessageRefreshTimer) return;
+  window.clearInterval(customerMessageRefreshTimer);
+  customerMessageRefreshTimer = null;
+}
+
+function openCustomerMessages() {
+  if (!currentCustomer()) {
+    showSitePage("account", { updateHash: true, behavior: "auto", force: true });
+    openAccount("Sign in to message Chey and receive live order updates.");
+    return;
+  }
+  showSitePage("account", { updateHash: true, behavior: "auto", force: true });
+  requestAnimationFrame(() => {
+    document.querySelector("#customerMessagesSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    refreshCustomerMessages({ silent: false });
+  });
+}
+
+async function sendCustomerMessage(event) {
+  event.preventDefault();
+  const body = customerMessageInput?.value.trim() || "";
+  if (!body || !customerMessagePassword()) return;
+  if (customerMessageSend) customerMessageSend.disabled = true;
+  try {
+    const data = await customerMessagesRequest("send", { body });
+    customerConversation = data.conversation || customerConversation;
+    if (customerMessageInput) customerMessageInput.value = "";
+    renderCustomerMessages();
+    customerMessageThread?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } catch (error) {
+    if (customerMessagesStatus) customerMessagesStatus.textContent = error.message || "Message could not be sent.";
+  } finally {
+    if (customerMessageSend) customerMessageSend.disabled = false;
+  }
+}
+
+function adminUnreadMessageCount() {
+  return adminConversations.reduce((total, conversation) => total + Number(conversation.adminUnread || 0), 0);
+}
+
+function renderAdminMessageList() {
+  if (!adminConversationList) return;
+  adminConversationList.innerHTML = adminConversations.length
+    ? adminConversations.map((conversation) => `
+      <button class="admin-conversation-item ${conversation.email === activeAdminMessageEmail ? "is-active" : ""}" type="button" data-admin-conversation-email="${escapeAttribute(conversation.email)}">
+        <span class="admin-conversation-item-head"><strong>${escapeHTML(conversation.name || conversation.email)}</strong>${conversation.adminUnread ? `<b>${conversation.adminUnread > 99 ? "99+" : conversation.adminUnread}</b>` : ""}</span>
+        <small>${escapeHTML(conversation.email)}</small>
+        <p>${escapeHTML(conversation.lastMessage?.body || "No messages yet")}</p>
+        <time>${escapeHTML(messageDateLabel(conversation.updatedAt))}</time>
+      </button>
+    `).join("")
+    : `<div class="message-thread-empty"><strong>No customer conversations yet</strong><span>New customer messages will appear here.</span></div>`;
+  if (adminMessagesTabBadge) {
+    const unread = adminUnreadMessageCount();
+    adminMessagesTabBadge.hidden = unread === 0;
+    adminMessagesTabBadge.textContent = unread > 99 ? "99+" : String(unread);
+  }
+}
+
+function renderAdminMessageThread() {
+  if (!adminConversationHeading || !adminMessageThread) return;
+  if (!activeAdminConversation) {
+    adminConversationHeading.innerHTML = "<strong>Select a customer</strong><span>Messages will appear here.</span>";
+    adminMessageThread.innerHTML = `<div class="message-thread-empty"><strong>Your customer-care inbox is ready</strong><span>Select a conversation to reply with fit help, order updates, or design guidance.</span></div>`;
+    if (adminMessageInput) adminMessageInput.disabled = true;
+    if (adminMessageSend) adminMessageSend.disabled = true;
+    return;
+  }
+  adminConversationHeading.innerHTML = `<strong>${escapeHTML(activeAdminConversation.name || activeAdminConversation.email)}</strong><span>${escapeHTML(activeAdminConversation.email)}</span>`;
+  adminMessageThread.innerHTML = messageThreadMarkup(activeAdminConversation, "Start the conversation with a helpful note from Chey.");
+  if (adminMessageInput) {
+    adminMessageInput.disabled = false;
+    adminMessageInput.placeholder = "Reply to this customer...";
+  }
+  if (adminMessageSend) adminMessageSend.disabled = false;
+  adminMessageThread.lastElementChild?.scrollIntoView({ block: "nearest" });
+}
+
+async function fetchAdminConversation(email) {
+  if (!email || !isAdminSignedIn()) return;
+  activeAdminMessageEmail = email;
+  renderAdminMessageList();
+  if (adminMessagesStatus) adminMessagesStatus.textContent = "Loading conversation...";
+  try {
+    let data = await adminMessagesRequest("get", { email });
+    activeAdminConversation = data.conversation || null;
+    if (Number(activeAdminConversation?.adminUnread || 0) > 0) {
+      data = await adminMessagesRequest("mark-read", { email });
+      activeAdminConversation = data.conversation || activeAdminConversation;
+    }
+    adminConversations = adminConversations.map((conversation) => conversation.email === email
+      ? { ...conversation, adminUnread: 0, updatedAt: activeAdminConversation.updatedAt, lastMessage: activeAdminConversation.messages.at(-1) || conversation.lastMessage }
+      : conversation);
+    renderAdminMessageList();
+    renderAdminMessageThread();
+    if (adminMessagesStatus) adminMessagesStatus.textContent = "Live inbox";
+  } catch (error) {
+    if (adminMessagesStatus) adminMessagesStatus.textContent = error.message || "Conversation unavailable.";
+  }
+}
+
+async function fetchAdminMessages({ showStatus = true } = {}) {
+  if (!isAdminSignedIn()) return;
+  if (showStatus && adminMessagesStatus) adminMessagesStatus.textContent = "Loading messages...";
+  try {
+    const data = await adminMessagesRequest("list");
+    adminConversations = Array.isArray(data.conversations) ? data.conversations : [];
+    const nextEmail = adminConversations.some((conversation) => conversation.email === activeAdminMessageEmail)
+      ? activeAdminMessageEmail
+      : (adminConversations.find((conversation) => conversation.adminUnread > 0)?.email || adminConversations[0]?.email || "");
+    renderAdminMessageList();
+    if (nextEmail) await fetchAdminConversation(nextEmail);
+    else {
+      activeAdminMessageEmail = "";
+      activeAdminConversation = null;
+      renderAdminMessageThread();
+      if (adminMessagesStatus) adminMessagesStatus.textContent = "Live inbox";
+    }
+  } catch (error) {
+    if (adminMessagesStatus) adminMessagesStatus.textContent = error.message || "Messages unavailable.";
+  }
+}
+
+async function sendAdminMessage(event) {
+  event.preventDefault();
+  const body = adminMessageInput?.value.trim() || "";
+  if (!body || !activeAdminMessageEmail) return;
+  if (adminMessageSend) adminMessageSend.disabled = true;
+  try {
+    const data = await adminMessagesRequest("send", { email: activeAdminMessageEmail, body });
+    activeAdminConversation = data.conversation || activeAdminConversation;
+    if (adminMessageInput) adminMessageInput.value = "";
+    renderAdminMessageThread();
+    await fetchAdminMessages({ showStatus: false });
+  } catch (error) {
+    if (adminMessagesStatus) adminMessagesStatus.textContent = error.message || "Reply could not be sent.";
+  } finally {
+    if (adminMessageSend) adminMessageSend.disabled = false;
+  }
 }
 
 function renderAccount() {
@@ -3830,7 +4124,10 @@ function customerOrderPageMarkup(order = {}) {
 }
 
 function renderCustomerAccountPage() {
-  if (!customerQuoteList || !customerOrderPageList) return;
+  if (!customerQuoteList || !customerOrderPageList) {
+    renderCustomerMessages();
+    return;
+  }
   const user = currentCustomer();
   if (!user) {
     customerQuoteList.innerHTML = `
@@ -3843,6 +4140,7 @@ function renderCustomerAccountPage() {
     customerOrderPageList.innerHTML = "";
     if (customerAccountSizingSummary) customerAccountSizingSummary.textContent = "Sign in to see saved sizing.";
     if (customerQuoteRefreshStamp) customerQuoteRefreshStamp.textContent = "Live sync paused";
+    renderCustomerMessages();
     return;
   }
   const orders = user.orders || [];
@@ -3865,6 +4163,7 @@ function renderCustomerAccountPage() {
     `;
   if (customerAccountSizingSummary) customerAccountSizingSummary.textContent = customerSizesSummary(user);
   if (customerQuoteRefreshStamp) customerQuoteRefreshStamp.textContent = `Live sync on - ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  renderCustomerMessages();
 }
 
 async function registerCustomer() {
@@ -5502,6 +5801,16 @@ function stopAdminLiveOrderAutoRefresh() {
 function syncAdminLiveOrderAutoRefresh() {
   if (shouldRefreshAdminLiveOrders()) startAdminLiveOrderAutoRefresh();
   else stopAdminLiveOrderAutoRefresh();
+  const messagesPanel = document.querySelector('[data-admin-view-panel="messages"]');
+  const shouldRefreshMessages = Boolean(isAdminSignedIn() && adminPage && !adminPage.hidden && messagesPanel && !messagesPanel.hidden && document.visibilityState === "visible");
+  if (shouldRefreshMessages) {
+    if (!adminMessageRefreshTimer) {
+      adminMessageRefreshTimer = window.setInterval(() => fetchAdminMessages({ showStatus: false }), CUSTOMER_MESSAGE_REFRESH_MS);
+    }
+  } else if (adminMessageRefreshTimer) {
+    window.clearInterval(adminMessageRefreshTimer);
+    adminMessageRefreshTimer = null;
+  }
 }
 
 function orderUpdateFromForm(orderId) {
@@ -5716,6 +6025,14 @@ customerLogout.addEventListener("click", logoutCustomer);
 adminContinueEditing?.addEventListener("click", showAdminPage);
 adminOpenOrders?.addEventListener("click", showAdminOrdersPage);
 adminExitMode?.addEventListener("click", logoutAdmin);
+messageBubble?.addEventListener("click", openCustomerMessages);
+customerMessageForm?.addEventListener("submit", sendCustomerMessage);
+adminMessageForm?.addEventListener("submit", sendAdminMessage);
+refreshAdminMessagesButton?.addEventListener("click", () => fetchAdminMessages({ showStatus: true }));
+adminConversationList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-conversation-email]");
+  if (button) fetchAdminConversation(button.dataset.adminConversationEmail);
+});
 customOrderPhoto?.addEventListener("change", handleCustomOrderPhotoUpload);
 customOrderPhotoRemove?.addEventListener("click", clearCustomOrderPhoto);
 customOrderSubmit?.addEventListener("click", submitCustomOrderRequest);
@@ -6404,6 +6721,7 @@ function switchAdminView(view) {
     panel.hidden = panel.dataset.adminViewPanel !== view;
   });
   if (view === "orders") fetchAdminLiveOrders();
+  if (view === "messages") fetchAdminMessages();
   if (view === "notes") renderProNotes();
   syncAdminLiveOrderAutoRefresh();
   autoGrowTextareas();

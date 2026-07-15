@@ -2502,6 +2502,154 @@ figcaption {
   align-items: start;
 }
 
+.customer-message-section {
+  grid-column: 1 / -1;
+}
+
+.customer-message-thread,
+.admin-message-thread {
+  display: grid;
+  gap: 0.7rem;
+  min-height: 150px;
+  max-height: 420px;
+  padding: 0.8rem;
+  overflow: auto;
+  border: 1px solid rgba(143, 29, 81, 0.12);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 249, 252, 0.96), rgba(255, 255, 255, 0.9));
+}
+
+.message-thread-empty {
+  display: grid;
+  place-content: center;
+  gap: 0.35rem;
+  min-height: 120px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.message-thread-empty strong {
+  color: var(--ink);
+}
+
+.message-thread-empty span {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.message-bubble-row {
+  display: flex;
+}
+
+.message-bubble-row.is-customer {
+  justify-content: flex-end;
+}
+
+.message-bubble-card {
+  width: min(78%, 560px);
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(143, 29, 81, 0.12);
+  border-radius: 16px 16px 16px 5px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.message-bubble-row.is-customer .message-bubble-card {
+  border-color: rgba(203, 46, 114, 0.18);
+  border-radius: 16px 16px 5px 16px;
+  background: linear-gradient(135deg, rgba(255, 226, 238, 0.96), rgba(255, 245, 249, 0.94));
+}
+
+.message-bubble-card span,
+.message-bubble-card small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.message-bubble-card p {
+  margin: 0.3rem 0;
+  color: var(--ink);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.customer-message-form,
+.admin-message-form {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.8rem;
+}
+
+.customer-message-form textarea,
+.admin-message-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.customer-message-form-footer,
+.admin-message-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.customer-message-form-footer span,
+.admin-message-form-footer span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.message-bubble {
+  position: fixed;
+  right: clamp(1rem, 3vw, 2rem);
+  bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 50px;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--berry), var(--pink-600));
+  color: white;
+  box-shadow: 0 16px 34px rgba(143, 29, 81, 0.3);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.message-bubble:hover {
+  transform: translateY(-2px);
+}
+
+.message-bubble-icon {
+  font-size: 1.1rem;
+}
+
+.message-bubble strong,
+.messages-nav-badge,
+.admin-messages-tab-badge {
+  display: inline-grid;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  place-items: center;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 950;
+}
+
+.admin-messages-tab-badge {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--berry);
+}
+
 .customer-quote-section {
   grid-row: span 3;
 }
@@ -3520,7 +3668,7 @@ figcaption {
 
   .admin-dedicated-page .admin-view-tabs {
     position: static;
-    grid-template-columns: repeat(5, minmax(132px, 1fr));
+    grid-template-columns: repeat(6, minmax(132px, 1fr));
     overflow-x: auto;
   }
 
@@ -4053,7 +4201,7 @@ figcaption {
 
 .admin-view-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.6rem;
 }
 
@@ -4076,6 +4224,112 @@ figcaption {
 .admin-view-panel {
   display: grid;
   gap: 1rem;
+}
+
+.admin-messages-section {
+  min-width: 0;
+}
+
+.admin-message-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.35fr) minmax(0, 1fr);
+  gap: 1rem;
+  min-width: 0;
+}
+
+.admin-conversation-list {
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  max-height: 660px;
+  overflow: auto;
+  padding: 0.55rem;
+  border: 1px solid rgba(143, 29, 81, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 250, 252, 0.78);
+}
+
+.admin-conversation-item {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-conversation-item:hover,
+.admin-conversation-item.is-active {
+  border-color: rgba(203, 46, 114, 0.22);
+  background: rgba(255, 226, 238, 0.62);
+}
+
+.admin-conversation-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.admin-conversation-item-head b {
+  display: inline-grid;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--pink-600);
+  color: white;
+  font-size: 0.68rem;
+}
+
+.admin-conversation-item small,
+.admin-conversation-item time {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.admin-conversation-item p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.admin-conversation-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 420px;
+  padding: 0.8rem;
+  border: 1px solid rgba(143, 29, 81, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.admin-conversation-heading {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.35rem 0.35rem 0.75rem;
+}
+
+.admin-conversation-heading span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.admin-message-thread {
+  min-height: 280px;
+  max-height: none;
 }
 
 .admin-dedicated-page .site-shell {
@@ -8696,6 +8950,10 @@ body.admin-inventory-open {
     grid-template-columns: 1fr;
   }
 
+  .customer-message-section {
+    grid-column: auto;
+  }
+
   .customer-quote-section {
     grid-row: auto;
   }
@@ -8811,6 +9069,29 @@ body.admin-inventory-open {
   .admin-dedicated-page .admin-view-tabs {
     position: static;
     grid-template-columns: 1fr;
+  }
+
+  .admin-message-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-conversation-list {
+    max-height: 260px;
+  }
+
+  .admin-conversation-panel {
+    min-height: 0;
+  }
+
+  .customer-message-form-footer,
+  .admin-message-form-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .customer-message-form-footer .button,
+  .admin-message-form-footer .button {
+    width: 100%;
   }
 
   .pro-note-summary,
