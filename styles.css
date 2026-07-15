@@ -6446,41 +6446,23 @@ body::after {
   content: none;
 }
 
-.page-book.is-page-switching {
-  animation: pageBookGlow 420ms ease both;
-}
-
 .site-page.page-transition-in {
-  animation: pageTabEnter 420ms cubic-bezier(0.2, 0.86, 0.2, 1) both;
+  animation: pageTabEnter 160ms cubic-bezier(0.2, 0.86, 0.2, 1) both;
+  will-change: opacity, transform;
 }
 
 @keyframes pageTabEnter {
   from {
-    opacity: 0;
-    filter: blur(8px) saturate(0.96);
-    transform: translateY(18px) scale(0.992);
+    opacity: 0.01;
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    filter: blur(0) saturate(1);
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes pageBookGlow {
-  0% {
-    filter: drop-shadow(0 0 0 rgba(203, 46, 114, 0));
-  }
-  45% {
-    filter: drop-shadow(0 18px 34px rgba(203, 46, 114, 0.1));
-  }
-  100% {
-    filter: drop-shadow(0 0 0 rgba(203, 46, 114, 0));
+    transform: translateY(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-book.is-page-switching,
   .site-page.page-transition-in {
     animation: none;
   }

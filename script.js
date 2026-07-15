@@ -1735,18 +1735,14 @@ function finishPageTransition(nextPage) {
   });
   if (shouldAnimate) {
     nextPage.classList.add("page-transition-in");
-    pageBook?.classList.add("is-page-switching");
     pageTransitionTimer = window.setTimeout(() => {
       nextPage.classList.remove("page-transition-in");
-      pageBook?.classList.remove("is-page-switching");
-    }, 420);
-  } else {
-    pageBook?.classList.remove("is-page-switching");
+    }, 180);
   }
   updateBookStatus(nextPage.dataset.pagePanel || currentPageKey);
 }
 
-function lockPageNavigation(duration = 760) {
+function lockPageNavigation(duration = 180) {
   isPageNavigationLocked = true;
   window.clearTimeout(pageNavigationLockTimer);
   pageNavigationLockTimer = window.setTimeout(() => {
@@ -1779,7 +1775,7 @@ function showSitePage(pageKey, options = {}) {
   } else {
     syncCustomerQuoteRefresh();
   }
-  lockPageNavigation(force ? 80 : 760);
+  lockPageNavigation(force ? 0 : 180);
 
   if (updateHash && window.location.hash !== `#${resolvedKey}`) {
     history.replaceState(null, "", `#${resolvedKey}`);
@@ -3060,7 +3056,7 @@ document.addEventListener("click", (event) => {
   const pageKey = link.dataset.pageLink;
   if (!pageKey) return;
   event.preventDefault();
-  showSitePage(pageKey, { updateHash: true, behavior: "smooth" });
+  showSitePage(pageKey, { updateHash: true, behavior: "auto" });
 });
 document.addEventListener("focusin", (event) => {
   if (!textEditMode || !isAdminSignedIn()) return;
