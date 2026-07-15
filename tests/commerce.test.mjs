@@ -7,6 +7,7 @@ import {
   validateLineItems,
   validateQuoteCheckout
 } from "../netlify/functions/create-checkout-session.mjs";
+import { isQuoteOrder } from "../netlify/functions/admin-orders.mjs";
 import { eventKey, verifySignature } from "../netlify/functions/stripe-webhook.mjs";
 
 const ORIGIN = "https://www.pressedbychey.com";
@@ -76,6 +77,20 @@ test("custom quotes require the requesting customer and a payable amount", () =>
   assert.equal(validateQuoteCheckout({ quoteOrder: quote, customer: { email: "customer@example.test" } })[0].unitAmount, 4200);
   assert.throws(() => validateQuoteCheckout({ quoteOrder: quote, customer: { email: "other@example.test" } }), /Sign in/);
   assert.throws(() => validateQuoteCheckout({ quoteOrder: { ...quote, paymentStatus: "paid" }, customer: quote.customer }), /already paid/);
+});
+
+test("normal paid shop purchases are not classified as quotes by stale quote fields", () => {
+  const shopOrder = {
+    status: "complete",
+    paymentStatus: "paid",
+    total: 100,
+    quoteStatus: "Paid",
+    items: [{ name: "Beachside Bliss", customOrder: false }]
+  };
+  assert.equal(isQuoteOrder(shopOrder), false);
+  assert.equal(isQuoteOrder({ ...shopOrder, quoteAmount: 4200 }), false);
+  assert.equal(isQuoteOrder({ ...shopOrder, status: "quote_request", quoteAmount: 4200 }), true);
+  assert.equal(isQuoteOrder({ ...shopOrder, items: [{ name: "Custom set", customOrder: true }] }), true);
 });
 
 test("Stripe signatures enforce authenticity and a five-minute replay window", () => {

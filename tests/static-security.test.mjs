@@ -179,6 +179,7 @@ test("accounting workspace supports period review and accountant exports", async
   assert.match(client, /async function saveAccountingExpense\(event\)/);
   assert.match(client, /function exportAccountingCsv\(\)/);
   assert.match(client, /accountingExportCsvButton\?\.addEventListener/);
+  assert.match(client, /no quote requests are pending/);
 });
 
 test("admin tab changes realign the dedicated workspace", async () => {
@@ -252,6 +253,8 @@ test("shop separates fresh drops from the complete inventory", async () => {
   const styles = await source("styles.css");
   assert.match(client, /const productCollectionOptions = \[/);
   assert.match(client, /function productCollectionFor\(product = \{\}\)/);
+  assert.ok(client.includes('.replace(/[\\s_]+/g, "-"'));
+  assert.match(client, /return \/\^fresh-drops\?\$\/\.test\(value\)/);
   assert.match(client, /\["hot-drop", "fresh-drops", "inventory"\]\.forEach/);
   assert.match(client, /function setShopCollectionFilter\(destination = ""\)/);
   assert.match(client, /const collectionFilter = document\.querySelector\("#shopFilters \[data-collection-filter\]\.active"\)/);
@@ -371,4 +374,29 @@ test("admin messages provide a direct customer picker", async () => {
   assert.match(styles, /\.chat-new-message-button/);
   assert.match(styles, /-webkit-overflow-scrolling:\s*touch/);
   assert.match(styles, /\.chat-composer textarea[\s\S]*font-size:\s*16px/);
+});
+
+test("quote delivery uses a structured messenger action and secure checkout", async () => {
+  const client = await source("script.js");
+  const messages = await source("netlify/functions/messages.mjs");
+  const checkout = await source("netlify/functions/create-checkout-session.mjs");
+  assert.match(client, /data-pay-message-quote/);
+  assert.match(client, /customerMessagesRequest\("accept-quote"/);
+  assert.match(client, /adminMessagesRequest\("send-quote"/);
+  assert.match(messages, /kind: "quote"/);
+  assert.match(messages, /action === "send-quote"/);
+  assert.match(messages, /action === "accept-quote"/);
+  assert.match(checkout, /quoteOrderId/);
+  assert.match(checkout, /quoteStatus: "Accepted"/);
+});
+
+test("hot drop checkbox keeps a visible interactive state", async () => {
+  const client = await source("script.js");
+  const styles = await source("styles.css");
+  assert.match(client, /class="admin-hot-drop-toggle"><input type="checkbox"/);
+  assert.match(styles, /\.admin-hot-drop-toggle input\[type="checkbox"\]\s*\{/);
+  assert.match(styles, /\.admin-hot-drop-toggle input\[type="checkbox"\]:hover/);
+  assert.match(styles, /\.admin-hot-drop-toggle input\[type="checkbox"\]:checked/);
+  assert.match(styles, /input\[type="checkbox"\]:hover\s*\{/);
+  assert.match(styles, /background: #ffffff/);
 });

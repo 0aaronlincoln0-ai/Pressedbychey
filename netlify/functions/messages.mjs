@@ -4,6 +4,7 @@ import { verifyAdminCapability, verifyAdminRequest } from "./_shared/admin-auth.
 
 const STORE_NAME = "pressed-by-chey";
 const MESSAGE_PREFIX = "messages";
+const ORDER_PREFIX = "orders";
 const PRESENCE_PREFIX = "presence";
 const PRESENCE_TTL_MS = 45_000;
 const MAX_MESSAGE_LENGTH = 2400;
@@ -31,6 +32,10 @@ function normalizeEmail(value = "") {
 
 function conversationKey(email) {
   return `${MESSAGE_PREFIX}/${encodeURIComponent(email)}.json`;
+}
+
+function orderKey(orderId) {
+  return `${ORDER_PREFIX}/${orderId}.json`;
 }
 
 function presenceKey(role, email = "") {
@@ -117,7 +122,15 @@ function normalizeConversation(value, email = "") {
       sender: message?.sender === "chey" ? "chey" : "customer",
       body: safeText(message?.body, MAX_MESSAGE_LENGTH),
       createdAt: message?.createdAt || new Date().toISOString(),
-      readAt: message?.readAt || ""
+      readAt: message?.readAt || "",
+      kind: message?.kind === "quote" ? "quote" : "text",
+      orderId: safeText(message?.orderId, 120),
+      quoteAmount: Math.max(0, Math.round(Number(message?.quoteAmount || 0))),
+      quoteCurrency: safeText(message?.quoteCurrency || "usd", 12).toLowerCase(),
+      quoteStatus: ["Quoted", "Accepted", "Paid", "Declined", "Canceled"].includes(message?.quoteStatus)
+        ? message.quoteStatus
+        : message?.kind === "quote" ? "Quoted" : "",
+      acceptedAt: message?.acceptedAt || ""
     })).filter((message) => message.body)
   };
 }
@@ -205,6 +218,40 @@ function appendMessage(conversation, sender, body) {
   else conversation.adminUnread += 1;
 }
 
+function appendQuoteMessage(conversation, payload = {}) {
+  const orderId = safeText(payload.orderId, 120);
+  const quoteAmount = Math.max(0, Math.round(Number(payload.quoteAmount || 0)));
+  if (!orderId || !/^pbc-\d+-[a-z0-9-]+$/i.test(orderId)) throw new Error("A valid quote order is required.");
+  if (!quoteAmount) throw new Error("A quote amount is required.");
+  const body = safeText(payload.body || `Chey sent you a quote for $${(quoteAmount / 100).toFixed(2)}. Review it below to accept and pay securely.`, MAX_MESSAGE_LENGTH);
+  const now = new Date().toISOString();
+  conversation.messages.push({
+    id: randomUUID(),
+    sender: "chey",
+    body,
+    createdAt: now,
+    readAt: "",
+    kind: "quote",
+    orderId,
+    quoteAmount,
+    quoteCurrency: safeText(payload.quoteCurrency || "usd", 12).toLowerCase(),
+    quoteStatus: "Quoted"
+  });
+  conversation.messages = conversation.messages.slice(-MAX_MESSAGES_PER_CONVERSATION);
+  conversation.updatedAt = now;
+  conversation.customerUnread += 1;
+}
+
+function acceptQuoteMessage(conversation, messageId) {
+  const message = conversation.messages.find((item) => item.id === messageId && item.kind === "quote");
+  if (!message) throw new Error("Quote message not found.");
+  if (["Declined", "Canceled"].includes(message.quoteStatus)) throw new Error("This quote is no longer available.");
+  if (message.quoteStatus !== "Paid") message.quoteStatus = "Accepted";
+  message.acceptedAt = new Date().toISOString();
+  conversation.updatedAt = new Date().toISOString();
+  return message;
+}
+
 function removeMessage(conversation, messageId, sender) {
   const index = conversation.messages.findIndex((message) => message.id === messageId);
   if (index < 0) throw new Error("Message not found.");
@@ -245,6 +292,27 @@ export default async (request) => {
       return jsonResponse({ error: "A valid customer email is required." }, { status: 400 });
     }
     const conversation = await readConversation(store, email, payload?.name);
+    if (action === "send-quote") {
+      const orderId = safeText(payload?.orderId, 120);
+      if (!/^pbc-\d+-[a-z0-9-]+$/i.test(orderId)) {
+        return jsonResponse({ error: "A valid quote order is required." }, { status: 400 });
+      }
+      const order = await store.get(orderKey(orderId), { type: "json" });
+      const orderEmail = normalizeEmail(order?.customer?.email || order?.customerEmail);
+      if (!order) return jsonResponse({ error: "Quote order was not found." }, { status: 404 });
+      if (!orderEmail || orderEmail !== email) return jsonResponse({ error: "Quote recipient does not match the order." }, { status: 403 });
+      const quoteAmount = Math.max(0, Math.round(Number(order.quoteAmount || 0)));
+      if (!quoteAmount) return jsonResponse({ error: "Save a quote amount before sending it." }, { status: 400 });
+      appendQuoteMessage(conversation, {
+        ...payload,
+        orderId,
+        quoteAmount,
+        quoteCurrency: order.currency || "usd",
+        body: order.quoteMessage || payload.body
+      });
+      await saveConversation(store, conversation);
+      return jsonResponse(await conversationResponse(store, conversation));
+    }
     if (action === "delete-conversation") {
       const deleteSession = await verifyAdminCapability(request, "delete");
       if (!deleteSession?.canDelete) {
@@ -289,6 +357,15 @@ export default async (request) => {
 
   const conversation = await readConversation(store, email, customer.name);
   conversation.name = safeText(customer.name || conversation.name, 100);
+  if (action === "accept-quote") {
+    try {
+      acceptQuoteMessage(conversation, safeText(payload?.messageId, 80));
+    } catch (error) {
+      return jsonResponse({ error: error.message }, { status: error.message === "Quote message not found." ? 404 : 409 });
+    }
+    await saveConversation(store, conversation);
+    return jsonResponse(await conversationResponse(store, conversation));
+  }
   if (action === "delete-conversation") {
     await store.delete(conversationKey(email));
     return jsonResponse({ ok: true, deleted: true, email });

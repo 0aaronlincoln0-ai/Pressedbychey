@@ -25,7 +25,19 @@ function orderKey(orderId) {
   return `${ORDER_PREFIX}/${orderId}.json`;
 }
 
+export function isQuoteOrder(order = {}) {
+  const status = String(order.status || "").trim().toLowerCase();
+  const hasCustomQuoteItem = Array.isArray(order.items) && order.items.some((item) => item?.customOrder);
+  const isPaidShopOrder = order.paymentStatus === "paid"
+    || Boolean(order.paidAt)
+    || ["complete", "completed", "paid", "shipped"].includes(status);
+  return hasCustomQuoteItem
+    || ["quote_request", "quote_checkout", "quote_sent"].includes(status)
+    || (!isPaidShopOrder && (Number(order.quoteAmount || order.quoteAmountCents || 0) > 0 || Boolean(String(order.quoteMessage || "").trim())));
+}
+
 function publicOrder(order = {}) {
+  const quoteOrder = isQuoteOrder(order);
   return {
     id: order.id || "",
     status: order.status || "",
@@ -43,11 +55,11 @@ function publicOrder(order = {}) {
     currency: order.currency || "usd",
     stripeSessionId: order.stripeSessionId || "",
     adminNote: order.adminNote || "",
-    quoteAmount: Number(order.quoteAmount || 0),
-    quoteStatus: order.quoteStatus || "",
-    quoteMessage: order.quoteMessage || "",
-    quoteUpdatedAt: order.quoteUpdatedAt || "",
-    quoteAcceptedAt: order.quoteAcceptedAt || ""
+    quoteAmount: quoteOrder ? Number(order.quoteAmount || 0) : 0,
+    quoteStatus: quoteOrder ? order.quoteStatus || "" : "",
+    quoteMessage: quoteOrder ? order.quoteMessage || "" : "",
+    quoteUpdatedAt: quoteOrder ? order.quoteUpdatedAt || "" : "",
+    quoteAcceptedAt: quoteOrder ? order.quoteAcceptedAt || "" : ""
   };
 }
 
@@ -126,8 +138,7 @@ export default async (request) => {
       adminNote: String(payload?.adminNote || savedOrder.adminNote || "").slice(0, 600),
       updatedAt: new Date().toISOString()
     };
-    const hasQuoteItems = Array.isArray(savedOrder.items) && savedOrder.items.some((item) => item?.customOrder);
-    if (hasQuoteItems || savedOrder.status === "quote_request" || savedOrder.quoteStatus) {
+    if (isQuoteOrder(savedOrder)) {
       const quoteAmount = Object.prototype.hasOwnProperty.call(payload, "quoteAmount")
         ? moneyToCents(payload?.quoteAmount)
         : Math.max(0, Math.round(Number(savedOrder.quoteAmount || 0)));

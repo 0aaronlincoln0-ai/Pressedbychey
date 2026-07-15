@@ -904,7 +904,8 @@ const productCollectionOptions = [
 ];
 
 function productCollectionFor(product = {}) {
-  return String(product.collection || "inventory").trim().toLowerCase() === "fresh-drops"
+  const value = String(product.collection || "inventory").trim().toLowerCase().replace(/[\s_]+/g, "-");
+  return /^fresh-drops?$/.test(value)
     ? "fresh-drops"
     : "inventory";
 }
@@ -3703,7 +3704,14 @@ function quoteAmountCents(order = {}) {
 }
 
 function orderHasCustomQuote(order = {}) {
-  return (order.items || []).some((item) => item.customOrder) || order.status === "quote_request" || Boolean(order.quoteStatus);
+  const status = String(order.status || "").trim().toLowerCase();
+  const hasCustomQuoteItem = (order.items || []).some((item) => item.customOrder);
+  const isPaidShopOrder = order.paymentStatus === "paid"
+    || Boolean(order.paidAt)
+    || ["complete", "completed", "paid", "shipped"].includes(status);
+  return hasCustomQuoteItem
+    || ["quote_request", "quote_checkout", "quote_sent"].includes(status)
+    || (!isPaidShopOrder && (quoteAmountCents(order) > 0 || Boolean(String(order.quoteMessage || "").trim())));
 }
 
 function isQuotePayable(order = {}) {
@@ -4274,13 +4282,18 @@ function messageThreadMarkup(conversation, emptyLabel = "Your conversation with 
     const undoAction = outgoing
       ? `<button class="message-undo-button" type="button" data-undo-message="${escapeAttribute(message.id)}" aria-label="Undo message">Undo</button>`
       : "";
+    const isQuote = message.kind === "quote" && message.orderId;
+    const quoteStatus = message.quoteStatus || "Quoted";
+    const quoteCard = isQuote
+      ? `<div class="message-quote-card"><div><span>Quote for ${escapeHTML(message.orderId)}</span><strong>${escapeHTML(formatOrderMoney(Number(message.quoteAmount || 0), message.quoteCurrency || "usd"))}</strong></div><small>${escapeHTML(quoteStatus === "Paid" ? "Paid" : quoteStatus === "Accepted" ? "Accepted - ready for secure checkout" : "Ready for you to accept")}</small>${viewer === "customer" && quoteStatus !== "Paid" ? `<button type="button" class="message-quote-action" data-pay-message-quote="${escapeAttribute(message.id)}">${quoteStatus === "Accepted" ? "Continue To Secure Checkout" : "Accept Quote & Pay"}</button>` : ""}</div>`
+      : "";
     previousSender = message.sender;
     previousDay = day;
     return `${dayDivider}
       <article class="message-bubble-row ${outgoing ? "is-outgoing" : "is-incoming"} ${message.sender === "customer" ? "is-customer" : "is-chey"} ${grouped ? "is-grouped" : ""}" data-message-id="${escapeAttribute(message.id)}">
         <div class="message-bubble-avatar" aria-hidden="true">${message.sender === "customer" ? (viewer === "admin" ? "C" : "Y") : "C"}</div>
         <div class="message-bubble-card">
-          <p>${escapeHTML(message.body)}</p>
+          ${quoteCard}<p>${escapeHTML(message.body)}</p>
           <div class="message-bubble-meta"><time datetime="${escapeAttribute(message.createdAt)}">${escapeHTML(messageDateLabel(message.createdAt))}</time>${delivery}${undoAction}</div>
         </div>
       </article>`;
@@ -4295,7 +4308,7 @@ function messageConversationKey(conversation) {
     updatedAt: conversation?.updatedAt || "",
     customerUnread: Number(conversation?.customerUnread || 0),
     adminUnread: Number(conversation?.adminUnread || 0),
-    messages: messages.map((message) => [message.id, message.sender, message.body, message.createdAt, message.readAt || ""])
+    messages: messages.map((message) => [message.id, message.sender, message.body, message.createdAt, message.readAt || "", message.kind || "text", message.orderId || "", message.quoteStatus || "", message.quoteAmount || 0])
   });
 }
 
@@ -5847,12 +5860,17 @@ async function startStripeCheckout({ source = "guest", customer = {} } = {}) {
 async function payQuoteOrder(orderId) {
   const user = currentCustomer();
   const order = user?.orders?.find((item) => item.id === orderId);
-  if (!user || !order) {
+  if (!user) {
     openAccount("Sign in to the account that requested this quote before paying.");
     return;
   }
-  if (!isQuotePayable(order)) {
+  if (order && !isQuotePayable(order)) {
     accountStatus.textContent = "This quote is not ready for payment yet.";
+    return;
+  }
+  const quoteOrderId = order?.id || orderId;
+  if (!quoteOrderId) {
+    accountStatus.textContent = "This quote is missing its order reference.";
     return;
   }
   setCheckoutBusy(true);
@@ -5861,15 +5879,15 @@ async function payQuoteOrder(orderId) {
     sessionStorage.setItem(CHECKOUT_PENDING_ORDER_KEY, JSON.stringify({
       createdAt: new Date().toISOString(),
       customer: customerCheckoutPayload(user),
-      items: order.items || [],
-      total: quoteAmountCents(order) / 100,
-      quoteOrderId: order.id
+      items: order?.items || [],
+      total: order ? quoteAmountCents(order) / 100 : 0,
+      quoteOrderId
     }));
     const { response, payload: data } = await fetchJsonWithTimeout(STRIPE_CHECKOUT_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        quoteOrderId: order.id,
+        quoteOrderId,
         customer: customerCheckoutPayload(user),
         source: "quote",
         returnBaseUrl: checkoutReturnBaseUrl()
@@ -6005,10 +6023,10 @@ function localPaidOrderFromServer(order = {}) {
     status: order.status || "complete",
     paymentStatus: order.paymentStatus || "paid",
     fulfillmentStatus: order.fulfillmentStatus || "Needs review",
-    quoteAmount: quoteAmountCents(order),
-    quoteStatus: order.quoteStatus || (quoteAmountCents(order) ? "Paid" : ""),
-    quoteMessage: order.quoteMessage || "",
-    quoteAcceptedAt: order.quoteAcceptedAt || "",
+    quoteAmount: orderHasCustomQuote(order) ? quoteAmountCents(order) : 0,
+    quoteStatus: orderHasCustomQuote(order) ? order.quoteStatus || (quoteAmountCents(order) ? "Paid" : "") : "",
+    quoteMessage: orderHasCustomQuote(order) ? order.quoteMessage || "" : "",
+    quoteAcceptedAt: orderHasCustomQuote(order) ? order.quoteAcceptedAt || "" : "",
     items: Array.isArray(order.items)
       ? order.items.map((item) => ({
           name: item.name,
@@ -6196,7 +6214,7 @@ function dollarsToCents(value) {
 
 function localOrderTotalCents(order = {}) {
   if (order.amountTotal) return Math.max(0, Math.round(Number(order.amountTotal) || 0));
-  if (order.quoteAmount) return Math.max(0, Math.round(Number(order.quoteAmount) || 0));
+  if (orderHasCustomQuote(order) && order.quoteAmount) return Math.max(0, Math.round(Number(order.quoteAmount) || 0));
   return dollarsToCents(order.total);
 }
 
@@ -6385,7 +6403,7 @@ function orderWorkflowStatus(order = {}) {
 }
 
 function orderDisplayTotalCents(order = {}) {
-  return quoteAmountCents(order) || Number(order.total || order.amountTotal || 0);
+  return (orderHasCustomQuote(order) ? quoteAmountCents(order) : 0) || Number(order.total || order.amountTotal || 0);
 }
 
 function orderPaymentStatusLabel(order = {}) {
@@ -7079,6 +7097,22 @@ async function saveAccountingExpense(event) {
   }
 }
 
+async function acceptMessageQuote(messageId, button) {
+  if (!messageId || !customerMessagePassword()) return;
+  if (button) button.disabled = true;
+  try {
+    const data = await customerMessagesRequest("accept-quote", { messageId });
+    customerConversation = data.conversation || customerConversation;
+    renderCustomerMessages();
+    const message = customerConversation?.messages?.find((item) => item.id === messageId);
+    if (!message?.orderId) throw new Error("This quote is missing its order reference.");
+    await payQuoteOrder(message.orderId);
+  } catch (error) {
+    if (customerMessagesStatus) customerMessagesStatus.textContent = error.message || "The quote could not be opened.";
+    if (button) button.disabled = false;
+  }
+}
+
 async function deleteAccountingExpense(id) {
   if (!id || !canAdminDelete()) return;
   const expense = normalizedAccountingExpenses().find((item) => item.id === id);
@@ -7144,9 +7178,15 @@ function renderAccounting() {
   if (accountingToFulfill) accountingToFulfill.textContent = String(paidToFulfill);
   if (accountingQuotePipeline) accountingQuotePipeline.textContent = formatOrderMoney(quotePipeline);
   if (accountingPeriodLabel) accountingPeriodLabel.textContent = accountingPeriodLabelText();
-  if (accountingReconciliationStatus) accountingReconciliationStatus.textContent = periodOrders.length ? (paidToFulfill || quotePipeline ? "Review before close" : "Ready for review") : "No records in period";
+  if (accountingReconciliationStatus) accountingReconciliationStatus.textContent = periodOrders.length
+    ? quotePipeline
+      ? "Review before close"
+      : paidToFulfill
+        ? "Fulfillment follow-up"
+        : "Ready for review"
+    : "No records in period";
   if (accountingReconciliationDetail) accountingReconciliationDetail.textContent = periodOrders.length
-    ? `${paidToFulfill} paid order${paidToFulfill === 1 ? "" : "s"} still need fulfillment review and ${quotePipeline ? formatOrderMoney(quotePipeline) : "$0.00"} remains in priced quote pipeline.`
+    ? `${paidToFulfill} paid order${paidToFulfill === 1 ? "" : "s"} still need fulfillment review${quotePipeline ? ` and ${formatOrderMoney(quotePipeline)} remains in priced quote pipeline` : "; no quote requests are pending"}.`
     : "Choose another period or refresh the ledger when transactions are available.";
   if (accountingShowing) accountingShowing.textContent = `${orders.length} record${orders.length === 1 ? "" : "s"}`;
   accountingList.innerHTML = orders.length ? orders.map(accountingRecordMarkup).join("") : '<div class="accounting-empty"><strong>No accounting records match</strong><span>Adjust the filters or refresh the ledger.</span></div>';
@@ -7372,6 +7412,25 @@ async function saveAdminLiveOrderUpdate(orderId, { quoteSent = false } = {}) {
     });
     if (!response.ok || payload?.ok === false) throw new Error(payload?.error || "Could not save order update.");
     liveOrders = liveOrders.map((order) => (order.id === orderId ? payload.order : order));
+    let quoteDeliveryWarning = "";
+    if (quoteSent) {
+      try {
+        const quoteOrder = payload.order || order || {};
+        const recipient = orderCustomerEmail(quoteOrder);
+        const quoteCents = quoteAmountCents(quoteOrder);
+        if (!recipient || !quoteCents) throw new Error("The saved quote is missing a customer email or amount.");
+        await adminMessagesRequest("send-quote", {
+          email: recipient,
+          name: orderCustomerName(quoteOrder),
+          orderId,
+          quoteAmount: quoteCents,
+          quoteCurrency: quoteOrder.currency || "usd",
+          body: update.quoteMessage || `Chey sent you a quote for ${formatOrderMoney(quoteCents, quoteOrder.currency)}. Review it below to accept and pay securely.`
+        });
+      } catch (error) {
+        quoteDeliveryWarning = ` The order was saved, but the customer message could not be delivered: ${error.message || "message service unavailable"}`;
+      }
+    }
     if (quoteSent) {
       collapsedLiveOrderIds.add(orderId);
       quoteSentFeedbackOrderIds.add(orderId);
@@ -7381,7 +7440,9 @@ async function saveAdminLiveOrderUpdate(orderId, { quoteSent = false } = {}) {
       }, 5000);
     }
     renderAdminLiveOrders();
-    setAdminMessage(liveOrderStatus, quoteSent ? "Quote accepted, sent to the customer profile, and collapsed." : "Order update saved.");
+    setAdminMessage(liveOrderStatus, quoteSent
+      ? `${quoteDeliveryWarning || "Quote saved and sent to the customer's messenger."} The order card is collapsed.`
+      : "Order update saved.");
   } catch (error) {
     const localOrder = applyLocalAdminOrderUpdate(orderId, update);
     if (localOrder) {
@@ -7526,6 +7587,11 @@ setupMessageEmojiPicker(adminEmojiButton, adminEmojiPicker, adminMessageInput);
 document.addEventListener("click", closeMessageEmojiPickers);
 customerDeleteConversation?.addEventListener("click", deleteCustomerConversation);
 customerMessageThread?.addEventListener("click", (event) => {
+  const quoteButton = event.target.closest("[data-pay-message-quote]");
+  if (quoteButton) {
+    acceptMessageQuote(quoteButton.dataset.payMessageQuote, quoteButton);
+    return;
+  }
   const button = event.target.closest("[data-undo-message]");
   if (button) undoCustomerMessage(button.dataset.undoMessage, button);
 });
@@ -9789,7 +9855,7 @@ function renderAdminLookPhotos() {
             ${productCollectionOptionsMarkup(look.collection)}
           </select>
         </label>
-        <label class="admin-hot-drop-toggle"><input type="checkbox" data-look-detail="${index}" data-look-field="hotDrop"${look.hotDrop ? " checked" : ""} /> Post to Hot Drop <small>Spotlight this set until you remove it.</small></label>
+        <label class="admin-hot-drop-toggle"><input type="checkbox" data-look-detail="${index}" data-look-field="hotDrop"${look.hotDrop ? " checked" : ""} /><span>Post to Hot Drop</span><small>Spotlight this set until you remove it.</small></label>
         <label>Description <textarea data-look-detail="${index}" data-look-field="copy" placeholder="Tell customers about the shape, finish, color, charms, and vibe.">${escapeTextarea((adminState.lookDetails[index] && adminState.lookDetails[index].copy) || "")}</textarea></label>
         <details class="admin-optional">
           <summary>Optional product details</summary>
@@ -10014,7 +10080,7 @@ function renderAdminProducts() {
             ${productCollectionOptionsMarkup(product.collection)}
           </select>
         </label>
-        <label class="admin-hot-drop-toggle"><input type="checkbox" data-custom-product="${index}" data-field="hotDrop"${product.hotDrop ? " checked" : ""} /> Post to Hot Drop <small>Spotlight this set until you remove it.</small></label>
+        <label class="admin-hot-drop-toggle"><input type="checkbox" data-custom-product="${index}" data-field="hotDrop"${product.hotDrop ? " checked" : ""} /><span>Post to Hot Drop</span><small>Spotlight this set until you remove it.</small></label>
         <label>Description <textarea data-custom-product="${index}" data-field="description">${escapeTextarea(product.description)}</textarea></label>
         <label>Maker notes <textarea data-custom-product="${index}" data-field="notes" placeholder="Private notes: polish colors, pigments, charms, sizing, timing, or customer preferences.">${escapeTextarea(product.notes || "")}</textarea></label>
         <details class="admin-optional">
@@ -11774,7 +11840,7 @@ function renderCustomProducts() {
                 ${productCollectionOptionsMarkup(product.collection)}
               </select>
             </label>
-            <label class="admin-hot-drop-toggle"><input type="checkbox" data-inline-product-index="${index}" data-inline-product-input="hotDrop"${product.hotDrop ? " checked" : ""} /> Post to Hot Drop <small>Spotlight this set until you remove it.</small></label>
+            <label class="admin-hot-drop-toggle"><input type="checkbox" data-inline-product-index="${index}" data-inline-product-input="hotDrop"${product.hotDrop ? " checked" : ""} /><span>Post to Hot Drop</span><small>Spotlight this set until you remove it.</small></label>
             <label>Private notes
               <textarea data-inline-product-index="${index}" data-inline-product-input="notes" placeholder="Polish colors, charms, sizing notes, timing...">${escapeTextarea(product.notes || "")}</textarea>
             </label>
