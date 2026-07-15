@@ -3503,15 +3503,37 @@ figcaption {
     position: static;
   }
 
+  .pro-note-tools {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .admin-order-detail-panel {
     position: static;
     max-height: none;
   }
 }
 
+@media (max-width: 1040px) {
+  .admin-dedicated-page .admin-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-dedicated-page .admin-view-tabs {
+    position: static;
+    grid-template-columns: repeat(5, minmax(132px, 1fr));
+    overflow-x: auto;
+  }
+
+  .pro-note-summary,
+  .admin-dashboard-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 760px) {
   .dashboard-hero .admin-order-tools,
   .pro-note-tools,
+  .pro-note-board-head,
   .admin-order-browser-head,
   .admin-order-row-head,
   .admin-order-row,
@@ -3525,6 +3547,12 @@ figcaption {
 
   .admin-order-pagination {
     justify-content: space-between;
+  }
+
+  .pro-notes-list {
+    min-height: 420px;
+    max-height: none;
+    overflow: visible;
   }
 }
 
@@ -4269,9 +4297,50 @@ figcaption {
 
 .pro-notes-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 0.78fr) minmax(0, 1.22fr);
+  grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.38fr);
   gap: 1rem;
   align-items: start;
+}
+
+.pro-notes-layout > *,
+.pro-note-composer,
+.pro-note-board,
+.pro-notes-list,
+.pro-note-card {
+  min-width: 0;
+}
+
+.pro-note-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.pro-note-summary article {
+  display: grid;
+  gap: 0.25rem;
+  min-height: 92px;
+  padding: 0.85rem;
+  border: 1px solid rgba(36, 16, 24, 0.1);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 244, 249, 0.76));
+  box-shadow: 0 12px 28px rgba(36, 16, 24, 0.06);
+}
+
+.pro-note-summary span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pro-note-summary strong {
+  color: var(--berry);
+  font-family: var(--serif);
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 0.9;
 }
 
 .pro-note-composer,
@@ -4297,14 +4366,49 @@ figcaption {
   padding: 0.85rem;
 }
 
+.pro-note-board-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid rgba(36, 16, 24, 0.1);
+  border-radius: var(--radius);
+  padding: 0.8rem;
+  background: rgba(36, 16, 24, 0.94);
+  color: white;
+}
+
+.pro-note-board-head strong {
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.pro-note-board-head p {
+  margin: 0.2rem 0 0;
+  color: rgba(255, 235, 244, 0.78);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
 .pro-note-tools {
-  grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.45fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.pro-note-tools > * {
+  min-width: 0;
+}
+
+.pro-note-tools label:first-child {
+  grid-column: span 2;
 }
 
 .pro-notes-list {
   display: grid;
+  align-content: start;
   gap: 0.75rem;
   max-height: min(74vh, 820px);
+  min-height: 520px;
   overflow: auto;
   padding-right: 0.2rem;
 }
@@ -4313,6 +4417,13 @@ figcaption {
   display: grid;
   gap: 0.75rem;
   padding: 0.9rem;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.pro-note-card:hover {
+  border-color: rgba(203, 46, 114, 0.24);
+  box-shadow: 0 18px 42px rgba(36, 16, 24, 0.1);
+  transform: translateY(-1px);
 }
 
 .pro-note-card-head {
@@ -4383,9 +4494,67 @@ figcaption {
 
 .pro-note-empty {
   display: grid;
-  min-height: 180px;
+  min-height: 320px;
   place-content: center;
   text-align: center;
+}
+
+@media (max-width: 1180px) {
+  .pro-notes-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pro-note-composer {
+    position: static;
+  }
+
+  .pro-note-tools {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pro-note-tools label:first-child {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 1040px) {
+  .admin-dedicated-page .admin-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-dedicated-page .admin-view-tabs {
+    position: static;
+    grid-template-columns: repeat(5, minmax(132px, 1fr));
+    overflow-x: auto;
+  }
+
+  .pro-note-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .pro-note-tools,
+  .pro-note-board-head,
+  .pro-note-card-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pro-note-tools label:first-child {
+    grid-column: auto;
+  }
+
+  .pro-notes-list {
+    min-height: 420px;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 700px) {
+  .pro-note-summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 .admin-actions {
@@ -8549,6 +8718,16 @@ body.admin-inventory-open {
 
   .admin-dedicated-page .admin-view-tabs {
     position: static;
+    grid-template-columns: 1fr;
+  }
+
+  .pro-note-summary,
+  .admin-dashboard-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .pro-note-card-head,
+  .pro-note-board-head {
     grid-template-columns: 1fr;
   }
 

@@ -98,7 +98,17 @@ const proNoteBody = document.querySelector("#proNoteBody");
 const saveProNoteButton = document.querySelector("#saveProNoteButton");
 const proNotesStatusMessage = document.querySelector("#proNotesStatusMessage");
 const proNotesSearch = document.querySelector("#proNotesSearch");
-const proNotesFilter = document.querySelector("#proNotesFilter");
+const proNotesStatusFilter = document.querySelector("#proNotesStatusFilter");
+const proNotesCategoryFilter = document.querySelector("#proNotesCategoryFilter");
+const proNotesPriorityFilter = document.querySelector("#proNotesPriorityFilter");
+const proNotesDueFilter = document.querySelector("#proNotesDueFilter");
+const clearProNoteFilters = document.querySelector("#clearProNoteFilters");
+const proNotesPagination = document.querySelector("#proNotesPagination");
+const proNotesShowing = document.querySelector("#proNotesShowing");
+const proNotesOpenCount = document.querySelector("#proNotesOpenCount");
+const proNotesWorkingCount = document.querySelector("#proNotesWorkingCount");
+const proNotesWaitingCount = document.querySelector("#proNotesWaitingCount");
+const proNotesDoneCount = document.querySelector("#proNotesDoneCount");
 const proNotesList = document.querySelector("#proNotesList");
 const productGrid = document.querySelector(".product-grid");
 const productDetailContent = document.querySelector("#productDetailContent");
@@ -262,6 +272,7 @@ const LIVE_REQUEST_TIMEOUT_MS = 18000;
 const ADMIN_ORDER_REFRESH_MS = 10000;
 const CUSTOMER_QUOTE_REFRESH_MS = 5000;
 const ADMIN_ORDER_PAGE_SIZE = 25;
+const PRO_NOTE_PAGE_SIZE = 12;
 let customerState = {
   users: [],
   currentEmail: ""
@@ -273,6 +284,7 @@ let collapsedLiveOrderIds = new Set();
 let quoteSentFeedbackOrderIds = new Set();
 let adminOrderPage = 1;
 let selectedAdminOrderId = "";
+let proNotePage = 1;
 let adminLiveOrderRefreshTimer = null;
 let customerQuoteRefreshTimer = null;
 let adminSession = null;
@@ -6232,7 +6244,7 @@ async function setupAdmin() {
   renderAdminGuestOrders();
   renderAdminLiveOrders();
   renderIdeas();
-  renderProNotes();
+  renderProNotes({ resetPage: true });
 
   if (IS_ADMIN_PAGE) {
     showAdminPage();
@@ -6332,9 +6344,14 @@ async function setupAdmin() {
   if (proNotesList) {
     proNotesList.addEventListener("click", handleProNotesClick);
     proNotesList.addEventListener("input", updateProNoteFromCard);
+    proNotesList.addEventListener("change", updateProNoteFromCard);
   }
-  if (proNotesSearch) proNotesSearch.addEventListener("input", renderProNotes);
-  if (proNotesFilter) proNotesFilter.addEventListener("change", renderProNotes);
+  proNotesPagination?.addEventListener("click", handleProNotesPaginationClick);
+  [proNotesStatusFilter, proNotesCategoryFilter, proNotesPriorityFilter, proNotesDueFilter].forEach((filter) => {
+    filter?.addEventListener("change", () => renderProNotes({ resetPage: true }));
+  });
+  proNotesSearch?.addEventListener("input", () => renderProNotes({ resetPage: true }));
+  clearProNoteFilters?.addEventListener("click", clearProNotesFilters);
   document.addEventListener("click", handleInlineImageClick, true);
   document.addEventListener("click", handleInlineEditableClick, true);
   document.addEventListener("input", handleInlineEditableInput);
@@ -9042,18 +9059,80 @@ function normalizedProNoteText(note) {
   ].join(" ").toLowerCase();
 }
 
+function todayDateOnly() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function proNoteDueDate(note = {}) {
+  if (!note.due) return null;
+  const [year, month, day] = String(note.due).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function proNoteMatchesDueFilter(note = {}) {
+  const filter = proNotesDueFilter?.value || "all";
+  if (filter === "all") return true;
+  const due = proNoteDueDate(note);
+  if (filter === "none") return !due;
+  if (!due) return false;
+  const today = todayDateOnly();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (filter === "overdue") return due < today && String(note.status || "Open") !== "Done";
+  if (filter === "today") return due >= today && due < tomorrow;
+  if (filter === "7") {
+    const end = new Date(today);
+    end.setDate(end.getDate() + 8);
+    return due >= today && due < end;
+  }
+  return true;
+}
+
 function filteredProNotes() {
   const notes = Array.isArray(adminState.proNotes) ? adminState.proNotes : [];
   const query = (proNotesSearch?.value || "").trim().toLowerCase();
-  const filter = (proNotesFilter?.value || "all").toLowerCase();
+  const statusFilter = proNotesStatusFilter?.value || "all";
+  const categoryFilter = proNotesCategoryFilter?.value || "all";
+  const priorityFilter = proNotesPriorityFilter?.value || "all";
   return notes
     .map((note, index) => ({ note, index }))
     .filter(({ note }) => {
       if (query && !normalizedProNoteText(note).includes(query)) return false;
-      if (filter === "all") return true;
-      if (filter === "high") return String(note.priority || "").toLowerCase() === "high";
-      return String(note.status || "").toLowerCase() === filter;
+      if (statusFilter !== "all" && (note.status || "Open") !== statusFilter) return false;
+      if (categoryFilter !== "all" && (note.category || "Order") !== categoryFilter) return false;
+      if (priorityFilter !== "all" && (note.priority || "Medium") !== priorityFilter) return false;
+      if (!proNoteMatchesDueFilter(note)) return false;
+      return true;
     });
+}
+
+function proNotePageCount(total) {
+  return Math.max(1, Math.ceil(total / PRO_NOTE_PAGE_SIZE));
+}
+
+function proNotePaginationMarkup(pageCount) {
+  return `
+    <button type="button" data-pro-note-page="prev"${proNotePage <= 1 ? " disabled" : ""}>Prev</button>
+    <span>Page ${proNotePage} / ${pageCount}</span>
+    <button type="button" data-pro-note-page="next"${proNotePage >= pageCount ? " disabled" : ""}>Next</button>
+  `;
+}
+
+function updateProNoteSummary(notes = []) {
+  const counts = notes.reduce((summary, note) => {
+    const status = note.status || "Open";
+    if (status === "Open") summary.open += 1;
+    if (status === "Working") summary.working += 1;
+    if (status === "Waiting") summary.waiting += 1;
+    if (status === "Done") summary.done += 1;
+    return summary;
+  }, { open: 0, working: 0, waiting: 0, done: 0 });
+  if (proNotesOpenCount) proNotesOpenCount.textContent = String(counts.open);
+  if (proNotesWorkingCount) proNotesWorkingCount.textContent = String(counts.working);
+  if (proNotesWaitingCount) proNotesWaitingCount.textContent = String(counts.waiting);
+  if (proNotesDoneCount) proNotesDoneCount.textContent = String(counts.done);
 }
 
 function proNoteMeta(note) {
@@ -9070,15 +9149,34 @@ function proNoteMeta(note) {
   `;
 }
 
-function renderProNotes() {
+function renderProNotes(options = {}) {
   if (!proNotesList) return;
   adminState.proNotes = Array.isArray(adminState.proNotes) ? adminState.proNotes : [];
+  const allNotes = adminState.proNotes;
   const visibleNotes = filteredProNotes();
+  const pageCount = proNotePageCount(visibleNotes.length);
+  if (options.resetPage) proNotePage = 1;
+  proNotePage = Math.min(Math.max(proNotePage, 1), pageCount);
+  const startIndex = (proNotePage - 1) * PRO_NOTE_PAGE_SIZE;
+  const pageNotes = visibleNotes.slice(startIndex, startIndex + PRO_NOTE_PAGE_SIZE);
+  const showingStart = visibleNotes.length ? startIndex + 1 : 0;
+  const showingEnd = Math.min(startIndex + pageNotes.length, visibleNotes.length);
+  updateProNoteSummary(allNotes);
   if (proNotesCountBadge) {
-    proNotesCountBadge.textContent = `${adminState.proNotes.length} note${adminState.proNotes.length === 1 ? "" : "s"}`;
+    proNotesCountBadge.textContent = `${allNotes.length.toLocaleString()} note${allNotes.length === 1 ? "" : "s"}`;
   }
-  proNotesList.innerHTML = visibleNotes.length
-    ? visibleNotes.map(({ note, index }) => `
+  if (proNotesShowing) {
+    proNotesShowing.textContent = visibleNotes.length
+      ? `Showing ${showingStart.toLocaleString()}-${showingEnd.toLocaleString()} of ${visibleNotes.length.toLocaleString()} matching notes`
+      : allNotes.length
+        ? "No notes match the selected filters"
+        : "No notes saved yet";
+  }
+  if (proNotesPagination) {
+    proNotesPagination.innerHTML = proNotePaginationMarkup(pageCount);
+  }
+  proNotesList.innerHTML = pageNotes.length
+    ? pageNotes.map(({ note, index }) => `
         <article class="pro-note-card admin-control" data-pro-note-card="${index}">
           <div class="pro-note-card-head">
             <div>
@@ -9108,9 +9206,27 @@ function renderProNotes() {
       `).join("")
     : `<div class="admin-control pro-note-empty">
         <strong>No matching notes</strong>
-        <p>Add a note for recipes, customer follow-ups, supply reminders, or launch planning.</p>
+        <p>${allNotes.length ? "Clear or change filters to see more saved notes." : "Add a note for recipes, customer follow-ups, supply reminders, or launch planning."}</p>
       </div>`;
   autoGrowTextareas(proNotesList);
+}
+
+function handleProNotesPaginationClick(event) {
+  const button = event.target.closest("[data-pro-note-page]");
+  if (!button) return;
+  const pageCount = proNotePageCount(filteredProNotes().length);
+  proNotePage += button.dataset.proNotePage === "next" ? 1 : -1;
+  proNotePage = Math.min(Math.max(proNotePage, 1), pageCount);
+  renderProNotes();
+}
+
+function clearProNotesFilters() {
+  if (proNotesSearch) proNotesSearch.value = "";
+  if (proNotesStatusFilter) proNotesStatusFilter.value = "all";
+  if (proNotesCategoryFilter) proNotesCategoryFilter.value = "all";
+  if (proNotesPriorityFilter) proNotesPriorityFilter.value = "all";
+  if (proNotesDueFilter) proNotesDueFilter.value = "all";
+  renderProNotes({ resetPage: true });
 }
 
 async function addProNote() {
@@ -9171,6 +9287,9 @@ function updateProNoteFromCard(event) {
     if (title) title.textContent = adminState.proNotes[index].title || "Untitled note";
     const meta = card.querySelector(".pro-note-meta");
     if (meta) meta.outerHTML = proNoteMeta(adminState.proNotes[index]);
+  }
+  if (event.type === "change" && ["category", "priority", "status", "due"].includes(key)) {
+    renderProNotes();
   }
 }
 

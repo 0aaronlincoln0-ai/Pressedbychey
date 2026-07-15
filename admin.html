@@ -848,6 +848,24 @@
                 <span id="proNotesCountBadge">0 notes</span>
               </div>
             </div>
+            <div class="pro-note-summary" aria-label="Pro note summary">
+              <article>
+                <span>Open</span>
+                <strong id="proNotesOpenCount">0</strong>
+              </article>
+              <article>
+                <span>Working</span>
+                <strong id="proNotesWorkingCount">0</strong>
+              </article>
+              <article>
+                <span>Waiting</span>
+                <strong id="proNotesWaitingCount">0</strong>
+              </article>
+              <article>
+                <span>Done</span>
+                <strong id="proNotesDoneCount">0</strong>
+              </article>
+            </div>
             <div class="pro-notes-layout">
               <div class="admin-control pro-note-composer" aria-labelledby="pro-note-title">
                 <div class="quick-add-head">
@@ -892,20 +910,55 @@
                 <p class="admin-status" id="proNotesStatusMessage" role="status"></p>
               </div>
               <div class="pro-note-board">
+                <div class="pro-note-board-head">
+                  <div>
+                    <strong>Notes Browser</strong>
+                    <p id="proNotesShowing">Showing 0 notes</p>
+                  </div>
+                  <div class="admin-order-pagination" id="proNotesPagination"></div>
+                </div>
                 <div class="admin-order-tools pro-note-tools" aria-label="Pro note tools">
                   <label>Search
                     <input id="proNotesSearch" type="search" placeholder="Search notes, colors, customers, supplies" />
                   </label>
-                  <label>Show
-                    <select id="proNotesFilter">
-                      <option value="all">All notes</option>
-                      <option value="open">Open</option>
-                      <option value="working">Working</option>
-                      <option value="waiting">Waiting</option>
-                      <option value="done">Done</option>
-                      <option value="high">High priority</option>
+                  <label>Status
+                    <select id="proNotesStatusFilter">
+                      <option value="all">All statuses</option>
+                      <option value="Open">Open</option>
+                      <option value="Working">Working</option>
+                      <option value="Waiting">Waiting</option>
+                      <option value="Done">Done</option>
                     </select>
                   </label>
+                  <label>Category
+                    <select id="proNotesCategoryFilter">
+                      <option value="all">All categories</option>
+                      <option value="Order">Order</option>
+                      <option value="Product">Product</option>
+                      <option value="Customer">Customer</option>
+                      <option value="Supplies">Supplies</option>
+                      <option value="Content">Content</option>
+                      <option value="Launch">Launch</option>
+                    </select>
+                  </label>
+                  <label>Priority
+                    <select id="proNotesPriorityFilter">
+                      <option value="all">All priorities</option>
+                      <option value="High">High</option>
+                      <option value="Medium">Medium</option>
+                      <option value="Low">Low</option>
+                    </select>
+                  </label>
+                  <label>Due
+                    <select id="proNotesDueFilter">
+                      <option value="all">All due dates</option>
+                      <option value="overdue">Overdue</option>
+                      <option value="today">Today</option>
+                      <option value="7">Next 7 days</option>
+                      <option value="none">No due date</option>
+                    </select>
+                  </label>
+                  <button type="button" id="clearProNoteFilters">Clear Filters</button>
                 </div>
                 <div class="pro-notes-list" id="proNotesList"></div>
               </div>
