@@ -196,6 +196,19 @@
             <button class="filter" type="button" data-filter="coffin">Coffin</button>
             <button class="filter" type="button" data-filter="oval">Oval</button>
             <button class="filter" type="button" data-filter="stiletto">Stiletto</button>
+            <label class="shop-filter-search">Find a set
+              <input id="shopProductSearch" type="search" placeholder="Name or product number" autocomplete="off" />
+            </label>
+            <label class="shop-filter-stock">Stock
+              <select id="shopStockFilter">
+                <option value="all">All stock</option>
+                <option value="in-stock">In stock</option>
+                <option value="low-stock">Low stock</option>
+                <option value="out-of-stock">Out of stock</option>
+                <option value="made-to-order">Made to order</option>
+                <option value="coming-soon">Coming soon</option>
+              </select>
+            </label>
           </div>
           <div class="product-grid"></div>
           <section class="custom-order-panel" aria-labelledby="customOrderTitle" data-reveal>
@@ -751,6 +764,7 @@
             <div class="admin-section-actions">
               <span id="lookCountBadge">0 saved designs</span>
               <span id="productCountBadge">0 live products</span>
+              <button type="button" id="adminOpenInventory">Open Inventory</button>
               <button type="button" id="saveProductChanges">Save Products</button>
             </div>
           </div>
@@ -1072,6 +1086,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260714-admin-customers"></script>
+    <script src="script.js?v=20260714-inventory-pro-notes"></script>
   </body>
 </html>

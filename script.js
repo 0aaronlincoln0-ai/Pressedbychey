@@ -113,6 +113,8 @@ const proNotesList = document.querySelector("#proNotesList");
 const productGrid = document.querySelector(".product-grid");
 const productDetailContent = document.querySelector("#productDetailContent");
 const filterRow = document.querySelector("#shopFilters");
+const shopProductSearch = document.querySelector("#shopProductSearch");
+const shopStockFilter = document.querySelector("#shopStockFilter");
 const pageBook = document.querySelector("#pageBook");
 const bookStatus = document.querySelector("#bookStatus");
 const sitePages = () => document.querySelectorAll("[data-page-panel]");
@@ -222,6 +224,7 @@ const adminNewOrdersCount = document.querySelector("#adminNewOrdersCount");
 const adminWorkingOrdersCount = document.querySelector("#adminWorkingOrdersCount");
 const adminDoneOrdersCount = document.querySelector("#adminDoneOrdersCount");
 const adminProductSummaryCount = document.querySelector("#adminProductSummaryCount");
+const adminOpenInventory = document.querySelector("#adminOpenInventory");
 const adminContentList = document.querySelector("#adminContentList");
 const adminContentStatus = document.querySelector("#adminContentStatus");
 const adminLayoutList = document.querySelector("#adminLayoutList");
@@ -814,12 +817,57 @@ const categoryOptions = [
 ];
 
 const stockOptions = [
-  ["Available", "Available"],
+  ["Available", "In stock"],
   ["Made to order", "Made to order"],
   ["Low stock", "Low stock"],
-  ["Sold out", "Sold out"],
+  ["Sold out", "Out of stock"],
   ["Coming soon", "Coming soon"]
 ];
+
+const INVENTORY_LOW_STOCK_THRESHOLD = 3;
+
+function normalizeInventoryCount(value, fallback = null) {
+  if (value === null || value === undefined || String(value).trim() === "") return fallback;
+  const count = Number(value);
+  return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : fallback;
+}
+
+function defaultInventoryCountForStock(stock = "") {
+  const value = String(stock || "").trim().toLowerCase();
+  if (/sold\s*out|out\s*of\s*stock|unavailable/.test(value)) return 0;
+  if (/made\s*to\s*order|coming\s*soon/.test(value)) return null;
+  return 10;
+}
+
+function inventoryCountFor(item = {}) {
+  return normalizeInventoryCount(item.inventoryCount, defaultInventoryCountForStock(item.stock));
+}
+
+function inventoryStateFor(item = {}) {
+  const count = inventoryCountFor(item);
+  if (count !== null) {
+    if (count <= 0) return { key: "out-of-stock", label: "Out of stock", count };
+    if (count <= INVENTORY_LOW_STOCK_THRESHOLD) return { key: "low-stock", label: "Low stock", count };
+    return { key: "in-stock", label: "In stock", count };
+  }
+  const value = String(item.stock || "Available").trim().toLowerCase();
+  if (/made\s*to\s*order/.test(value)) return { key: "made-to-order", label: "Made to order", count: null };
+  if (/coming\s*soon/.test(value)) return { key: "coming-soon", label: "Coming soon", count: null };
+  if (/low\s*stock/.test(value)) return { key: "low-stock", label: "Low stock", count: null };
+  if (/sold\s*out|out\s*of\s*stock|unavailable/.test(value)) return { key: "out-of-stock", label: "Out of stock", count: 0 };
+  return { key: "in-stock", label: "In stock", count: null };
+}
+
+function productNumberFor(item = {}, index = 0) {
+  const custom = String(item.sku || item.productNumber || "").trim();
+  return custom || `PBC-${String(index + 1).padStart(3, "0")}`;
+}
+
+function inventoryDisplayLabel(item = {}) {
+  const state = inventoryStateFor(item);
+  if (state.count !== null && state.key !== "out-of-stock") return `${state.label} - ${state.count} left`;
+  return state.label;
+}
 
 function optionMarkup(options, selectedValue) {
   const selected = String(selectedValue || "");
@@ -1287,7 +1335,34 @@ function stableMiscFieldKey(index) {
   return `misc:${index}`;
 }
 
+function normalizeProNote(note = {}, index = 0) {
+  const safe = note && typeof note === "object" ? note : {};
+  const allowedStatuses = ["Open", "Working", "Waiting", "Done"];
+  const allowedPriorities = ["High", "Medium", "Low"];
+  const allowedCategories = ["Order", "Product", "Customer", "Supplies", "Content", "Launch"];
+  return {
+    id: String(safe.id || `pro-note-imported-${index}`),
+    createdAt: safe.createdAt || new Date().toLocaleString(),
+    updatedAt: safe.updatedAt || safe.createdAt || new Date().toLocaleString(),
+    title: String(safe.title || "Untitled pro note").trim().slice(0, 180),
+    category: allowedCategories.includes(safe.category) ? safe.category : "Order",
+    priority: allowedPriorities.includes(safe.priority) ? safe.priority : "Medium",
+    status: allowedStatuses.includes(safe.status) ? safe.status : "Open",
+    due: /^\d{4}-\d{2}-\d{2}$/.test(String(safe.due || "")) ? String(safe.due) : "",
+    body: String(safe.body || "").trim().slice(0, 12000)
+  };
+}
+
 function normalizeAdminState(saved = {}) {
+  const rawLookDetails = saved.lookDetails && typeof saved.lookDetails === "object" ? saved.lookDetails : {};
+  const lookDetails = Object.fromEntries(Object.entries(rawLookDetails).map(([index, detail]) => {
+    const safeDetail = detail && typeof detail === "object" ? detail : {};
+    return [index, {
+      ...safeDetail,
+      sku: safeDetail.sku || `PBC-${String(Number(index) + 1).padStart(3, "0")}`,
+      inventoryCount: normalizeInventoryCount(safeDetail.inventoryCount, defaultInventoryCountForStock(safeDetail.stock))
+    }];
+  }));
   const nextState = {
     ...defaultAdminState(),
     ...saved,
@@ -1299,12 +1374,13 @@ function normalizeAdminState(saved = {}) {
     imageTransforms: normalizePhotoTransformMap(saved.imageTransforms || {}),
     products: saved.products || {},
     customProducts: Array.isArray(saved.customProducts)
-      ? saved.customProducts.map((product) => ({
+      ? saved.customProducts.map((product, index) => ({
           ...product,
           salePrice: normalizeMoneyValue(product.salePrice),
           discount: product.discount || "",
           stock: product.stock || "",
-          sku: product.sku || "",
+          sku: product.sku || `PBC-${String(index + 1).padStart(3, "0")}`,
+          inventoryCount: normalizeInventoryCount(product.inventoryCount, defaultInventoryCountForStock(product.stock)),
           imageFit: sanitizePhotoFit(product.imageFit),
           imagePosition: sanitizePhotoPosition(product.imagePosition),
           imageZoom: sanitizePhotoZoom(product.imageZoom),
@@ -1316,9 +1392,9 @@ function normalizeAdminState(saved = {}) {
     lookPhotoPositions: normalizePhotoPositionMap(saved.lookPhotoPositions || {}),
     lookPhotoZooms: normalizePhotoZoomMap(saved.lookPhotoZooms || {}),
     lookPhotoTransforms: normalizePhotoTransformMap(saved.lookPhotoTransforms || {}),
-    lookDetails: saved.lookDetails || {},
+    lookDetails,
     ideas: Array.isArray(saved.ideas) ? saved.ideas : [],
-    proNotes: Array.isArray(saved.proNotes) ? saved.proNotes : [],
+    proNotes: Array.isArray(saved.proNotes) ? saved.proNotes.map(normalizeProNote) : [],
     customPages: Array.isArray(saved.customPages)
       ? saved.customPages
           .filter((page) => page && page.key)
@@ -2221,7 +2297,10 @@ function inventorySummaryMetrics(looks) {
   const liveCount = looks.filter((look) => look.published).length;
   const draftCount = looks.filter((look) => !look.published).length;
   const pricedCount = looks.filter((look) => moneyNumber(look.price) > 0).length;
-  return { total: looks.length, liveCount, draftCount, pricedCount };
+  const inStockCount = looks.filter((look) => inventoryStateFor(look).key === "in-stock").length;
+  const lowStockCount = looks.filter((look) => inventoryStateFor(look).key === "low-stock").length;
+  const outOfStockCount = looks.filter((look) => inventoryStateFor(look).key === "out-of-stock").length;
+  return { total: looks.length, liveCount, draftCount, pricedCount, inStockCount, lowStockCount, outOfStockCount };
 }
 
 function inventoryPricingSummary(look) {
@@ -2249,7 +2328,7 @@ function inventoryPricingSummary(look) {
 function inventoryCardMeta(look) {
   const publishedAt = adminState.lookDetails?.[look.index]?.publishedAt || "";
   const categoryLabel = optionLabel(categoryOptions, look.finish, "Shape not set");
-  const stockLabel = optionLabel(stockOptions, look.stock || "Available", look.stock || "Available");
+  const stockLabel = inventoryDisplayLabel(look);
   const pricing = inventoryPricingSummary(look);
   return {
     visibilityLabel: look.published ? "Live in Shop" : "Private Draft",
@@ -2260,7 +2339,9 @@ function inventoryCardMeta(look) {
     publishDetail: publishedAt || "Draft only",
     categoryLabel,
     stockLabel,
-    photoLabel: look.photo ? "Photo ready" : "Photo needed"
+    photoLabel: look.photo ? "Photo ready" : "Photo needed",
+    productNumber: productNumberFor(look, look.index),
+    inventoryCount: inventoryCountFor(look)
   };
 }
 
@@ -2289,6 +2370,11 @@ function renderAdminInventoryPanel() {
         <span>Priced and ready</span>
         <strong>${metrics.pricedCount}</strong>
         <small>Products with pricing set</small>
+      </div>
+      <div class="admin-inventory-overview-card inventory-overview-stock">
+        <span>In stock</span>
+        <strong>${metrics.inStockCount}</strong>
+        <small>${metrics.lowStockCount} low stock / ${metrics.outOfStockCount} out of stock</small>
       </div>
     `;
   }
@@ -2340,6 +2426,7 @@ function renderAdminInventoryPanel() {
             <div class="admin-inventory-card-tools">
               <span class="admin-inventory-chip${look.published ? " is-published" : ""}">${escapeHTML(meta.visibilityLabel)}</span>
               <span class="admin-inventory-chip">${escapeHTML(meta.stockLabel)}</span>
+              <span class="admin-inventory-chip">${escapeHTML(meta.productNumber)}</span>
               <span class="admin-inventory-chip">${escapeHTML(meta.categoryLabel)}</span>
               <span class="admin-inventory-chip">${escapeHTML(meta.photoLabel)}</span>
               <button class="button small" type="button" data-inventory-photo-button="${look.index}">${look.photo ? "Edit Photo" : "Add Photo"}</button>
@@ -2375,8 +2462,11 @@ function renderAdminInventoryPanel() {
                   ${optionMarkup(stockOptions, look.stock || "Available")}
                 </select>
               </label>
-              <label>SKU
-                <input data-inventory-index="${look.index}" data-inventory-field="sku" value="${escapeAttribute(look.sku)}" placeholder="Optional" />
+              <label>Product number / SKU
+                <input data-inventory-index="${look.index}" data-inventory-field="sku" value="${escapeAttribute(look.sku || meta.productNumber)}" placeholder="PBC-001" />
+              </label>
+              <label>Units in stock
+                <input type="number" min="0" step="1" inputmode="numeric" data-inventory-index="${look.index}" data-inventory-field="inventoryCount" value="${inventoryCountFor(look) ?? ""}" placeholder="Made to order" />
               </label>
               <label>Badge
                 <input data-inventory-index="${look.index}" data-inventory-field="tag" value="${escapeAttribute(look.tag)}" placeholder="New from Chey" />
@@ -2425,13 +2515,18 @@ function syncInventoryLookToPublishedProduct(index) {
   };
 }
 
-function updateInventoryField(field) {
+function updateInventoryField(field, refreshPanel = false) {
   const index = Number(field.dataset.inventoryIndex);
   const key = field.dataset.inventoryField;
   if (!Number.isInteger(index) || !key) return;
   adminState.lookDetails[index] = adminState.lookDetails[index] || {};
-  const value = key === "price" || key === "salePrice" ? normalizeMoneyValue(field.value) : field.value.trim();
+  const value = key === "price" || key === "salePrice"
+    ? normalizeMoneyValue(field.value)
+    : key === "inventoryCount"
+      ? normalizeInventoryCount(field.value, null)
+      : field.value.trim();
   adminState.lookDetails[index][key] = value;
+  if (key === "stock") adminState.lookDetails[index].inventoryCount = defaultInventoryCountForStock(value);
   applyAutomaticDiscount(adminState.lookDetails[index], key);
   if (key === "price" || key === "discount") {
     const card = field.closest("[data-inventory-card]");
@@ -2448,6 +2543,7 @@ function updateInventoryField(field) {
   });
   renderLooks();
   renderCustomProducts();
+  if (refreshPanel) renderAdminInventoryPanel();
   updateLookCount();
   updateProductCount();
 }
@@ -2456,7 +2552,7 @@ function bindAdminInventoryPanel() {
   if (!adminInventoryList) return;
   adminInventoryList.querySelectorAll("[data-inventory-field]").forEach((field) => {
     field.addEventListener("input", () => updateInventoryField(field));
-    field.addEventListener("change", () => updateInventoryField(field));
+    field.addEventListener("change", () => updateInventoryField(field, true));
   });
   adminInventoryList.querySelectorAll("[data-inventory-photo-button]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -2528,6 +2624,7 @@ async function createInventoryDraft() {
     discount: "",
     stock: "Available",
     sku: "",
+    inventoryCount: 10,
     finish: "custom",
     copy: "Describe this set for customers before publishing it.",
     notes: "",
@@ -3210,6 +3307,7 @@ function orderItemMeta(item = {}) {
   return [
     item.customOrder ? "Custom order request" : "",
     item.requestTitle || "",
+    item.productNumber ? `Product ${item.productNumber}` : "",
     cartItemQuantity(item) > 1 ? `Quantity ${cartItemQuantity(item)}` : "",
     item.shape || "",
     item.length || "",
@@ -4640,7 +4738,9 @@ function productDetailCustomerData(product, index) {
     copy: product.description || "Handmade by Chey.",
     price: productCheckoutPrice({ ...product, index }),
     image: product.image || "",
-    shape: productShapeCustomerValue(product)
+    shape: productShapeCustomerValue(product),
+    productNumber: productNumberFor(product, index),
+    inventoryCount: inventoryCountFor(product)
   };
 }
 
@@ -4671,12 +4771,13 @@ function renderProductDetail() {
 
   const productForDisplay = { ...product, index: selectedProductIndex };
   const checkoutPrice = productCheckoutPrice(productForDisplay);
-  const soldOut = /sold\s*out|unavailable/i.test(product.stock || "");
+  const inventoryState = inventoryStateFor(product);
+  const soldOut = inventoryState.key === "out-of-stock";
   const missingPrice = checkoutPrice <= 0;
   const discountLabel = productDiscountLabel(productForDisplay);
   const shapeLabel = productShapeLabel(product);
-  const stockLabel = optionLabel(stockOptions, product.stock || "Available", product.stock || "Available");
-  const skuMarkup = product.sku ? `<span><small>Product code</small><strong>${escapeHTML(product.sku)}</strong></span>` : "";
+  const stockLabel = inventoryDisplayLabel(product);
+  const skuMarkup = `<span><small>Product number</small><strong>${escapeHTML(productNumberFor(product, selectedProductIndex))}</strong></span>`;
 
   productDetailContent.innerHTML = `
     <button class="product-detail-back" type="button" data-product-detail-back aria-label="Back to Shop">&larr; Back To Shop</button>
@@ -4732,6 +4833,8 @@ function renderProductDetail() {
       image: item.image,
       shape: item.shape,
       category: productCategoryValue(product),
+      productNumber: item.productNumber,
+      inventoryCount: item.inventoryCount,
       quantity: productDetailQuantity,
       sourceProductIndex: selectedProductIndex
     });
@@ -4872,6 +4975,8 @@ function checkoutLineItems() {
     quantity: cartItemQuantity(item),
     customOrder: Boolean(item.customOrder),
     sourceProductIndex: checkoutProductIndex(item.sourceProductIndex),
+    productNumber: item.productNumber || "",
+    inventoryCount: inventoryCountFor(item),
     category: item.category || "",
     shape: item.shape || "",
     length: item.length || "",
@@ -4887,6 +4992,8 @@ function quoteRequestLineItems() {
     quantity: cartItemQuantity(item),
     customOrder: true,
     sourceProductIndex: checkoutProductIndex(item.sourceProductIndex),
+    productNumber: item.productNumber || "",
+    inventoryCount: inventoryCountFor(item),
     category: item.category || "",
     shape: item.shape || "",
     length: item.length || "",
@@ -6345,23 +6452,28 @@ scrim.addEventListener("click", closeAdmin);
 function applyProductFilter(filter) {
   const existingEmptyState = productGrid?.querySelector(".product-filter-empty");
   if (existingEmptyState) existingEmptyState.remove();
+  const query = (shopProductSearch?.value || "").trim().toLowerCase();
+  const stockFilter = shopStockFilter?.value || "all";
   let visibleCount = 0;
   document.querySelectorAll(".product").forEach((product) => {
     if (product.dataset.inlineEditorCard === "true") {
       product.classList.remove("hidden");
       return;
     }
-    const isMatch = filter === "all" || product.dataset.shape === filter;
+    const searchable = `${product.dataset.productNumber || ""} ${product.querySelector("h3")?.textContent || ""} ${product.dataset.productDescription || ""}`.toLowerCase();
+    const matchesSearch = !query || searchable.includes(query);
+    const matchesStock = stockFilter === "all" || product.dataset.stockState === stockFilter;
+    const isMatch = (filter === "all" || product.dataset.shape === filter) && matchesSearch && matchesStock;
     product.classList.toggle("hidden", !isMatch);
     if (isMatch) visibleCount += 1;
   });
-  if (productGrid && filter !== "all" && visibleCount === 0) {
+  if (productGrid && visibleCount === 0) {
     const activeFilterLabel = document.querySelector(`.filter[data-filter="${CSS.escape(filter)}"]`)?.textContent?.trim() || "that shape";
     const emptyState = document.createElement("article");
     emptyState.className = "store-empty-state product-filter-empty";
     emptyState.innerHTML = `
-      <strong>No ${escapeHTML(activeFilterLabel)} sets are live yet.</strong>
-      <p>Check All sets, or ask Chey about a custom ${escapeHTML(activeFilterLabel.toLowerCase())} shape.</p>
+      <strong>No sets match this view.</strong>
+      <p>Try ${escapeHTML(activeFilterLabel)} with another product number or stock filter.</p>
     `;
     productGrid.appendChild(emptyState);
   }
@@ -6373,6 +6485,13 @@ document.querySelectorAll(".filter").forEach((button) => {
     button.classList.add("active");
     applyProductFilter(button.dataset.filter);
   });
+});
+
+shopProductSearch?.addEventListener("input", () => {
+  applyProductFilter(document.querySelector(".filter.active")?.dataset.filter || "all");
+});
+shopStockFilter?.addEventListener("change", () => {
+  applyProductFilter(document.querySelector(".filter.active")?.dataset.filter || "all");
 });
 
 function updateBuilder() {
@@ -6476,6 +6595,7 @@ function readLookData(index) {
     discount: detail.discount && detail.discount.trim() ? detail.discount.trim() : "",
     stock: detail.stock && detail.stock.trim() ? detail.stock.trim() : "",
     sku: detail.sku && detail.sku.trim() ? detail.sku.trim() : "",
+    inventoryCount: normalizeInventoryCount(detail.inventoryCount, defaultInventoryCountForStock(detail.stock)),
     tag: detail.tag && detail.tag.trim() ? detail.tag.trim() : "New from Chey",
     notes: detail.notes && detail.notes.trim() ? detail.notes.trim() : "",
     photo,
@@ -6899,6 +7019,7 @@ async function setupAdmin() {
   resetEditsButton.addEventListener("click", resetAdminEdits);
   resetLayoutButton.addEventListener("click", resetLayoutState);
   if (saveProductChangesButton) saveProductChangesButton.addEventListener("click", saveProductChangesFromSection);
+  adminOpenInventory?.addEventListener("click", openAdminInventoryShelf);
   setupDrawingPad();
   ideaPhoto.addEventListener("change", previewIdeaPhoto);
   saveIdeaButton.addEventListener("click", addDesignIdea);
@@ -7825,7 +7946,8 @@ function productFromLook(look) {
     salePrice: look.salePrice || "",
     discount: look.discount || "",
     stock: look.stock || "",
-    sku: look.sku || "",
+    sku: look.sku || productNumberFor(look, look.index),
+    inventoryCount: inventoryCountFor(look),
     category: look.finish || "custom",
     image: look.photo,
     imageFit: look.photoFit,
@@ -7844,6 +7966,7 @@ const productToLookFieldMap = {
   discount: "discount",
   stock: "stock",
   sku: "sku",
+  inventoryCount: "inventoryCount",
   category: "finish",
   description: "copy",
   notes: "notes",
@@ -8054,7 +8177,8 @@ function writeProductToInventory(product, index, options = {}) {
     salePrice: product.salePrice || "",
     discount: product.discount || "",
     stock: product.stock || "",
-    sku: product.sku || "",
+    sku: product.sku || productNumberFor(product, index),
+    inventoryCount: inventoryCountFor(product),
     finish: product.category || "custom",
     copy: product.description || "",
     notes: product.notes || "",
@@ -8413,12 +8537,12 @@ function renderAdminProducts() {
       <div class="admin-product-fields">
         <div class="admin-product-head">
           <div>
-            <strong>Shop Product ${index + 1}</strong>
-            <span class="admin-shop-status is-live">Live in shop</span>
+            <strong>${escapeHTML(productNumberFor(product, index))} - ${escapeHTML(product.name || `Shop Product ${index + 1}`)}</strong>
+            <span class="admin-shop-status is-live">${escapeHTML(inventoryDisplayLabel(product))}</span>
           </div>
           <button class="delete-product" type="button" data-delete-custom-product="${index}">Withdraw</button>
         </div>
-        <label>Name <input data-custom-product="${index}" data-field="name" value="${escapeAttribute(product.name)}" /></label>
+          <label>Name <input data-custom-product="${index}" data-field="name" value="${escapeAttribute(product.name)}" /></label>
         <div class="admin-field-row">
           <label>Price <input data-custom-product="${index}" data-field="price" value="${escapeAttribute(product.price)}" /></label>
           <label>Sale price <input data-custom-product="${index}" data-field="salePrice" value="${escapeAttribute(product.salePrice || "")}" /></label>
@@ -8441,7 +8565,8 @@ function renderAdminProducts() {
               ${optionMarkup(categoryOptions, product.category)}
             </select>
           </label>
-          <label>SKU <input data-custom-product="${index}" data-field="sku" value="${escapeAttribute(product.sku || "")}" /></label>
+          <label>Product number / SKU <input data-custom-product="${index}" data-field="sku" value="${escapeAttribute(productNumberFor(product, index))}" placeholder="PBC-001" /></label>
+          <label>Units in stock <input type="number" min="0" step="1" inputmode="numeric" data-custom-product="${index}" data-field="inventoryCount" value="${inventoryCountFor(product) ?? ""}" placeholder="Made to order" /></label>
         </div>
         <label>Description <textarea data-custom-product="${index}" data-field="description">${escapeTextarea(product.description)}</textarea></label>
         <label>Maker notes <textarea data-custom-product="${index}" data-field="notes" placeholder="Private notes: polish colors, pigments, charms, sizing, timing, or customer preferences.">${escapeTextarea(product.notes || "")}</textarea></label>
@@ -8629,15 +8754,23 @@ function bindProductFieldEditors() {
       const index = Number(input.dataset.customProduct);
       const field = input.dataset.field;
       if (!adminState.customProducts[index] || !field) return;
-      const value = field === "price" || field === "salePrice" ? normalizeMoneyValue(input.value) : input.value;
+      const value = field === "price" || field === "salePrice"
+        ? normalizeMoneyValue(input.value)
+        : field === "inventoryCount"
+          ? normalizeInventoryCount(input.value, null)
+          : input.value;
       adminState.customProducts[index][field] = value;
+      if (field === "stock") adminState.customProducts[index].inventoryCount = defaultInventoryCountForStock(value);
       applyAutomaticDiscount(adminState.customProducts[index], field);
       if (field === "price" || field === "discount") {
         const card = input.closest(".admin-product-card");
         const saleInput = card?.querySelector('[data-field="salePrice"]');
         if (saleInput) saleInput.value = adminState.customProducts[index].salePrice || "";
       }
-      syncPublishedProductBackToLook(adminState.customProducts[index], { [field]: value });
+      syncPublishedProductBackToLook(adminState.customProducts[index], {
+        [field]: value,
+        ...(field === "stock" ? { inventoryCount: adminState.customProducts[index].inventoryCount } : {})
+      });
       if (field === "price" || field === "discount") {
         syncPublishedProductBackToLook(adminState.customProducts[index], { salePrice: adminState.customProducts[index].salePrice || "" });
       }
@@ -8662,10 +8795,18 @@ function saveProductEdits() {
     const index = Number(input.dataset.customProduct);
     const field = input.dataset.field;
     if (!adminState.customProducts[index] || !field) return;
-    const value = field === "price" || field === "salePrice" ? normalizeMoneyValue(input.value) : input.value;
+    const value = field === "price" || field === "salePrice"
+      ? normalizeMoneyValue(input.value)
+      : field === "inventoryCount"
+        ? normalizeInventoryCount(input.value, null)
+        : input.value;
     adminState.customProducts[index][field] = value;
+    if (field === "stock") adminState.customProducts[index].inventoryCount = defaultInventoryCountForStock(value);
     applyAutomaticDiscount(adminState.customProducts[index], field);
-    syncPublishedProductBackToLook(adminState.customProducts[index], { [field]: value });
+    syncPublishedProductBackToLook(adminState.customProducts[index], {
+      [field]: value,
+      ...(field === "stock" ? { inventoryCount: adminState.customProducts[index].inventoryCount } : {})
+    });
     if (field === "price" || field === "discount") {
       syncPublishedProductBackToLook(adminState.customProducts[index], { salePrice: adminState.customProducts[index].salePrice || "" });
     }
@@ -9881,6 +10022,14 @@ function updateProNoteFromCard(event) {
     const meta = card.querySelector(".pro-note-meta");
     if (meta) meta.outerHTML = proNoteMeta(adminState.proNotes[index]);
   }
+  if (card && ["title", "body"].includes(key)) {
+    const preview = card.querySelector(".pro-note-preview");
+    if (preview) preview.textContent = proNotePreviewText(adminState.proNotes[index]);
+  }
+  if (card) {
+    const updated = card.querySelector(".pro-note-card-head p");
+    if (updated) updated.textContent = adminState.proNotes[index].updatedAt;
+  }
   if (event.type === "change" && ["category", "priority", "status", "due"].includes(key)) {
     renderProNotes();
   }
@@ -9933,8 +10082,9 @@ function inlineInventoryCardMarkup(look) {
       </div>
       <div class="inline-editor-card-inner">
         <span class="inline-editor-kicker">Inventory</span>
-        <strong>${escapeHTML(look.name)}</strong>
+        <strong>${escapeHTML(productNumberFor(look, look.index))} - ${escapeHTML(look.name)}</strong>
         <p>${escapeHTML(look.copy || "Saved in inventory, not currently visible in the Shop.")}</p>
+        <span class="product-stock">${escapeHTML(inventoryDisplayLabel(look))}</span>
         <div class="inline-product-actions always-visible">
           <button class="button primary" type="button" data-inline-publish-inventory="${look.index}">Publish To Shop</button>
           <button class="button danger" type="button" data-inline-delete-inventory="${look.index}">Delete Inventory</button>
@@ -10005,14 +10155,22 @@ function updateInlineProductFormField(event) {
   const field = input.dataset.inlineProductInput;
   const product = adminState.customProducts[index];
   if (!product || !field) return;
-  const value = field === "price" || field === "salePrice" ? normalizeMoneyValue(input.value) : input.value.trim();
+  const value = field === "price" || field === "salePrice"
+    ? normalizeMoneyValue(input.value)
+    : field === "inventoryCount"
+      ? normalizeInventoryCount(input.value, null)
+      : input.value.trim();
   product[field] = value;
+  if (field === "stock") product.inventoryCount = defaultInventoryCountForStock(value);
   applyAutomaticDiscount(product, field);
   if (field === "price" || field === "discount") {
     const saleInput = input.closest(".inline-product-store-fields")?.querySelector('[data-inline-product-input="salePrice"]');
     if (saleInput) saleInput.value = product.salePrice || "";
   }
-  syncPublishedProductBackToLook(product, { [field]: value });
+  syncPublishedProductBackToLook(product, {
+    [field]: value,
+    ...(field === "stock" ? { inventoryCount: product.inventoryCount } : {})
+  });
   if (field === "price" || field === "discount") {
     syncPublishedProductBackToLook(product, { salePrice: product.salePrice || "" });
   }
@@ -10045,12 +10203,16 @@ function renderCustomProducts() {
     const productShape = productShapeFilterValue(product);
     const discountLabel = productDiscountLabel(productForDisplay);
     const checkoutPrice = productCheckoutPrice(productForDisplay);
-    const soldOut = /sold\s*out|unavailable/i.test(product.stock || "");
+    const inventoryState = inventoryStateFor(product);
+    const soldOut = inventoryState.key === "out-of-stock";
     const missingPrice = checkoutPrice <= 0;
     const article = document.createElement("article");
     article.className = "product custom-added is-visible";
     article.dataset.category = productCategoryValue(product);
     article.dataset.shape = productShape;
+    article.dataset.productNumber = productNumberFor(product, index).toLowerCase();
+    article.dataset.productDescription = String(product.description || "").toLowerCase();
+    article.dataset.stockState = inventoryState.key;
     article.dataset.adminProductIndex = String(index);
     article.tabIndex = 0;
     article.setAttribute("role", "link");
@@ -10065,7 +10227,8 @@ function renderCustomProducts() {
         <p class="product-tag" data-admin-product-index="${index}" data-admin-product-field="tag">${escapeHTML(product.tag)}</p>
         <h3 data-admin-product-index="${index}" data-admin-product-field="name">${escapeHTML(product.name)}</h3>
         <p data-admin-product-index="${index}" data-admin-product-field="description">${escapeHTML(product.description)}</p>
-        ${product.stock ? `<p class="product-stock">${escapeHTML(product.stock)}</p>` : ""}
+        <p class="product-code">${escapeHTML(productNumberFor(product, index))}</p>
+        <p class="product-stock ${escapeAttribute(inventoryState.key)}">${escapeHTML(inventoryDisplayLabel(product))}</p>
         <div class="product-bottom">
           ${productPriceMarkup(productForDisplay)}
           <button type="button" data-name="${escapeAttribute(product.name)}" data-price="${escapeAttribute(checkoutPrice)}" data-product-index="${index}"${soldOut || missingPrice ? " disabled" : ""}>${soldOut ? "Sold Out" : missingPrice ? "Set Price" : "Add"}</button>
@@ -10089,6 +10252,9 @@ function renderCustomProducts() {
                 ${optionMarkup(stockOptions, product.stock)}
               </select>
             </label>
+            <label>Units in stock
+              <input type="number" min="0" step="1" inputmode="numeric" data-inline-product-index="${index}" data-inline-product-input="inventoryCount" value="${inventoryCountFor(product) ?? ""}" placeholder="Made to order" />
+            </label>
             <label>Nail shape
               <select data-inline-product-index="${index}" data-inline-product-input="category">
                 ${optionMarkup(categoryOptions, product.category)}
@@ -10110,6 +10276,8 @@ function renderCustomProducts() {
         image: product.image || "",
         shape: productShapeCustomerValue(product),
         category: productCategoryValue(product),
+        productNumber: productNumberFor(product, index),
+        inventoryCount: inventoryCountFor(product),
         sourceProductIndex: index
       });
     });
