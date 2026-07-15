@@ -94,6 +94,9 @@ test("team roles are separated from customer accounts", async () => {
   assert.match(client, /teamOnly: true/);
   assert.match(client, /function renderAdminTeamList\(/);
   assert.match(customerAdmin, /ALLOWED_TEAM_ROLES/);
+  assert.match(customerAdmin, /"employee"/);
+  assert.match(customerAdmin, /OWNER_EMAILS\.forEach/);
+  assert.match(customerAdmin, /function ownerRecord\(email\)/);
   assert.match(customerAdmin, /Boolean\(payload\.teamOnly\) !== isTeamMember/);
   assert.match(adminAuth, /customerAdminRecord\?\.adminRole/);
 });
@@ -239,10 +242,15 @@ test("admin exposes the nail size finder tool", async () => {
   assert.match(client, /function sizerPhotoToCanvas\(file\)/);
   assert.match(client, /function sizerChoosePhotoFile\(file\)/);
   assert.match(client, /function sizerVisibleFingers\(landmarks\)/);
+  assert.match(client, /distanceHint/);
+  assert.match(client, /sizerCameraScale/);
   assert.match(adminHtml, /id="sizerStepCamera"/);
   assert.match(adminHtml, /id="sizerCameraCapture"/);
   assert.match(adminHtml, /id="sizerPhotoInput"/);
   assert.match(adminHtml, /id="sizerChoosePhoto"/);
+  assert.match(adminHtml, /id="sizerCameraScale"/);
+  assert.doesNotMatch(adminHtml, /id="sizerCameraCardGuideLeft"/);
+  assert.doesNotMatch(adminHtml, /id="sizerCameraCardGuideRight"/);
   assert.match(styles, /grid-template-columns: repeat\(10, minmax\(0, 1fr\)/);
   assert.match(styles, /\.admin-sizing-overview\s*\{/);
 });

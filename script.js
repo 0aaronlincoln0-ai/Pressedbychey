@@ -4633,7 +4633,7 @@ function adminCustomerStatusLabel(status = "active") {
 }
 
 function adminTeamRoleLabel(role = "") {
-  return role === "owner" ? "Owner" : role === "accountant" ? "Accountant" : "Admin";
+  return role === "owner" ? "Owner" : role === "accountant" ? "Accountant" : role === "employee" ? "Employee" : "Admin";
 }
 
 function adminCustomerSizeInputs(sizes = {}) {
@@ -4697,7 +4697,7 @@ function renderAdminCustomerDetail() {
           <option value="blocked"${customer.accountStatus === "blocked" ? " selected" : ""}>Blocked</option>
         </select>
       </label>
-      ${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(customer.email) ? `<label>Team role<select data-admin-customer-input="adminRole"><option value=""${!customer.adminRole ? " selected" : ""}>Customer</option><option value="admin"${customer.adminRole === "admin" ? " selected" : ""}>Admin</option><option value="accountant"${customer.adminRole === "accountant" ? " selected" : ""}>Accountant</option></select></label>` : ""}
+      ${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(customer.email) ? `<label>Team role<select data-admin-customer-input="adminRole"><option value=""${!customer.adminRole ? " selected" : ""}>Customer</option><option value="admin"${customer.adminRole === "admin" ? " selected" : ""}>Admin</option><option value="accountant"${customer.adminRole === "accountant" ? " selected" : ""}>Accountant</option><option value="employee"${customer.adminRole === "employee" ? " selected" : ""}>Employee</option></select></label>` : ""}
       ${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(customer.email) ? `<label class="admin-customer-admin-toggle"><span>Delete access</span><span><input type="checkbox" data-admin-customer-input="canDelete"${customer.canDelete ? " checked" : ""} /> Can delete orders and conversations</span></label>` : ""}
       <div class="admin-customer-sizing">
         <div class="admin-customer-subhead"><strong>Saved sizing</strong><span>Chey can correct fit details for future orders.</span></div>
@@ -4741,7 +4741,7 @@ function renderAdminTeamDetail() {
     <div class="admin-customer-detail-head"><div><p class="eyebrow">Team member</p><h4>${escapeHTML(member.name || member.email)}</h4><p>${escapeHTML(member.email)}</p></div><span class="admin-account-status is-team">${escapeHTML(adminTeamRoleLabel(member.adminRole))}</span></div>
     <div class="admin-customer-quick-stats"><article><span>Orders</span><strong>${member.orderCount || 0}</strong></article><article><span>Saved sets</span><strong>${member.savedProductCount || 0}</strong></article><article><span>Last seen</span><strong>${escapeHTML(messageDateLabel(member.lastLogin || member.createdAt) || "-")}</strong></article></div>
     <form class="admin-customer-form" id="adminTeamMemberForm">
-      <label>Team role<select data-admin-team-input="adminRole"${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(member.email) ? "" : " disabled"}><option value="admin"${member.adminRole === "admin" ? " selected" : ""}>Admin</option><option value="accountant"${member.adminRole === "accountant" ? " selected" : ""}>Accountant</option><option value=""${!member.adminRole ? " selected" : ""}>Remove from team</option></select></label>
+      <label>Team role<select data-admin-team-input="adminRole"${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(member.email) ? "" : " disabled"}><option value="admin"${member.adminRole === "admin" ? " selected" : ""}>Admin</option><option value="accountant"${member.adminRole === "accountant" ? " selected" : ""}>Accountant</option><option value="employee"${member.adminRole === "employee" ? " selected" : ""}>Employee</option><option value=""${!member.adminRole ? " selected" : ""}>Remove from team</option></select></label>
       <label>Account access<select data-admin-team-input="accountStatus"><option value="active"${member.accountStatus === "active" ? " selected" : ""}>Active</option><option value="paused"${member.accountStatus === "paused" ? " selected" : ""}>Paused</option><option value="blocked"${member.accountStatus === "blocked" ? " selected" : ""}>Blocked</option></select></label>
       ${isOwnerAdmin() && !ADMIN_OWNER_EMAILS.includes(member.email) ? `<label class="admin-customer-admin-toggle"><span>Delete access</span><span><input type="checkbox" data-admin-team-input="canDelete"${member.canDelete ? " checked" : ""} /> Can delete orders and conversations</span></label>` : ""}
       <label>Team note<textarea data-admin-team-input="adminNote" maxlength="1200" placeholder="Role, finance, or operations notes...">${escapeTextarea(member.adminNote || "")}</textarea></label>
@@ -11494,11 +11494,14 @@ const sizerSteps = {
 };
 const sizerCameraVideo = document.querySelector("#sizerCameraVideo");
 const sizerCameraStatus = document.querySelector("#sizerCameraStatus");
+const sizerCameraFrameHint = document.querySelector(".sizer-camera-frame-hint");
+const sizerCameraTarget = document.querySelector(".sizer-camera-target");
 const sizerPhotoInput = document.querySelector("#sizerPhotoInput");
 const sizerChoosePhoto = document.querySelector("#sizerChoosePhoto");
+const sizerCameraScaleControl = document.querySelector("#sizerCameraScaleControl");
+const sizerCameraScale = document.querySelector("#sizerCameraScale");
+const sizerCameraScaleValue = document.querySelector("#sizerCameraScaleValue");
 const sizerCameraImage = document.querySelector("#sizerCameraImage");
-const sizerCameraCardGuideLeft = document.querySelector("#sizerCameraCardGuideLeft");
-const sizerCameraCardGuideRight = document.querySelector("#sizerCameraCardGuideRight");
 const sizerCardStage = document.querySelector("#sizerCardStage");
 const sizerCardBox = document.querySelector("#sizerCardBox");
 const sizerCardHandle = document.querySelector("#sizerCardHandle");
@@ -11746,7 +11749,13 @@ async function sizerAnalyzeCapturedFrame(canvas, step) {
   }
   const geometry = sizerEstimateNailGeometry(canvas, hand.landmarks, step);
   if (!geometry) throw new Error("The selected finger was not clear enough to measure. Keep it flat and retake the scan.");
-  return { ...geometry, handedness: hand.handedness };
+  const nailRatio = geometry.widthPx / canvas.width;
+  const distanceHint = nailRatio < 0.04
+    ? "Move your finger closer to the camera next time."
+    : nailRatio > 0.22
+    ? "Move the phone slightly farther away next time."
+    : "";
+  return { ...geometry, handedness: hand.handedness, distanceHint };
 }
 
 function sizerLoadCalibration() {
@@ -11781,6 +11790,9 @@ function sizerShowStep(name) {
     sizerState.cameraImageSrc = "";
     sizerState.cameraScanReady = false;
     sizerState.cameraScanStepIndex = -1;
+    const finger = sizerCurrentStep()?.finger || "finger";
+    if (sizerCameraFrameHint) sizerCameraFrameHint.textContent = `One ${finger} only`;
+    if (sizerCameraTarget) sizerCameraTarget.textContent = `One ${finger} only - nail fills about one-third of this box`;
     sizerSetScanStatus("");
     sizerStartCamera();
   }
@@ -11817,6 +11829,7 @@ function sizerRenderMeasureStep() {
   if (sizerFingerLabel) sizerFingerLabel.textContent = sizerFingerTitle(step);
   const stageWidth = sizerMeasureStage?.getBoundingClientRect().width || 320;
   const isCamera = sizerState.mode === "camera" && Boolean(sizerState.cameraImageSrc);
+  if (sizerCameraScaleControl) sizerCameraScaleControl.hidden = !isCamera;
   if (sizerMeasureStage) sizerMeasureStage.classList.toggle("is-camera", isCamera);
   if (sizerCameraImage) {
     sizerCameraImage.hidden = !isCamera;
@@ -11825,7 +11838,7 @@ function sizerRenderMeasureStep() {
   if (sizerRetakeCamera) sizerRetakeCamera.hidden = !isCamera;
   const help = document.querySelector(".sizer-measure-help");
   if (help) help.innerHTML = isCamera
-    ? "The scanner places the pink lines on the selected finger. First match the white lines to the card's short edges, then make a small final adjustment at the <strong>widest part of the nail</strong>."
+    ? "The scanner places two pink lines on the selected finger. Use the card reference slider below the photo, then make a small final adjustment at the <strong>widest part of the nail</strong>."
     : "Rest this nail flat on the box below, then drag each pink handle until the lines just touch the <strong>widest part of your nail</strong>.";
   if (!isCamera) sizerSetScanStatus("");
   const savedMm = Number(sizerState.measurements[step.hand]?.[step.finger]);
@@ -11839,6 +11852,8 @@ function sizerRenderMeasureStep() {
       sizerState.cameraNailLeftPx = stageWidth * 0.7 - nailWidth / 2;
       sizerState.cameraNailRightPx = stageWidth * 0.7 + nailWidth / 2;
     }
+    if (sizerCameraScale) sizerCameraScale.value = String(((sizerState.cameraCardRightPx - sizerState.cameraCardLeftPx) / stageWidth) * 100);
+    if (sizerCameraScaleValue) sizerCameraScaleValue.textContent = `${Number(sizerCameraScale?.value || 38).toFixed(1).replace(/\.0$/, "")}%`;
     sizerState.guideLeftPx = sizerState.cameraNailLeftPx;
     sizerState.guideRightPx = sizerState.cameraNailRightPx;
   } else {
@@ -11866,14 +11881,6 @@ function sizerRenderGuides() {
   sizerGuideLeft.style.left = `${sizerState.guideLeftPx}px`;
   sizerGuideRight.style.left = `${sizerState.guideRightPx}px`;
   const isCamera = sizerState.mode === "camera" && Boolean(sizerState.cameraImageSrc);
-  if (sizerCameraCardGuideLeft && sizerCameraCardGuideRight) {
-    sizerCameraCardGuideLeft.hidden = !isCamera;
-    sizerCameraCardGuideRight.hidden = !isCamera;
-    if (isCamera) {
-      sizerCameraCardGuideLeft.style.left = `${sizerState.cameraCardLeftPx}px`;
-      sizerCameraCardGuideRight.style.left = `${sizerState.cameraCardRightPx}px`;
-    }
-  }
   const mm = sizerCurrentMm();
   if (isCamera && !sizerState.cameraScanReady) {
     if (sizerReadoutMm) sizerReadoutMm.textContent = "-- mm";
@@ -12015,7 +12022,8 @@ async function sizerProcessCapturedCanvas(canvas, step, sourceLabel) {
     sizerState.guideLeftPx = sizerState.cameraNailLeftPx;
     sizerState.guideRightPx = sizerState.cameraNailRightPx;
     sizerState.cameraScanReady = true;
-    sizerSetScanStatus(`One ${step.finger} finger found. Align the white lines to the card edges, then confirm the pink lines at the nail's widest point.`);
+    const distanceHint = analysis.distanceHint ? ` ${analysis.distanceHint}` : "";
+    sizerSetScanStatus(`One ${step.finger} finger found.${distanceHint} Adjust the card reference slider if needed, then confirm the pink lines at the nail's widest point.`);
     sizerRenderGuides();
   } catch (error) {
     if (analysisId !== sizerState.cameraAnalysisId) return;
@@ -12280,15 +12288,15 @@ function setupNailSizer() {
   };
   sizerBindHandleDrag(sizerGuideLeft?.querySelector(".sizer-handle"), guideMover("left"));
   sizerBindHandleDrag(sizerGuideRight?.querySelector(".sizer-handle"), guideMover("right"));
-  const cameraCardGuideMover = (which) => (event) => {
-    const rect = sizerMeasureStage.getBoundingClientRect();
-    const x = Math.min(rect.width - 4, Math.max(4, event.clientX - rect.left));
-    if (which === "left") sizerState.cameraCardLeftPx = Math.min(x, sizerState.cameraCardRightPx - 6);
-    else sizerState.cameraCardRightPx = Math.max(x, sizerState.cameraCardLeftPx + 6);
+  sizerCameraScale?.addEventListener("input", () => {
+    if (sizerState.mode !== "camera" || !sizerState.cameraImageSrc) return;
+    const rect = sizerMeasureStage?.getBoundingClientRect();
+    const stageWidth = rect?.width || 320;
+    const width = stageWidth * (Number(sizerCameraScale.value) / 100);
+    sizerState.cameraCardRightPx = Math.min(stageWidth - 4, sizerState.cameraCardLeftPx + width);
+    if (sizerCameraScaleValue) sizerCameraScaleValue.textContent = `${Number(sizerCameraScale.value).toFixed(1).replace(/\.0$/, "")}%`;
     sizerRenderGuides();
-  };
-  sizerBindHandleDrag(sizerCameraCardGuideLeft?.querySelector(".sizer-handle"), cameraCardGuideMover("left"));
-  sizerBindHandleDrag(sizerCameraCardGuideRight?.querySelector(".sizer-handle"), cameraCardGuideMover("right"));
+  });
   document.querySelectorAll("[data-measure-nudge]").forEach((button) => {
     button.addEventListener("click", () => sizerSetGuideWidthMm(sizerCurrentMm() + Number(button.dataset.measureNudge) * 0.1));
   });

@@ -668,7 +668,7 @@
         <div class="sizer-camera-stage">
           <video id="sizerCameraVideo" autoplay muted playsinline></video>
           <span class="sizer-camera-frame-hint">One finger only</span>
-          <span class="sizer-camera-target" aria-hidden="true">Place one finger and the card inside the frame</span>
+          <span class="sizer-camera-target" aria-hidden="true">One finger only - nail fills about one-third of this box</span>
         </div>
         <p class="sizer-status" id="sizerCameraStatus" role="status">The scanner will reject a frame when it sees more than one extended finger.</p>
         <div class="sizer-camera-actions">
@@ -706,18 +706,17 @@
             <strong id="sizerReadoutMm">15.0 mm</strong>
             <span id="sizerReadoutSize">Size 4</span>
           </div>
-          <div class="sizer-guide sizer-reference-guide" id="sizerCameraCardGuideLeft" hidden>
-            <button class="sizer-handle" type="button" aria-label="Drag left card edge"><span aria-hidden="true">&#8596;</span></button>
-          </div>
-          <div class="sizer-guide sizer-reference-guide" id="sizerCameraCardGuideRight" hidden>
-            <button class="sizer-handle" type="button" aria-label="Drag right card edge"><span aria-hidden="true">&#8596;</span></button>
-          </div>
           <div class="sizer-guide" id="sizerGuideLeft">
             <button class="sizer-handle" type="button" aria-label="Drag left line"><span aria-hidden="true">&#8596;</span></button>
           </div>
           <div class="sizer-guide" id="sizerGuideRight">
             <button class="sizer-handle" type="button" aria-label="Drag right line"><span aria-hidden="true">&#8596;</span></button>
           </div>
+        </div>
+        <div class="sizer-camera-scale" id="sizerCameraScaleControl" hidden>
+          <label for="sizerCameraScale">Card reference width <output id="sizerCameraScaleValue">38%</output></label>
+          <input id="sizerCameraScale" type="range" min="20" max="75" step="0.5" value="38" />
+          <small>Slide until the card's short edge in the photo matches the reference width.</small>
         </div>
         <div class="sizer-nudge-row" aria-label="Fine adjust width">
           <button class="sizer-nudge" type="button" data-measure-nudge="-1">&minus; narrower</button>
@@ -1398,6 +1397,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260715-ai-sizer-v2"></script>
+    <script src="script.js?v=20260715-ai-sizer-v3"></script>
   </body>
 </html>

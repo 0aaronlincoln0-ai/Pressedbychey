@@ -1,11 +1,21 @@
 import { getStore } from "@netlify/blobs";
-import { isOwnerEmail, verifyAdminRequest } from "./_shared/admin-auth.mjs";
+import {
+  OWNER_EMAIL,
+  OWNER_EMAILS,
+  SECONDARY_OWNER_EMAIL,
+  isOwnerEmail,
+  verifyAdminRequest
+} from "./_shared/admin-auth.mjs";
 
 const STORE_NAME = "pressed-by-chey";
 const CUSTOMER_PREFIX = "customers";
 const ALLOWED_STATUSES = ["active", "paused", "blocked"];
-const ALLOWED_TEAM_ROLES = ["", "admin", "accountant"];
+const ALLOWED_TEAM_ROLES = ["", "admin", "accountant", "employee"];
 const MAX_CUSTOMERS = 2000;
+const OWNER_DISPLAY_NAMES = {
+  [OWNER_EMAIL]: "Callison Chey",
+  [SECONDARY_OWNER_EMAIL]: "Aaron Lincoln"
+};
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -64,6 +74,25 @@ function orderCount(customer) {
   return Array.isArray(customer?.orders) ? customer.orders.length : 0;
 }
 
+function ownerRecord(email) {
+  const normalizedEmail = normalizeEmail(email);
+  return {
+    name: OWNER_DISPLAY_NAMES[normalizedEmail] || normalizedEmail,
+    email: normalizedEmail,
+    accountStatus: "active",
+    adminRole: "owner",
+    isAdmin: true,
+    canDelete: true,
+    adminNote: "Permanent owner account.",
+    sizes: normalizeSizes(),
+    savedProducts: [],
+    orders: [],
+    createdAt: "",
+    lastLogin: "",
+    updatedAt: ""
+  };
+}
+
 function publicCustomer(customer = {}, detailed = false) {
   const base = {
     name: safeText(customer.name, 100),
@@ -102,6 +131,7 @@ async function listCustomers(store, payload = {}) {
   const allStatuses = payload.status === "all" || !payload.status;
   const listing = await store.list({ prefix: `${CUSTOMER_PREFIX}/` });
   const matches = [];
+  const matchedOwnerEmails = new Set();
   for (const entry of (listing.blobs || []).slice(0, MAX_CUSTOMERS)) {
     const customer = await store.get(entry.key, { type: "json" });
     if (!customer) continue;
@@ -111,7 +141,18 @@ async function listCustomers(store, payload = {}) {
     const haystack = `${publicRecord.name} ${publicRecord.email}`.toLowerCase();
     if (search && !haystack.includes(search)) continue;
     if (!allStatuses && publicRecord.accountStatus !== status) continue;
+    if (isOwnerEmail(publicRecord.email)) matchedOwnerEmails.add(publicRecord.email);
     matches.push(publicRecord);
+  }
+  if (payload.teamOnly) {
+    OWNER_EMAILS.forEach((email) => {
+      const normalizedEmail = normalizeEmail(email);
+      if (matchedOwnerEmails.has(normalizedEmail)) return;
+      const record = publicCustomer(ownerRecord(normalizedEmail));
+      const haystack = `${record.name} ${record.email}`.toLowerCase();
+      if (search && !haystack.includes(search)) return;
+      matches.push(record);
+    });
   }
   matches.sort((a, b) => String(b.lastLogin || b.createdAt).localeCompare(String(a.lastLogin || a.createdAt)));
   const pageSize = Math.min(Math.max(Number(payload.pageSize) || 25, 1), 100);
@@ -147,7 +188,10 @@ export default async (request) => {
   }
   const key = customerKey(email);
   const customer = await store.get(key, { type: "json" });
-  if (!customer) return jsonResponse({ error: "Customer account not found." }, { status: 404 });
+  if (!customer) {
+    if (isOwnerEmail(email)) return jsonResponse({ ok: true, customer: publicCustomer(ownerRecord(email), true) });
+    return jsonResponse({ error: "Customer account not found." }, { status: 404 });
+  }
 
   if (action === "get") return jsonResponse({ ok: true, customer: publicCustomer(customer, true) });
   if (action === "update") {
