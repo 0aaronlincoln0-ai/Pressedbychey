@@ -8405,6 +8405,11 @@ async function updateLookPhotoFromFile(index, file, input) {
 
 function renderAdminLookPhotos() {
   if (!adminLookList) return;
+  const expandedIndices = new Set(
+    [...adminLookList.querySelectorAll("[data-look-card]")]
+      .filter((card) => card.open)
+      .map((card) => Number(card.dataset.lookCard))
+  );
   adminLookList.innerHTML = "";
   const activeIndices = lookLibrary
     .map((_, index) => index)
@@ -8424,7 +8429,7 @@ function renderAdminLookPhotos() {
   }
   displayIndices.forEach((index) => {
     const look = readLookData(index);
-    const card = document.createElement("div");
+    const card = document.createElement("details");
     card.className = `admin-control admin-look-card${look.published ? " is-published" : ""}`;
     card.dataset.lookCard = String(index);
     card.dataset.catalogName = `${look.name} ${look.copy}`.toLowerCase();
@@ -8434,16 +8439,32 @@ function renderAdminLookPhotos() {
     card.dataset.catalogShape = productShapeFilterValue({ category: look.finish, name: look.name, description: look.copy });
     card.style.setProperty("--look-base", look.base);
     card.style.setProperty("--look-accent", look.accent);
-    if (look.photo) card.style.setProperty("--look-photo", `url("${look.photo}")`);
-    applyLookFitProperties(card, look.photoFit, look.photoPosition, look.photoZoom);
+    card.open = expandedIndices.has(index);
     card.innerHTML = `
-      <div class="admin-look-preview${look.photo ? " has-photo" : ""}" aria-hidden="true">
+      <summary class="admin-look-summary">
+        <div class="admin-look-preview admin-look-summary-preview${look.photo ? " has-photo" : ""}" aria-hidden="true">
         ${look.photo ? `<img src="${escapeAttribute(look.photo)}" alt="" data-photo-fit="${escapeAttribute(look.photoFit)}" data-photo-position="${escapeAttribute(look.photoPosition)}" style="${photoTransformStyle(look.photoTransform, look.photoZoom)}" />` : `<span class="professional-upload-hint">Drop nail photo here</span>`}
         <span class="look-dot"></span>
         ${look.published ? `<span class="published-ribbon">In Shop</span>` : ""}
-      </div>
+        </div>
+        <div class="admin-look-summary-copy">
+          <span>${look.slotLabel}${look.published ? " - Published" : ""}</span>
+          <strong>${escapeHTML(look.name)}</strong>
+          <div class="admin-look-record-meta" aria-label="Catalog status">
+            <span class="admin-look-status-chip${look.published ? " is-live" : ""}">${look.published ? "Live in Shop" : "Private draft"}</span>
+            <span class="admin-look-status-chip" data-catalog-stock-label>${escapeHTML(inventoryDisplayLabel(look))}</span>
+            <span class="admin-look-status-chip" data-catalog-number-label>${escapeHTML(productNumberFor(look, index))}</span>
+          </div>
+          <small>${escapeHTML(look.copy || "Add a customer-facing description in the editor.")}</small>
+        </div>
+        <span class="admin-look-summary-action">${card.open ? "Collapse" : "Edit product"}</span>
+      </summary>
+      <div class="admin-look-details">
       <div class="admin-look-copy">
-        <span>${look.slotLabel}${look.published ? " - Published" : ""}</span>
+        <div class="admin-look-editor-heading">
+          <span>${look.slotLabel}${look.published ? " - Published" : ""}</span>
+          <strong>${escapeHTML(look.name)}</strong>
+        </div>
         <div class="admin-look-record-meta" aria-label="Catalog status">
           <span class="admin-look-status-chip${look.published ? " is-live" : ""}">${look.published ? "Live in Shop" : "Private draft"}</span>
           <span class="admin-look-status-chip" data-catalog-stock-label>${escapeHTML(inventoryDisplayLabel(look))}</span>
@@ -8486,8 +8507,14 @@ function renderAdminLookPhotos() {
         <small class="look-extract-note" data-look-status>${look.photo ? (look.published ? "This design is live in the Shop." : "Photo framed. Add a price, then publish it to the Shop.") : "Take a nail photo, upload it here, then publish it as a product."}</small>
         <input class="hidden-file-input" id="lookPhoto-${index}" type="file" accept="image/*" capture="environment" data-look-photo="${index}" />
       </div>
+      </div>
     `;
     adminLookList.appendChild(card);
+    applyLookFitProperties(card.querySelector(".admin-look-preview"), look.photoFit, look.photoPosition, look.photoZoom);
+    card.addEventListener("toggle", () => {
+      const action = card.querySelector(".admin-look-summary-action");
+      if (action) action.textContent = card.open ? "Collapse" : "Edit product";
+    });
     bindPhotoDropZone(card.querySelector(".admin-look-preview"), (file) => updateLookPhotoFromFile(index, file, card.querySelector("[data-look-photo]")));
   });
   adminLookList.querySelectorAll("[data-look-photo]").forEach((input) => {
@@ -8513,7 +8540,7 @@ function renderAdminLookPhotos() {
         imageTransform: transform
       });
     }
-    applyLookFitProperties(card, fit, position, zoom);
+    applyLookFitProperties(card?.querySelector(".admin-look-preview"), fit, position, zoom);
     applyPhotoFitToImage(card?.querySelector(".admin-look-preview img"), fit, position, zoom, transform);
     const zoomLabel = card?.querySelector("[data-look-zoom-label]");
     if (zoomLabel) zoomLabel.textContent = `${photoZoomPercent(zoom)}%`;
