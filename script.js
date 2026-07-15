@@ -385,6 +385,7 @@ let customerConversation = null;
 let adminConversations = [];
 let activeAdminMessageEmail = "";
 let activeAdminConversation = null;
+let adminConversationLoadId = 0;
 let adminCustomers = [];
 let adminCustomerPage = 1;
 let adminCustomerPageCount = 1;
@@ -4359,7 +4360,10 @@ async function fetchAdminMessageRecipients() {
     const data = await adminCustomersRequest("list", { teamOnly: false, status: "active", page: 1, pageSize: 100 });
     const customers = Array.isArray(data.customers) ? data.customers : [];
     adminMessageCustomerSelect.innerHTML = '<option value="">Choose a customer...</option>' + customers.map((customer) => `<option value="${escapeAttribute(customer.email)}">${escapeHTML(customer.name || customer.email)} - ${escapeHTML(customer.email)}</option>`).join("");
-    if (activeAdminMessageEmail && customers.some((customer) => customer.email === activeAdminMessageEmail)) adminMessageCustomerSelect.value = activeAdminMessageEmail;
+    if (activeAdminMessageEmail && customers.some((customer) => customer.email === activeAdminMessageEmail)) {
+      adminMessageCustomerSelect.value = activeAdminMessageEmail;
+      if (adminMessageForm) adminMessageForm.dataset.recipientEmail = activeAdminMessageEmail;
+    }
   } catch (error) {
     adminMessageCustomerSelect.innerHTML = '<option value="">Customer list unavailable</option>';
     if (adminMessagesStatus) adminMessagesStatus.textContent = error.message || "Customer list unavailable.";
@@ -4376,6 +4380,17 @@ async function startAdminCustomerMessage() {
   await fetchAdminConversation(email);
   if (adminMessageRecipientPicker) adminMessageRecipientPicker.hidden = true;
   adminNewCustomerMessage?.setAttribute("aria-expanded", "false");
+}
+
+function syncAdminMessageRecipient(email = "") {
+  const recipient = String(email || "").trim().toLowerCase();
+  if (!recipient) return false;
+  activeAdminMessageEmail = recipient;
+  if (adminMessageForm) adminMessageForm.dataset.recipientEmail = recipient;
+  if (adminMessageCustomerSelect && adminMessageCustomerSelect.value !== recipient) {
+    adminMessageCustomerSelect.value = recipient;
+  }
+  return true;
 }
 
 function toggleAdminMessageRecipientPicker() {
@@ -4456,17 +4471,23 @@ function renderAdminMessageThread() {
 
 async function fetchAdminConversation(email, { showStatus = true } = {}) {
   if (!email || !isAdminSignedIn()) return;
-  activeAdminMessageEmail = email;
+  const recipient = String(email).trim().toLowerCase();
+  if (!syncAdminMessageRecipient(recipient)) return;
+  const loadId = ++adminConversationLoadId;
+  activeAdminConversation = null;
   renderAdminMessageList();
+  renderAdminMessageThread();
   if (showStatus && adminMessagesStatus) adminMessagesStatus.textContent = "Loading conversation...";
   try {
-    let data = await adminMessagesRequest("get", { email });
+    let data = await adminMessagesRequest("get", { email: recipient });
+    if (loadId !== adminConversationLoadId || activeAdminMessageEmail !== recipient) return;
     activeAdminConversation = data.conversation || null;
     if (Number(activeAdminConversation?.adminUnread || 0) > 0) {
-      data = await adminMessagesRequest("mark-read", { email });
+      data = await adminMessagesRequest("mark-read", { email: recipient });
+      if (loadId !== adminConversationLoadId || activeAdminMessageEmail !== recipient) return;
       activeAdminConversation = data.conversation || activeAdminConversation;
     }
-    adminConversations = adminConversations.map((conversation) => conversation.email === email
+    adminConversations = adminConversations.map((conversation) => conversation.email === recipient
       ? { ...conversation, adminUnread: 0, customerOnline: activeAdminConversation.presence?.customerOnline ?? conversation.customerOnline, customerLastSeen: activeAdminConversation.presence?.customerLastSeen || conversation.customerLastSeen, updatedAt: activeAdminConversation.updatedAt, lastMessage: activeAdminConversation.messages.at(-1) || conversation.lastMessage }
       : conversation);
     renderAdminMessageList();
@@ -4516,7 +4537,8 @@ async function fetchAdminMessages({ showStatus = true } = {}) {
 async function sendAdminMessage(event) {
   event.preventDefault();
   const body = adminMessageInput?.value.trim() || "";
-  if (!activeAdminMessageEmail) {
+  const recipient = adminMessageForm?.dataset.recipientEmail || activeAdminMessageEmail;
+  if (!recipient) {
     if (adminMessagesStatus) adminMessagesStatus.textContent = "Select a customer before replying.";
     return;
   }
@@ -4524,7 +4546,7 @@ async function sendAdminMessage(event) {
   if (adminMessageSend) adminMessageSend.disabled = true;
   adminMessageSend?.classList.add("is-sending");
   try {
-    const data = await adminMessagesRequest("send", { email: activeAdminMessageEmail, body });
+    const data = await adminMessagesRequest("send", { email: recipient, body });
     activeAdminConversation = data.conversation || activeAdminConversation;
     if (adminMessageInput) {
       adminMessageInput.value = "";
@@ -7058,6 +7080,10 @@ adminConversationHeading?.addEventListener("click", (event) => {
 refreshAdminMessagesButton?.addEventListener("click", () => fetchAdminMessages({ showStatus: true }));
 adminStartCustomerMessage?.addEventListener("click", startAdminCustomerMessage);
 adminNewCustomerMessage?.addEventListener("click", toggleAdminMessageRecipientPicker);
+adminMessageCustomerSelect?.addEventListener("change", () => {
+  const email = adminMessageCustomerSelect.value || "";
+  if (email) fetchAdminConversation(email);
+});
 adminConversationList?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-admin-conversation-email]");
   if (button) fetchAdminConversation(button.dataset.adminConversationEmail);
