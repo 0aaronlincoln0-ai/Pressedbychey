@@ -206,6 +206,8 @@ test("shop separates fresh drops from the complete inventory", async () => {
   assert.match(client, /hotDrop: Boolean\(product\.hotDrop\)/);
   assert.match(client, /Post to Hot Drop/);
   assert.match(indexHtml, /data-shop-destination="fresh-drops"/);
+  assert.match(indexHtml, /Shop Store/);
+  assert.match(adminHtml, /data-shop-destination="inventory"/);
   assert.match(indexHtml, /data-collection-filter="fresh-drops"/);
   assert.doesNotMatch(indexHtml, /Shop Hot Drop/);
   assert.doesNotMatch(indexHtml, /View Main Inventory/);
@@ -266,6 +268,7 @@ test("size finder and product photos support real mobile capture flows", async (
   assert.doesNotMatch(client, /setAttribute\("capture"/);
   assert.match(client, /import\("\.\/assets\/mediapipe\/vision_bundle\.mjs"\)/);
   assert.match(client, /function sizerAnalyzeCapturedFrame\(canvas, step\)/);
+  assert.match(client, /Measuring is local to the device/);
   assert.match(client, /cameraScanReady/);
   assert.match(client, /Only one finger can be measured at a time/);
   assert.match(client, /is-camera-step/);

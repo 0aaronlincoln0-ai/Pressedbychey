@@ -12070,10 +12070,7 @@ async function sizerChoosePhotoFile(file) {
 function sizerOpen() {
   if (!sizerOverlay) return;
   const adminMode = IS_ADMIN_PAGE && isAdminSignedIn();
-  if (!currentCustomer() && !adminMode) {
-    openAccount("Sign in or create your free nail profile to measure and save your sizes.");
-    return;
-  }
+  // Measuring is local to the device. Ask for an account only when the user saves.
   closeAccountPanel();
   sizerStopCamera();
   sizerState.mode = "screen";
