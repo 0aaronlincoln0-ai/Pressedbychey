@@ -3755,6 +3755,18 @@ figcaption {
   }
 }
 
+/* Desktop buttons get a small branded brush cursor while specialized controls keep their own feedback. */
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  [role="button"],
+  .button {
+    cursor: url("assets/nail-polish-brush-cursor.svg") 4 4, pointer;
+  }
+}
+
 /* Product operations workspace */
 .admin-products-hero {
   display: flex;
