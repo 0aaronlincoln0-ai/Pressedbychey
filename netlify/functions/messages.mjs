@@ -156,6 +156,16 @@ function appendMessage(conversation, sender, body) {
   else conversation.adminUnread += 1;
 }
 
+function removeMessage(conversation, messageId, sender) {
+  const index = conversation.messages.findIndex((message) => message.id === messageId);
+  if (index < 0) throw new Error("Message not found.");
+  if (conversation.messages[index].sender !== sender) throw new Error("You can only undo your own messages.");
+  conversation.messages.splice(index, 1);
+  conversation.customerUnread = conversation.messages.filter((message) => message.sender === "chey" && !message.readAt).length;
+  conversation.adminUnread = conversation.messages.filter((message) => message.sender === "customer" && !message.readAt).length;
+  conversation.updatedAt = new Date().toISOString();
+}
+
 export default async (request) => {
   const store = getStore({ name: STORE_NAME, consistency: "strong" });
   const admin = isAuthorizedAdmin(request);
@@ -182,6 +192,19 @@ export default async (request) => {
       return jsonResponse({ error: "A valid customer email is required." }, { status: 400 });
     }
     const conversation = await readConversation(store, email, payload?.name);
+    if (action === "delete-conversation") {
+      await store.delete(conversationKey(email));
+      return jsonResponse({ ok: true, deleted: true, email });
+    }
+    if (action === "delete-message") {
+      try {
+        removeMessage(conversation, safeText(payload?.messageId, 80), "chey");
+      } catch (error) {
+        return jsonResponse({ error: error.message }, { status: error.message === "Message not found." ? 404 : 403 });
+      }
+      await saveConversation(store, conversation);
+      return jsonResponse({ ok: true, conversation: publicConversation(conversation) });
+    }
     if (action === "mark-read") {
       conversation.adminUnread = 0;
       conversation.messages = conversation.messages.map((message) => message.sender === "customer" && !message.readAt
@@ -204,6 +227,19 @@ export default async (request) => {
 
   const conversation = await readConversation(store, email, customer.name);
   conversation.name = safeText(customer.name || conversation.name, 100);
+  if (action === "delete-conversation") {
+    await store.delete(conversationKey(email));
+    return jsonResponse({ ok: true, deleted: true, email });
+  }
+  if (action === "delete-message") {
+    try {
+      removeMessage(conversation, safeText(payload?.messageId, 80), "customer");
+    } catch (error) {
+      return jsonResponse({ error: error.message }, { status: error.message === "Message not found." ? 404 : 403 });
+    }
+    await saveConversation(store, conversation);
+    return jsonResponse({ ok: true, conversation: publicConversation(conversation) });
+  }
   if (action === "mark-read") {
     conversation.customerUnread = 0;
     conversation.messages = conversation.messages.map((message) => message.sender === "chey" && !message.readAt

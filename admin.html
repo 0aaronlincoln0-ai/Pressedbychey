@@ -401,15 +401,23 @@
                         <h3>Message Chey</h3>
                         <p class="account-section-intro">Ask about a fit, a custom design, an order, or your next set.</p>
                       </div>
-                      <span id="customerMessagesStatus">Live support</span>
+                      <div class="chat-header-actions">
+                        <span id="customerMessagesStatus" class="chat-live-status">Live support</span>
+                        <button class="chat-delete-button" type="button" id="customerDeleteConversation" aria-label="Delete conversation" title="Delete conversation"><span aria-hidden="true">&#128465;</span></button>
+                      </div>
                     </div>
                     <div class="customer-message-thread" id="customerMessageThread" aria-live="polite"></div>
                     <form class="customer-message-form" id="customerMessageForm">
                       <label class="sr-only" for="customerMessageInput">Message Chey</label>
-                      <textarea id="customerMessageInput" maxlength="2400" placeholder="Write a message for Chey..." required></textarea>
-                      <div class="customer-message-form-footer">
-                        <span>Chey will see this in her Messages inbox.</span>
-                        <button class="button primary" type="submit" id="customerMessageSend">Send Message</button>
+                      <textarea id="customerMessageInput" maxlength="2400" rows="1" placeholder="Reply..." required></textarea>
+                      <div class="customer-message-form-footer chat-composer-footer">
+                        <div class="chat-composer-tools">
+                          <button class="chat-emoji-button" type="button" id="customerEmojiButton" aria-label="Add emoji" aria-haspopup="true" aria-expanded="false"><span aria-hidden="true">&#9786;</span></button>
+                          <div class="chat-emoji-picker" id="customerEmojiPicker" role="menu" hidden></div>
+                        </div>
+                        <span class="chat-composer-hint">Chey will see this in her Messages inbox.</span>
+                        <span class="chat-character-count" id="customerMessageCount">0/2400</span>
+                        <button class="button primary chat-send-button" type="submit" id="customerMessageSend" aria-label="Reply to Chey"><span class="chat-send-icon" aria-hidden="true">&#8593;</span><span>Reply</span></button>
                       </div>
                     </form>
                   </section>
@@ -706,11 +714,15 @@
                 <div class="admin-message-thread chat-thread" id="adminMessageThread" aria-live="polite" aria-label="Customer conversation"></div>
                 <form class="admin-message-form chat-composer" id="adminMessageForm">
                   <label class="sr-only" for="adminMessageInput">Message customer</label>
-                  <textarea id="adminMessageInput" maxlength="2400" rows="1" placeholder="Select a customer to reply..." required disabled></textarea>
+                  <textarea id="adminMessageInput" maxlength="2400" rows="1" placeholder="Reply..." required disabled></textarea>
                   <div class="admin-message-form-footer chat-composer-footer">
-                    <span>Replies appear on the customer account page.</span>
+                    <div class="chat-composer-tools">
+                      <button class="chat-emoji-button" type="button" id="adminEmojiButton" aria-label="Add emoji" aria-haspopup="true" aria-expanded="false"><span aria-hidden="true">&#9786;</span></button>
+                      <div class="chat-emoji-picker" id="adminEmojiPicker" role="menu" hidden></div>
+                    </div>
+                    <span class="chat-composer-hint">Replies appear on the customer account page.</span>
                     <span class="chat-character-count" id="adminMessageCount">0/2400</span>
-                    <button class="button primary chat-send-button" type="submit" id="adminMessageSend" aria-label="Send reply" disabled><span class="chat-send-icon" aria-hidden="true">&#8593;</span><span>Send</span></button>
+                    <button class="button primary chat-send-button" type="submit" id="adminMessageSend" aria-label="Reply to customer" disabled><span class="chat-send-icon" aria-hidden="true">&#8593;</span><span>Reply</span></button>
                   </div>
                 </form>
               </section>
