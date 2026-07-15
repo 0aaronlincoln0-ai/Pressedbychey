@@ -59,9 +59,6 @@ export default async (request, context = {}) => {
   const attempt = await store.get(key, { type: "json" });
   const activeWindow = attempt && now - Number(attempt.windowStartedAt || 0) < ATTEMPT_WINDOW_MS;
   const failures = activeWindow ? Number(attempt.failures || 0) : 0;
-  if (failures >= MAX_ATTEMPTS) {
-    return jsonResponse({ error: "Too many login attempts. Try again in 15 minutes." }, { status: 429 });
-  }
 
   let result = authenticateAdminCredentials(email, password);
   let customerAdminRecord = null;
@@ -70,6 +67,9 @@ export default async (request, context = {}) => {
     if (!result.ok && customerAdminRecord?.isAdmin === true && verifyPassword(password, customerAdminRecord.passwordHash)) {
       result = { ok: true, configured: true, email, dynamic: true };
     }
+  }
+  if (failures >= MAX_ATTEMPTS && !result.ok) {
+    return jsonResponse({ error: "Too many login attempts. Try again in 15 minutes." }, { status: 429 });
   }
   if (!result.ok) {
     await store.setJSON(key, {

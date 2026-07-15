@@ -98,6 +98,13 @@ test("team roles are separated from customer accounts", async () => {
   assert.match(adminAuth, /customerAdminRecord\?\.adminRole/);
 });
 
+test("the owner can recover from an admin login lockout with valid credentials", async () => {
+  const adminAuth = await source("netlify/functions/admin-auth.mjs");
+  assert.match(adminAuth, /failures >= MAX_ATTEMPTS && !result\.ok/);
+  assert.match(adminAuth, /authenticateAdminCredentials\(email, password\)/);
+  assert.match(adminAuth, /await store\.delete\(key\)/);
+});
+
 test("admin messages provide a direct customer picker", async () => {
   const client = await source("script.js");
   const adminHtml = await source("admin.html");
