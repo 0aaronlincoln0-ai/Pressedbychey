@@ -7496,8 +7496,9 @@ body::after {
   width: 44%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.62), transparent);
   content: "";
+  pointer-events: none;
   transform: rotate(18deg);
-  transition: left 420ms ease;
+  transition: none;
 }
 
 .button:hover::after,
@@ -7505,6 +7506,7 @@ body::after {
 .cart-button:hover::after,
 .account-button:hover::after {
   left: 118%;
+  transition: left 420ms ease;
 }
 
 .primary {
