@@ -86,7 +86,8 @@ export default async (request, context = {}) => {
     ok: true,
     session: {
       ...session,
-      canDelete: isOwnerEmail(result.email) || customerAdminRecord?.canDelete === true
+      adminRole: isOwnerEmail(result.email) ? "owner" : (customerAdminRecord?.adminRole || (customerAdminRecord?.isAdmin ? "admin" : "")),
+      canDelete: isOwnerEmail(result.email) || customerAdminRecord?.adminRole === "admin" && customerAdminRecord?.canDelete === true
     }
   });
 };

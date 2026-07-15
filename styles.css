@@ -3924,7 +3924,7 @@ figcaption {
 
   .admin-dedicated-page .admin-view-tabs {
     position: static;
-    grid-template-columns: repeat(8, minmax(132px, 1fr));
+    grid-template-columns: repeat(9, minmax(132px, 1fr));
     overflow-x: auto;
   }
 
@@ -4752,7 +4752,7 @@ figcaption {
 
 .admin-view-tabs {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 0.6rem;
 }
 
@@ -4885,6 +4885,17 @@ figcaption {
 
 .admin-customers-section {
   min-width: 0;
+}
+
+.admin-team-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-team-access-note {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
 }
 
 .admin-customer-tools {
@@ -5039,6 +5050,11 @@ figcaption {
 }
 
 .admin-account-status.is-delete {
+  background: rgba(203, 46, 114, 0.12);
+  color: var(--berry);
+}
+
+.admin-account-status.is-team {
   background: rgba(203, 46, 114, 0.12);
   color: var(--berry);
 }
@@ -5643,7 +5659,7 @@ figcaption {
 
   .admin-dedicated-page .admin-view-tabs {
     position: static;
-    grid-template-columns: repeat(8, minmax(132px, 1fr));
+    grid-template-columns: repeat(9, minmax(132px, 1fr));
     overflow-x: auto;
   }
 

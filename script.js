@@ -175,6 +175,11 @@ const adminCustomerPrev = document.querySelector("#adminCustomerPrev");
 const adminCustomerNext = document.querySelector("#adminCustomerNext");
 const adminCustomerList = document.querySelector("#adminCustomerList");
 const adminCustomerDetail = document.querySelector("#adminCustomerDetail");
+const refreshAdminTeamButton = document.querySelector("#refreshAdminTeam");
+const adminTeamStatus = document.querySelector("#adminTeamStatus");
+const adminTeamList = document.querySelector("#adminTeamList");
+const adminTeamDetail = document.querySelector("#adminTeamDetail");
+const adminTeamSummary = document.querySelector("#adminTeamSummary");
 const refreshAccountingButton = document.querySelector("#refreshAccounting");
 const accountingGrossPaid = document.querySelector("#accountingGrossPaid");
 const accountingPaidCount = document.querySelector("#accountingPaidCount");
@@ -383,6 +388,8 @@ let adminCustomerTotal = 0;
 let activeAdminCustomerEmail = "";
 let activeAdminCustomer = null;
 let adminCustomerSearchTimer = null;
+let adminTeamMembers = [];
+let activeAdminTeamEmail = "";
 let accountingOrders = [];
 let adminState = {
   texts: {},
@@ -2074,6 +2081,7 @@ function startAdminSession(session = {}) {
     authenticated: true,
     email: String(session.email || "").toLowerCase(),
     token: String(session.token),
+    adminRole: String(session.adminRole || (String(session.email || "").toLowerCase() === ADMIN_OWNER_EMAIL ? "owner" : "admin")),
     canDelete: String(session.email || "").toLowerCase() === ADMIN_OWNER_EMAIL || session.canDelete === true,
     expiresAt: Math.min(expiresAt, Date.now() + ADMIN_SESSION_TTL_MS)
   };
@@ -4508,6 +4516,10 @@ function adminCustomerStatusLabel(status = "active") {
   return status === "blocked" ? "Blocked" : status === "paused" ? "Paused" : "Active";
 }
 
+function adminTeamRoleLabel(role = "") {
+  return role === "owner" ? "Owner" : role === "accountant" ? "Accountant" : "Admin";
+}
+
 function adminCustomerSizeInputs(sizes = {}) {
   return sizeHandKeys.flatMap((hand) => sizeFingerKeys.map((finger) => `
     <label>${hand === "left" ? "Left" : "Right"} ${finger}
@@ -4521,7 +4533,7 @@ function renderAdminCustomerList() {
   adminCustomerList.innerHTML = adminCustomers.length
     ? adminCustomers.map((customer) => `
       <button class="admin-customer-row ${customer.email === activeAdminCustomerEmail ? "is-active" : ""}" type="button" data-admin-customer-email="${escapeAttribute(customer.email)}">
-        <span class="admin-customer-row-head"><strong>${escapeHTML(customer.name || customer.email)}</strong><span><b class="admin-account-status is-${escapeAttribute(customer.accountStatus)}">${escapeHTML(adminCustomerStatusLabel(customer.accountStatus))}</b>${customer.isAdmin ? " <b class=\"admin-account-status is-active\">Admin</b>" : ""}${customer.canDelete ? " <b class=\"admin-account-status is-delete\">Delete access</b>" : ""}</span></span>
+        <span class="admin-customer-row-head"><strong>${escapeHTML(customer.name || customer.email)}</strong><span><b class="admin-account-status is-${escapeAttribute(customer.accountStatus)}">${escapeHTML(adminCustomerStatusLabel(customer.accountStatus))}</b>${customer.canDelete ? " <b class=\"admin-account-status is-delete\">Delete access</b>" : ""}</span></span>
         <small>${escapeHTML(customer.email)}</small>
         <span class="admin-customer-row-stats"><span>${customer.orderCount || 0} orders</span><span>${customer.savedProductCount || 0} saved</span></span>
         <time>Last seen ${escapeHTML(messageDateLabel(customer.lastLogin || customer.createdAt) || "not yet")}</time>
@@ -4569,7 +4581,8 @@ function renderAdminCustomerDetail() {
           <option value="blocked"${customer.accountStatus === "blocked" ? " selected" : ""}>Blocked</option>
         </select>
       </label>
-      ${isOwnerAdmin() && customer.email !== ADMIN_OWNER_EMAIL ? `<label class="admin-customer-admin-toggle"><span>Admin access</span><span><input type="checkbox" data-admin-customer-input="isAdmin"${customer.isAdmin ? " checked" : ""} /> Can manage the store and customer accounts</span></label><label class="admin-customer-admin-toggle"><span>Delete access</span><span><input type="checkbox" data-admin-customer-input="canDelete"${customer.canDelete ? " checked" : ""} /> Can delete orders and conversations</span></label>` : ""}
+      ${isOwnerAdmin() && customer.email !== ADMIN_OWNER_EMAIL ? `<label>Team role<select data-admin-customer-input="adminRole"><option value=""${!customer.adminRole ? " selected" : ""}>Customer</option><option value="admin"${customer.adminRole === "admin" ? " selected" : ""}>Admin</option><option value="accountant"${customer.adminRole === "accountant" ? " selected" : ""}>Accountant</option></select></label>` : ""}
+      ${isOwnerAdmin() && customer.email !== ADMIN_OWNER_EMAIL ? `<label class="admin-customer-admin-toggle"><span>Delete access</span><span><input type="checkbox" data-admin-customer-input="canDelete"${customer.canDelete ? " checked" : ""} /> Can delete orders and conversations</span></label>` : ""}
       <div class="admin-customer-sizing">
         <div class="admin-customer-subhead"><strong>Saved sizing</strong><span>Chey can correct fit details for future orders.</span></div>
         <div class="admin-customer-size-grid">${adminCustomerSizeInputs(customer.sizes)}</div>
@@ -4585,6 +4598,90 @@ function renderAdminCustomerDetail() {
   `;
 }
 
+
+function renderAdminTeamList() {
+  if (!adminTeamList) return;
+  if (adminTeamSummary) adminTeamSummary.textContent = `${adminTeamMembers.length} team member${adminTeamMembers.length === 1 ? "" : "s"}`;
+  adminTeamList.innerHTML = adminTeamMembers.length
+    ? adminTeamMembers.map((member) => `
+      <button class="admin-customer-row ${member.email === activeAdminTeamEmail ? "is-active" : ""}" type="button" data-admin-team-email="${escapeAttribute(member.email)}">
+        <span class="admin-customer-row-head"><strong>${escapeHTML(member.name || member.email)}</strong><span><b class="admin-account-status is-team">${escapeHTML(adminTeamRoleLabel(member.adminRole))}</b>${member.canDelete ? " <b class=\"admin-account-status is-delete\">Delete access</b>" : ""}</span></span>
+        <small>${escapeHTML(member.email)}</small>
+        <span class="admin-customer-row-stats"><span>${member.orderCount || 0} orders</span><span>${member.savedProductCount || 0} saved</span></span>
+        <time>Last seen ${escapeHTML(messageDateLabel(member.lastLogin || member.createdAt) || "not yet")}</time>
+      </button>
+    `).join("")
+    : `<div class="admin-customer-detail-empty"><strong>No team members yet</strong><span>Promote a customer to Admin or Accountant and they will appear here.</span></div>`;
+}
+
+function renderAdminTeamDetail() {
+  if (!adminTeamDetail) return;
+  const member = activeAdminCustomer && activeAdminCustomer.adminRole ? activeAdminCustomer : null;
+  if (!member) {
+    adminTeamDetail.innerHTML = `<div class="admin-customer-detail-empty"><strong>Select a team member</strong><span>Role, access, and account controls will appear here.</span></div>`;
+    return;
+  }
+  adminTeamDetail.innerHTML = `
+    <div class="admin-customer-detail-head"><div><p class="eyebrow">Team member</p><h4>${escapeHTML(member.name || member.email)}</h4><p>${escapeHTML(member.email)}</p></div><span class="admin-account-status is-team">${escapeHTML(adminTeamRoleLabel(member.adminRole))}</span></div>
+    <div class="admin-customer-quick-stats"><article><span>Orders</span><strong>${member.orderCount || 0}</strong></article><article><span>Saved sets</span><strong>${member.savedProductCount || 0}</strong></article><article><span>Last seen</span><strong>${escapeHTML(messageDateLabel(member.lastLogin || member.createdAt) || "-")}</strong></article></div>
+    <form class="admin-customer-form" id="adminTeamMemberForm">
+      <label>Team role<select data-admin-team-input="adminRole"${isOwnerAdmin() && member.email !== ADMIN_OWNER_EMAIL ? "" : " disabled"}><option value="admin"${member.adminRole === "admin" ? " selected" : ""}>Admin</option><option value="accountant"${member.adminRole === "accountant" ? " selected" : ""}>Accountant</option><option value=""${!member.adminRole ? " selected" : ""}>Remove from team</option></select></label>
+      <label>Account access<select data-admin-team-input="accountStatus"><option value="active"${member.accountStatus === "active" ? " selected" : ""}>Active</option><option value="paused"${member.accountStatus === "paused" ? " selected" : ""}>Paused</option><option value="blocked"${member.accountStatus === "blocked" ? " selected" : ""}>Blocked</option></select></label>
+      ${isOwnerAdmin() && member.email !== ADMIN_OWNER_EMAIL ? `<label class="admin-customer-admin-toggle"><span>Delete access</span><span><input type="checkbox" data-admin-team-input="canDelete"${member.canDelete ? " checked" : ""} /> Can delete orders and conversations</span></label>` : ""}
+      <label>Team note<textarea data-admin-team-input="adminNote" maxlength="1200" placeholder="Role, finance, or operations notes...">${escapeTextarea(member.adminNote || "")}</textarea></label>
+      <div class="admin-customer-detail-actions"><button class="button primary" type="submit"${isOwnerAdmin() && member.email !== ADMIN_OWNER_EMAIL ? "" : " disabled"}>Save Team Changes</button><button class="button secondary" type="button" data-admin-message-customer="${escapeAttribute(member.email)}">Message Customer</button></div>
+      <p class="admin-status" data-admin-team-detail-status role="status"></p>
+    </form>
+  `;
+}
+
+async function fetchAdminTeamMember(email) {
+  if (!email || !isAdminSignedIn()) return;
+  activeAdminTeamEmail = email;
+  renderAdminTeamList();
+  if (adminTeamStatus) adminTeamStatus.textContent = "Loading team member...";
+  try {
+    const data = await adminCustomersRequest("get", { email });
+    activeAdminCustomer = data.customer || null;
+    renderAdminTeamDetail();
+    if (adminTeamStatus) adminTeamStatus.textContent = "Team member ready";
+  } catch (error) {
+    if (adminTeamStatus) adminTeamStatus.textContent = error.message || "Team member unavailable.";
+  }
+}
+
+async function fetchAdminTeam({ showStatus = true } = {}) {
+  if (!isAdminSignedIn()) return;
+  if (showStatus && adminTeamStatus) adminTeamStatus.textContent = "Loading team...";
+  try {
+    const data = await adminCustomersRequest("list", { teamOnly: true, status: "all", page: 1, pageSize: 100 });
+    adminTeamMembers = Array.isArray(data.customers) ? data.customers : [];
+    const nextEmail = adminTeamMembers.some((member) => member.email === activeAdminTeamEmail) ? activeAdminTeamEmail : (adminTeamMembers[0]?.email || "");
+    renderAdminTeamList();
+    if (nextEmail) await fetchAdminTeamMember(nextEmail);
+    else { activeAdminCustomer = null; activeAdminTeamEmail = ""; renderAdminTeamDetail(); if (adminTeamStatus) adminTeamStatus.textContent = "No team members yet."; }
+  } catch (error) {
+    adminTeamMembers = []; renderAdminTeamList(); renderAdminTeamDetail();
+    if (adminTeamStatus) adminTeamStatus.textContent = error.message || "Team unavailable.";
+  }
+}
+
+async function saveAdminTeamMember(event) {
+  event.preventDefault();
+  if (!activeAdminTeamEmail) return;
+  const form = event.currentTarget;
+  const roleInput = form.querySelector('[data-admin-team-input="adminRole"]');
+  const canDeleteInput = form.querySelector('[data-admin-team-input="canDelete"]');
+  const status = form.querySelector("[data-admin-team-detail-status]");
+  if (status) status.textContent = "Saving team changes...";
+  try {
+    const data = await adminCustomersRequest("update", { email: activeAdminTeamEmail, adminRole: roleInput?.value || "", accountStatus: form.querySelector('[data-admin-team-input="accountStatus"]')?.value || "active", adminNote: form.querySelector('[data-admin-team-input="adminNote"]')?.value || "", ...(canDeleteInput ? { canDelete: canDeleteInput.checked } : {}) });
+    activeAdminCustomer = data.customer || activeAdminCustomer;
+    await fetchAdminTeam({ showStatus: false });
+    if (status) status.textContent = "Team changes saved to the live website.";
+  } catch (error) { if (status) status.textContent = error.message || "Team changes could not be saved."; }
+}
+
 async function fetchAdminCustomer(email) {
   if (!email || !isAdminSignedIn()) return;
   activeAdminCustomerEmail = email;
@@ -4594,6 +4691,7 @@ async function fetchAdminCustomer(email) {
     const data = await adminCustomersRequest("get", { email });
     activeAdminCustomer = data.customer || null;
     renderAdminCustomerDetail();
+    renderAdminTeamDetail();
     if (adminCustomersStatus) adminCustomersStatus.textContent = "Customer profile ready";
   } catch (error) {
     if (adminCustomersStatus) adminCustomersStatus.textContent = error.message || "Customer profile unavailable.";
@@ -4607,7 +4705,8 @@ async function fetchAdminCustomers({ resetPage = false, showStatus = true } = {}
   try {
     const data = await adminCustomersRequest("list", {
       search: adminCustomerSearch?.value || "",
-      status: adminCustomerStatusFilter?.value || "all",
+    status: adminCustomerStatusFilter?.value || "all",
+      teamOnly: false,
       page: adminCustomerPage,
       pageSize: ADMIN_CUSTOMER_PAGE_SIZE
     });
@@ -4636,7 +4735,7 @@ async function saveAdminCustomer(event) {
   if (!activeAdminCustomerEmail) return;
   const form = event.currentTarget;
   const input = (name) => form.querySelector(`[data-admin-customer-input="${name}"]`)?.value || "";
-  const isAdminInput = form.querySelector('[data-admin-customer-input="isAdmin"]');
+  const adminRoleInput = form.querySelector('[data-admin-customer-input="adminRole"]');
   const canDeleteInput = form.querySelector('[data-admin-customer-input="canDelete"]');
   const sizes = Object.fromEntries(sizeHandKeys.map((hand) => [hand, Object.fromEntries(sizeFingerKeys.map((finger) => [finger,
     form.querySelector(`[data-admin-customer-size-hand="${hand}"][data-admin-customer-size-finger="${finger}"]`)?.value.trim() || ""
@@ -4649,7 +4748,7 @@ async function saveAdminCustomer(event) {
       name: input("name"),
       accountStatus: input("accountStatus"),
       adminNote: input("adminNote"),
-      ...(isAdminInput ? { isAdmin: isAdminInput.checked } : {}),
+      ...(adminRoleInput ? { adminRole: adminRoleInput.value } : {}),
       ...(canDeleteInput ? { canDelete: canDeleteInput.checked } : {}),
       sizes
     });
@@ -6924,14 +7023,26 @@ adminConversationList?.addEventListener("click", (event) => {
   if (button) fetchAdminConversation(button.dataset.adminConversationEmail);
 });
 refreshAdminCustomersButton?.addEventListener("click", () => fetchAdminCustomers({ resetPage: true, showStatus: true }));
+refreshAdminTeamButton?.addEventListener("click", () => fetchAdminTeam({ showStatus: true }));
 adminCustomerList?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-admin-customer-email]");
   if (button) fetchAdminCustomer(button.dataset.adminCustomerEmail);
 });
+adminTeamList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-team-email]");
+  if (button) fetchAdminTeamMember(button.dataset.adminTeamEmail);
+});
 adminCustomerDetail?.addEventListener("submit", (event) => {
   if (event.target.matches("#adminCustomerForm")) saveAdminCustomer(event);
 });
+adminTeamDetail?.addEventListener("submit", (event) => {
+  if (event.target.matches("#adminTeamMemberForm")) saveAdminTeamMember(event);
+});
 adminCustomerDetail?.addEventListener("click", (event) => {
+  const messageButton = event.target.closest("[data-admin-message-customer]");
+  if (messageButton) openAdminCustomerMessages(messageButton.dataset.adminMessageCustomer);
+});
+adminTeamDetail?.addEventListener("click", (event) => {
   const messageButton = event.target.closest("[data-admin-message-customer]");
   if (messageButton) openAdminCustomerMessages(messageButton.dataset.adminMessageCustomer);
 });
@@ -7682,6 +7793,7 @@ function switchAdminView(view) {
   if (view === "accounting") fetchAccounting();
   if (view === "messages") fetchAdminMessages();
   if (view === "customers") fetchAdminCustomers({ resetPage: true });
+  if (view === "team") fetchAdminTeam();
   if (view === "notes") renderProNotes();
   syncAdminLiveOrderAutoRefresh();
   autoGrowTextareas();

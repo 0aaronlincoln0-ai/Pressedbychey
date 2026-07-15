@@ -616,6 +616,7 @@
           <button type="button" data-admin-view="accounting">Accounting</button>
           <button type="button" data-admin-view="messages">Messages <span class="admin-messages-tab-badge" id="adminMessagesTabBadge" hidden>0</span></button>
           <button type="button" data-admin-view="customers">Customers <span class="admin-customer-count-badge" id="adminCustomerCountBadge" hidden>0</span></button>
+          <button type="button" data-admin-view="team">Team</button>
           <button type="button" data-admin-view="products">Products</button>
           <button type="button" data-admin-view="site">Site Editor</button>
           <button type="button" data-admin-view="ideas">Design Studio</button>
@@ -849,6 +850,34 @@
               </section>
               <section class="admin-customer-detail" id="adminCustomerDetail" aria-label="Selected customer account">
                 <div class="admin-customer-detail-empty"><strong>Select a customer</strong><span>Account details and admin controls will appear here.</span></div>
+              </section>
+            </div>
+          </section>
+        </div>
++        <div class="admin-view-panel" id="adminTeamView" data-admin-view-panel="team" hidden>
+          <section class="admin-section admin-team-section">
+            <div class="admin-section-title">
+              <div>
+                <p class="eyebrow">People &amp; access</p>
+                <h3>Team</h3>
+                <p>Admins and accountants live here after Chey promotes them. Customer accounts stay in the Customers directory.</p>
+              </div>
+              <div class="admin-section-actions">
+                <span id="adminTeamSummary">0 team members</span>
+                <button type="button" id="refreshAdminTeam">Refresh Team</button>
+              </div>
+            </div>
+            <p class="admin-status" id="adminTeamStatus" role="status"></p>
+            <div class="admin-customer-workspace">
+              <section class="admin-customer-directory" aria-label="Team member directory">
+                <div class="admin-customer-directory-head">
+                  <strong>Team members</strong>
+                  <span class="admin-team-access-note">Owner-controlled roles</span>
+                </div>
+                <div class="admin-customer-list" id="adminTeamList"></div>
+              </section>
+              <section class="admin-customer-detail" id="adminTeamDetail" aria-label="Selected team member">
+                <div class="admin-customer-detail-empty"><strong>Select a team member</strong><span>Role, access, and account controls will appear here.</span></div>
               </section>
             </div>
           </section>

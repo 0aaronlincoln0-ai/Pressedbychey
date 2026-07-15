@@ -4,6 +4,7 @@ import { isOwnerEmail, verifyAdminRequest } from "./_shared/admin-auth.mjs";
 const STORE_NAME = "pressed-by-chey";
 const CUSTOMER_PREFIX = "customers";
 const ALLOWED_STATUSES = ["active", "paused", "blocked"];
+const ALLOWED_TEAM_ROLES = ["", "admin", "accountant"];
 const MAX_CUSTOMERS = 2000;
 
 function jsonResponse(body, init = {}) {
@@ -52,6 +53,13 @@ function normalizeStatus(value = "active") {
   return ALLOWED_STATUSES.includes(status) ? status : "active";
 }
 
+function normalizeTeamRole(customer = {}, requested = undefined) {
+  const value = requested === undefined ? customer.adminRole : requested;
+  const role = safeText(value, 30).toLowerCase();
+  if (ALLOWED_TEAM_ROLES.includes(role)) return role;
+  return customer.isAdmin === true ? "admin" : "";
+}
+
 function orderCount(customer) {
   return Array.isArray(customer?.orders) ? customer.orders.length : 0;
 }
@@ -61,8 +69,9 @@ function publicCustomer(customer = {}, detailed = false) {
     name: safeText(customer.name, 100),
     email: normalizeEmail(customer.email),
     accountStatus: normalizeStatus(customer.accountStatus),
-    isAdmin: customer.isAdmin === true,
-    canDelete: customer.canDelete === true,
+    adminRole: isOwnerEmail(customer.email) ? "owner" : normalizeTeamRole(customer),
+    isAdmin: customer.isAdmin === true || normalizeTeamRole(customer) !== "",
+    canDelete: normalizeTeamRole(customer) === "admin" && customer.canDelete === true,
     adminNote: safeText(customer.adminNote, 1200),
     sizes: normalizeSizes(customer.sizes),
     savedProductCount: Array.isArray(customer.savedProducts) ? customer.savedProducts.length : 0,
@@ -97,6 +106,8 @@ async function listCustomers(store, payload = {}) {
     const customer = await store.get(entry.key, { type: "json" });
     if (!customer) continue;
     const publicRecord = publicCustomer(customer);
+    const isTeamMember = Boolean(publicRecord.adminRole);
+    if (Boolean(payload.teamOnly) !== isTeamMember) continue;
     const haystack = `${publicRecord.name} ${publicRecord.email}`.toLowerCase();
     if (search && !haystack.includes(search)) continue;
     if (!allStatuses && publicRecord.accountStatus !== status) continue;
@@ -142,14 +153,19 @@ export default async (request) => {
   if (action === "update") {
     const adminSession = verifyAdminRequest(request);
     const changingAdminRole = typeof payload.isAdmin === "boolean";
+    const changingTeamRole = typeof payload.adminRole === "string" || changingAdminRole;
     const changingDeleteAccess = typeof payload.canDelete === "boolean";
-    if ((changingAdminRole || changingDeleteAccess) && !isOwnerEmail(adminSession?.sub)) {
+    if ((changingTeamRole || changingDeleteAccess) && !isOwnerEmail(adminSession?.sub)) {
       return jsonResponse({ error: "Only the owner can change admin access." }, { status: 403 });
     }
     if (isOwnerEmail(email) && payload.isAdmin === false) {
       return jsonResponse({ error: "The owner admin account cannot be removed." }, { status: 400 });
     }
-    const nextIsAdmin = isOwnerEmail(email) || (changingAdminRole ? payload.isAdmin : customer.isAdmin === true);
+    const requestedRole = typeof payload.adminRole === "string"
+      ? normalizeTeamRole({}, payload.adminRole)
+      : (changingAdminRole ? (payload.isAdmin ? "admin" : "") : normalizeTeamRole(customer));
+    const nextRole = isOwnerEmail(email) ? "owner" : (changingTeamRole ? requestedRole : normalizeTeamRole(customer));
+    const nextIsAdmin = Boolean(nextRole);
     const nextCustomer = {
       ...customer,
       name: safeText(payload.name || customer.name, 100),
@@ -157,7 +173,8 @@ export default async (request) => {
       accountStatus: normalizeStatus(payload.accountStatus || customer.accountStatus),
       adminNote: safeText(payload.adminNote || "", 1200),
       isAdmin: nextIsAdmin,
-      canDelete: isOwnerEmail(email) || (nextIsAdmin && (changingDeleteAccess ? payload.canDelete : customer.canDelete === true)),
+      adminRole: nextRole,
+      canDelete: nextRole === "admin" && (changingDeleteAccess ? payload.canDelete : customer.canDelete === true),
       updatedAt: new Date().toISOString()
     };
     await store.setJSON(key, nextCustomer);

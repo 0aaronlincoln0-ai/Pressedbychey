@@ -83,3 +83,17 @@ test("customer-facing catalog does not expose SKU labels or identifiers", async 
   assert.match(stateFunction, /withoutPrivateCatalogIdentifiers/);
   assert.match(stateFunction, /const \{ sku, productNumber, \.\.\.customerValue \}/);
 });
+
+test("team roles are separated from customer accounts", async () => {
+  const client = await source("script.js");
+  const adminHtml = await source("admin.html");
+  const customerAdmin = await source("netlify/functions/customer-admin.mjs");
+  const adminAuth = await source("netlify/functions/admin-auth.mjs");
+  assert.match(adminHtml, /data-admin-view="team"/);
+  assert.match(adminHtml, /id="adminTeamView"/);
+  assert.match(client, /teamOnly: true/);
+  assert.match(client, /function renderAdminTeamList\(/);
+  assert.match(customerAdmin, /ALLOWED_TEAM_ROLES/);
+  assert.match(customerAdmin, /Boolean\(payload\.teamOnly\) !== isTeamMember/);
+  assert.match(adminAuth, /customerAdminRecord\?\.adminRole/);
+});
