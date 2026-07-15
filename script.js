@@ -4937,7 +4937,7 @@ function formatOrderDate(value) {
 }
 
 function orderDateForFiltering(order = {}) {
-  const candidates = [order.paidAt, order.createdAt, order.updatedAt, order.date].filter(Boolean);
+  const candidates = [order.paidAt, order.createdAt, order.date, order.updatedAt].filter(Boolean);
   for (const value of candidates) {
     const date = new Date(value);
     if (!Number.isNaN(date.getTime())) return date;
@@ -4983,10 +4983,12 @@ function activeOrderDateRange() {
   return { preset: "all", start: null, end: null };
 }
 
+const exactOrderStatuses = ["Payment pending", "Needs review", "Needs making", "Making", "Packing", "Ready to ship", "Shipped", "Completed", "Canceled"];
+
 function orderStatusGroup(status = "") {
   const incomingStatuses = new Set(["Payment pending", "Needs review"]);
-  const workingStatuses = new Set(["Needs making", "Making", "Packing", "Ready to ship", "Shipped"]);
-  const doneStatuses = new Set(["Completed", "Canceled"]);
+  const workingStatuses = new Set(["Needs making", "Making", "Packing", "Ready to ship"]);
+  const doneStatuses = new Set(["Shipped", "Completed", "Canceled"]);
   if (incomingStatuses.has(status)) return "incoming";
   if (workingStatuses.has(status)) return "working";
   if (doneStatuses.has(status)) return "done";
@@ -5021,7 +5023,12 @@ function orderMatchesPaymentFilter(order = {}) {
 function orderMatchesStatusFilter(order = {}) {
   const filter = orderStatusFilter?.value || "all";
   if (filter === "all") return true;
-  return orderStatusGroup(orderWorkflowStatus(order)) === filter;
+  const status = orderWorkflowStatus(order);
+  if (filter === "incoming" || filter === "working" || filter === "done") {
+    return orderStatusGroup(status) === filter;
+  }
+  if (exactOrderStatuses.includes(filter)) return status === filter;
+  return true;
 }
 
 function filteredLiveOrders() {
@@ -5467,24 +5474,99 @@ function syncAdminLiveOrderAutoRefresh() {
   else stopAdminLiveOrderAutoRefresh();
 }
 
-async function saveAdminLiveOrderUpdate(orderId, { quoteSent = false } = {}) {
+function orderUpdateFromForm(orderId) {
   const statusSelect = adminLiveOrderList?.querySelector(`[data-live-order-status="${CSS.escape(orderId)}"]`);
   const noteField = adminLiveOrderList?.querySelector(`[data-live-order-note="${CSS.escape(orderId)}"]`);
   const quoteAmountField = adminLiveOrderList?.querySelector(`[data-live-order-quote-amount="${CSS.escape(orderId)}"]`);
   const quoteStatusField = adminLiveOrderList?.querySelector(`[data-live-order-quote-status="${CSS.escape(orderId)}"]`);
   const quoteMessageField = adminLiveOrderList?.querySelector(`[data-live-order-quote-message="${CSS.escape(orderId)}"]`);
+  return {
+    fulfillmentStatus: statusSelect?.value || "Needs review",
+    adminNote: noteField?.value || "",
+    quoteAmount: quoteAmountField?.value || "",
+    quoteStatus: quoteStatusField?.value || "",
+    quoteMessage: quoteMessageField?.value || ""
+  };
+}
+
+function localOrderUpdatePayload(update = {}, existingOrder = {}) {
+  const quoteCents = update.quoteAmount === "" ? quoteAmountCents(existingOrder) : dollarsToCents(update.quoteAmount);
+  return {
+    fulfillmentStatus: update.fulfillmentStatus || existingOrder.fulfillmentStatus || "Needs review",
+    adminNote: update.adminNote || "",
+    quoteAmount: quoteCents,
+    quoteStatus: update.quoteStatus || existingOrder.quoteStatus || (quoteCents > 0 ? "Quoted" : ""),
+    quoteMessage: update.quoteMessage || existingOrder.quoteMessage || "",
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function applyLocalAdminOrderUpdate(orderId, update = {}) {
+  let changed = false;
+  guestOrders = guestOrders.map((order) => {
+    if (String(order.id || "") !== String(orderId)) return order;
+    changed = true;
+    return {
+      ...order,
+      ...localOrderUpdatePayload(update, order)
+    };
+  });
+  if (changed) {
+    saveGuestOrders();
+    renderAdminGuestOrders();
+  }
+
+  let changedCustomerOrders = false;
+  customerState.users.forEach((user) => {
+    user.orders = (user.orders || []).map((order) => {
+      if (String(order.id || "") !== String(orderId)) return order;
+      changedCustomerOrders = true;
+      return {
+        ...order,
+        ...localOrderUpdatePayload(update, order)
+      };
+    });
+  });
+  if (changedCustomerOrders) {
+    saveCustomerState();
+    renderAdminUsers();
+    renderAccount();
+    renderCustomerAccountPage();
+  }
+
+  if (!changed && !changedCustomerOrders) return null;
+  let updatedOrder = null;
+  liveOrders = liveOrders.map((order) => {
+    if (String(order.id || "") !== String(orderId)) return order;
+    updatedOrder = {
+      ...order,
+      ...localOrderUpdatePayload(update, order)
+    };
+    return updatedOrder;
+  });
+  return updatedOrder || liveOrders.find((order) => String(order.id || "") === String(orderId)) || null;
+}
+
+async function saveAdminLiveOrderUpdate(orderId, { quoteSent = false } = {}) {
+  const update = orderUpdateFromForm(orderId);
+  const order = liveOrders.find((item) => String(item.id || "") === String(orderId));
+  const isRecoveredLocalOrder = Boolean(order?.localSource) || !/^pbc-\d+-[a-z0-9-]+$/i.test(String(orderId || ""));
   setAdminMessage(liveOrderStatus, "Saving order update...");
+  if (isRecoveredLocalOrder) {
+    const localOrder = applyLocalAdminOrderUpdate(orderId, update);
+    if (localOrder) {
+      renderAdminLiveOrders();
+      setAdminMessage(liveOrderStatus, "Recovered order update saved on this device.");
+      return;
+    }
+  }
   try {
     const { response, payload } = await fetchJsonWithTimeout(ADMIN_ORDERS_ENDPOINT, {
       method: "PUT",
       headers: adminRemoteWriteHeaders(),
       body: JSON.stringify({
         orderId,
-        fulfillmentStatus: statusSelect?.value || "Needs review",
-        adminNote: noteField?.value || "",
-        quoteAmount: quoteAmountField?.value || "",
-        quoteStatus: quoteStatusField?.value || "",
-        quoteMessage: quoteMessageField?.value || ""
+        ...update
       })
     });
     if (!response.ok || payload?.ok === false) throw new Error(payload.error || "Could not save order update.");
@@ -5500,6 +5582,12 @@ async function saveAdminLiveOrderUpdate(orderId, { quoteSent = false } = {}) {
     renderAdminLiveOrders();
     setAdminMessage(liveOrderStatus, quoteSent ? "Quote accepted, sent to the customer profile, and collapsed." : "Order update saved.");
   } catch (error) {
+    const localOrder = applyLocalAdminOrderUpdate(orderId, update);
+    if (localOrder) {
+      renderAdminLiveOrders();
+      setAdminMessage(liveOrderStatus, "Live save failed, but this recovered order was updated on this device.");
+      return;
+    }
     setAdminMessage(liveOrderStatus, error.message || "Could not save order update.");
   }
 }
