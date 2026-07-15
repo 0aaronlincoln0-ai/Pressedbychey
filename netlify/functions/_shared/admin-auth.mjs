@@ -59,6 +59,7 @@ export function authenticateAdminCredentials(emailValue, passwordValue) {
   const email = String(emailValue || "").trim().toLowerCase();
   const { password, secondaryPassword, configured } = adminAuthConfiguration();
   if (!configured) return { ok: false, configured: false, email };
+  // Keep the secondary owner's credential isolated from the primary admin password.
   const expectedPassword = email === SECONDARY_OWNER_EMAIL && secondaryPassword ? secondaryPassword : password;
   return {
     ok: adminEmails().includes(email) && safeEqual(passwordValue, expectedPassword),
