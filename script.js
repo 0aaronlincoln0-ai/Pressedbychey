@@ -11251,7 +11251,7 @@ function renderCustomProducts() {
       <div class="shop-collection-heading">
         <div>
           <p class="eyebrow">${isFreshDrop ? "Just released" : "Shop the full catalog"}</p>
-          <h3>${isFreshDrop ? "Fresh Drops" : "Main Inventory"}</h3>
+          <h3>${isFreshDrop ? "Fresh Drops" : "STORE"}</h3>
           <p>${isFreshDrop ? "Small-batch sets Chey has chosen to spotlight right now." : "Every available set in the Pressed by Chey store."}</p>
         </div>
         <span class="shop-collection-count">0 sets</span>
