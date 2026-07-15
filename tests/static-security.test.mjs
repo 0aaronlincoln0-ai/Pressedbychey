@@ -44,3 +44,9 @@ test("admin order deletion handles recovered orders without weakening paid prote
   assert.match(ordersFunction, /verifyAdminRequest\(request\)/);
   assert.match(ordersFunction, /Paid transactions cannot be deleted/);
 });
+
+test("dropdown controls keep a visible hover state", async () => {
+  const styles = await source("styles.css");
+  assert.match(styles, /select:not\(:disabled\):hover/);
+  assert.match(styles, /select option:checked/);
+});
