@@ -5838,6 +5838,9 @@ function localPaidOrderFromServer(order = {}) {
   const total = Number(order.total || 0) / 100 || cartTotalValue();
   return {
     id: order.id || `Paid ${new Date().toLocaleDateString()}`,
+    createdAt: order.createdAt || order.paidAt || "",
+    paidAt: order.paidAt || "",
+    stripeSessionId: order.stripeSessionId || "",
     date: new Date(order.paidAt || Date.now()).toLocaleString(),
     total: total % 1 === 0 ? String(total) : total.toFixed(2),
     customer: order.customer || {},
@@ -6132,14 +6135,51 @@ function localOrdersForAdminDashboard() {
   return [...accountOrders, ...guestDashboardOrders];
 }
 
+function adminOrderIdentityValues(order = {}) {
+  return [
+    order.id ? `id:${String(order.id).trim().toLowerCase()}` : "",
+    order.stripeSessionId ? `stripe-session:${String(order.stripeSessionId).trim().toLowerCase()}` : "",
+    order.paymentIntentId ? `payment-intent:${String(order.paymentIntentId).trim().toLowerCase()}` : "",
+    order.stripePaymentIntentId ? `payment-intent:${String(order.stripePaymentIntentId).trim().toLowerCase()}` : ""
+  ].filter(Boolean);
+}
+
+function adminOrderItemFingerprint(order = {}) {
+  return (Array.isArray(order.items) ? order.items : [])
+    .map((item) => `${String(item?.name || "").trim().toLowerCase()}|${Number(item?.quantity || 1)}|${Number(item?.unitAmount || item?.price || 0)}`)
+    .sort()
+    .join(";");
+}
+
+function adminOrdersSharePaidFingerprint(left = {}, right = {}) {
+  if (!left.localSource && !right.localSource) return false;
+  if (!isPaidOrderRecord(left) || !isPaidOrderRecord(right)) return false;
+  const leftEmail = orderCustomerEmail(left).trim().toLowerCase();
+  const rightEmail = orderCustomerEmail(right).trim().toLowerCase();
+  if (!leftEmail || leftEmail !== rightEmail) return false;
+  if (orderDisplayTotalCents(left) !== orderDisplayTotalCents(right)) return false;
+  const leftItems = adminOrderItemFingerprint(left);
+  const rightItems = adminOrderItemFingerprint(right);
+  if (!leftItems || leftItems !== rightItems) return false;
+  const leftDate = orderDateForFiltering(left)?.getTime() || 0;
+  const rightDate = orderDateForFiltering(right)?.getTime() || 0;
+  return leftDate > 0 && rightDate > 0 && Math.abs(leftDate - rightDate) <= 90 * 1000;
+}
+
+function adminOrdersRepresentSameRecord(left = {}, right = {}) {
+  const leftIdentity = new Set(adminOrderIdentityValues(left));
+  if (adminOrderIdentityValues(right).some((value) => leftIdentity.has(value))) return true;
+  return adminOrdersSharePaidFingerprint(left, right);
+}
+
 function mergeAdminOrderSources(remoteOrders = []) {
-  const merged = new Map();
-  [...remoteOrders, ...localOrdersForAdminDashboard()].forEach((order) => {
-    const key = String(order.id || "").trim();
-    if (!key || merged.has(key)) return;
-    merged.set(key, order);
-  });
-  return [...merged.values()].sort((a, b) => {
+  const merged = [];
+  for (const order of [...remoteOrders, ...localOrdersForAdminDashboard()]) {
+    if (!order || !adminOrderIdentityValues(order).length) continue;
+    if (merged.some((existing) => adminOrdersRepresentSameRecord(existing, order))) continue;
+    merged.push(order);
+  }
+  return merged.sort((a, b) => {
     const left = orderDateForFiltering(a)?.getTime() || 0;
     const right = orderDateForFiltering(b)?.getTime() || 0;
     return right - left;
@@ -11456,12 +11496,10 @@ setupAdmin().catch((error) => {
 });
 
 /* ---------------------------------------------------------------------------
-   Nail size finder — mobile visualizer.
-   Customers calibrate the screen with a standard card, rest each finger on the
-   screen, match the guide lines to the nail, and save sizes to their profile.
+   Nail size finder — camera visualizer.
+   Customers capture one finger at a time, review the AI estimate, and save
+   sizes to their profile.
 --------------------------------------------------------------------------- */
-const SIZER_CARD_SHORT_EDGE_MM = 53.98;
-const SIZER_STORAGE_KEY = "pbc-sizer-calibration";
 /* Size chart: size 0 = 18.1mm at the widest point, each full size is 0.7mm
    narrower. 00/000 cover wider-than-0 nails. Adjust these two numbers if
    Chey's tips run bigger or smaller. */
@@ -11485,10 +11523,8 @@ const sizerOverlay = document.querySelector("#sizerOverlay");
 const sizerProgress = document.querySelector("#sizerProgress");
 const sizerZoomWarning = document.querySelector("#sizerZoomWarning");
 const sizerSteps = {
-  desktop: document.querySelector("#sizerStepDesktop"),
   intro: document.querySelector("#sizerStepIntro"),
   camera: document.querySelector("#sizerStepCamera"),
-  calibrate: document.querySelector("#sizerStepCalibrate"),
   measure: document.querySelector("#sizerStepMeasure"),
   results: document.querySelector("#sizerStepResults")
 };
@@ -11498,13 +11534,7 @@ const sizerCameraFrameHint = document.querySelector(".sizer-camera-frame-hint");
 const sizerCameraTarget = document.querySelector(".sizer-camera-target");
 const sizerPhotoInput = document.querySelector("#sizerPhotoInput");
 const sizerChoosePhoto = document.querySelector("#sizerChoosePhoto");
-const sizerCameraScaleControl = document.querySelector("#sizerCameraScaleControl");
-const sizerCameraScale = document.querySelector("#sizerCameraScale");
-const sizerCameraScaleValue = document.querySelector("#sizerCameraScaleValue");
 const sizerCameraImage = document.querySelector("#sizerCameraImage");
-const sizerCardStage = document.querySelector("#sizerCardStage");
-const sizerCardBox = document.querySelector("#sizerCardBox");
-const sizerCardHandle = document.querySelector("#sizerCardHandle");
 const sizerMeasureStage = document.querySelector("#sizerMeasureStage");
 const sizerGuideLeft = document.querySelector("#sizerGuideLeft");
 const sizerGuideRight = document.querySelector("#sizerGuideRight");
@@ -11518,8 +11548,7 @@ const sizerSaveProfile = document.querySelector("#sizerSaveProfile");
 const sizerRetakeCamera = document.querySelector("#sizerRetakeCamera");
 
 const sizerState = {
-  mode: "screen",
-  pxPerMm: 0,
+  mode: "camera",
   stepIndex: 0,
   guideLeftPx: 0,
   guideRightPx: 0,
@@ -11528,8 +11557,8 @@ const sizerState = {
   cameraFacingMode: "environment",
   cameraImageSrc: "",
   cameraMeasureStepIndex: -1,
-  cameraCardLeftPx: 0,
-  cameraCardRightPx: 0,
+  cameraPxPerMm: 0,
+  cameraEstimatedMm: 0,
   cameraNailLeftPx: 0,
   cameraNailRightPx: 0,
   cameraImageWidth: 0,
@@ -11557,7 +11586,7 @@ async function sizerLoadHandLandmarker() {
         return HandLandmarker.createFromOptions(vision, {
           baseOptions: { modelAssetPath: SIZER_HAND_MODEL_PATH },
           runningMode: "IMAGE",
-          numHands: 2,
+          numHands: 1,
           minHandDetectionConfidence: 0.62,
           minHandPresenceConfidence: 0.62,
           minTrackingConfidence: 0.62
@@ -11607,7 +11636,11 @@ function sizerSelectDetectedHand(result, step) {
   if (hands.length !== 1) return null;
   const desired = step.hand === "left" ? "left" : "right";
   const handedness = String(result.handedness?.[0]?.[0]?.categoryName || "").toLowerCase();
-  return { landmarks: hands[0], handedness: handedness || desired };
+  return {
+    landmarks: hands[0],
+    worldLandmarks: result.worldLandmarks?.[0] || [],
+    handedness: handedness || desired
+  };
 }
 
 function sizerFingerIsExtended(landmarks, finger) {
@@ -11707,14 +11740,26 @@ function sizerEstimateNailGeometry(canvas, landmarks, step) {
         y: tipPx.y - axis.y * fingerLength * 0.34
       },
       widthPx: fallbackWidth,
+      fingerLengthPx: fingerLength,
       confidence: 0.46
     };
   }
   return {
     center: best.center,
     widthPx: best.widthPx,
+    fingerLengthPx: fingerLength,
     confidence: sizerClamp(best.score / 180, 0.48, 0.96)
   };
+}
+
+function sizerEstimateMillimeters(geometry, worldLandmarks, step) {
+  const landmarks = SIZER_FINGER_LANDMARKS[step?.finger] || SIZER_FINGER_LANDMARKS.middle;
+  const worldTip = worldLandmarks?.[landmarks.tip];
+  const worldDip = worldLandmarks?.[landmarks.dip];
+  if (!geometry?.fingerLengthPx || !worldTip || !worldDip) return 0;
+  const distalFingerLengthMm = sizerDistance(worldTip, worldDip) * 1000;
+  const nailToFingerRatio = geometry.widthPx / geometry.fingerLengthPx;
+  return sizerClamp(distalFingerLengthMm * nailToFingerRatio, SIZER_MIN_MM, SIZER_MAX_MM);
 }
 
 function sizerImagePointToStage(point) {
@@ -11737,7 +11782,7 @@ async function sizerAnalyzeCapturedFrame(canvas, step) {
     throw new Error("Keep one hand and one finger in the frame, then retake the scan.");
   }
   const hand = sizerSelectDetectedHand(result, step);
-  if (!hand) throw new Error("No single finger detected. Place one finger and the card fully inside the frame, then retake the scan.");
+  if (!hand) throw new Error("No single finger detected. Place only the selected finger inside the guide, then retake the photo.");
   const visibleFingers = sizerVisibleFingers(hand.landmarks);
   if (visibleFingers.length !== 1) {
     throw new Error(visibleFingers.length > 1
@@ -11749,32 +11794,15 @@ async function sizerAnalyzeCapturedFrame(canvas, step) {
   }
   const geometry = sizerEstimateNailGeometry(canvas, hand.landmarks, step);
   if (!geometry) throw new Error("The selected finger was not clear enough to measure. Keep it flat and retake the scan.");
+  const estimatedMm = sizerEstimateMillimeters(geometry, hand.worldLandmarks, step);
+  if (!estimatedMm) throw new Error("The hand scale was not clear enough to estimate this nail. Move closer, keep the finger flat, and retake the photo.");
   const nailRatio = geometry.widthPx / canvas.width;
   const distanceHint = nailRatio < 0.04
     ? "Move your finger closer to the camera next time."
     : nailRatio > 0.22
     ? "Move the phone slightly farther away next time."
     : "";
-  return { ...geometry, handedness: hand.handedness, distanceHint };
-}
-
-function sizerLoadCalibration() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SIZER_STORAGE_KEY) || "null");
-    if (saved && Number(saved.pxPerMm) > 0 && saved.screenW === window.screen.width && saved.dpr === window.devicePixelRatio) {
-      return Number(saved.pxPerMm);
-    }
-  } catch {
-    /* recalibrate below */
-  }
-  return 0;
-}
-
-function sizerSaveCalibration() {
-  localStorage.setItem(
-    SIZER_STORAGE_KEY,
-    JSON.stringify({ pxPerMm: sizerState.pxPerMm, screenW: window.screen.width, dpr: window.devicePixelRatio })
-  );
+  return { ...geometry, estimatedMm, handedness: hand.handedness, distanceHint };
 }
 
 function sizerShowStep(name) {
@@ -11784,7 +11812,6 @@ function sizerShowStep(name) {
   sizerOverlay?.classList.toggle("is-camera-step", name === "camera");
   if (sizerProgress) sizerProgress.hidden = !["camera", "measure"].includes(name);
   if (name !== "camera") sizerStopCamera();
-  if (name === "calibrate") sizerRenderCardBox();
   if (name === "camera") {
     sizerState.cameraAnalysisId += 1;
     sizerState.cameraImageSrc = "";
@@ -11792,7 +11819,7 @@ function sizerShowStep(name) {
     sizerState.cameraScanStepIndex = -1;
     const finger = sizerCurrentStep()?.finger || "finger";
     if (sizerCameraFrameHint) sizerCameraFrameHint.textContent = `One ${finger} only`;
-    if (sizerCameraTarget) sizerCameraTarget.textContent = `One ${finger} only - nail fills about one-third of this box`;
+    if (sizerCameraTarget) sizerCameraTarget.textContent = `Place your ${finger} nail inside this guide`;
     sizerSetScanStatus("");
     sizerStartCamera();
   }
@@ -11810,16 +11837,6 @@ function sizerRenderProgress() {
     .join("");
 }
 
-function sizerRenderCardBox() {
-  if (!sizerCardBox || !sizerCardStage) return;
-  const stageWidth = sizerCardStage.getBoundingClientRect().width || 320;
-  const fallbackPxPerMm = (stageWidth * 0.55) / SIZER_CARD_SHORT_EDGE_MM;
-  const pxPerMm = sizerState.pxPerMm > 0 ? sizerState.pxPerMm : fallbackPxPerMm;
-  const width = Math.min(stageWidth - 30, Math.max(60, pxPerMm * SIZER_CARD_SHORT_EDGE_MM));
-  sizerCardBox.style.width = `${width}px`;
-  sizerState.pxPerMm = width / SIZER_CARD_SHORT_EDGE_MM;
-}
-
 function sizerCurrentStep() {
   return SIZER_FINGER_STEPS[sizerState.stepIndex] || SIZER_FINGER_STEPS[0];
 }
@@ -11829,7 +11846,6 @@ function sizerRenderMeasureStep() {
   if (sizerFingerLabel) sizerFingerLabel.textContent = sizerFingerTitle(step);
   const stageWidth = sizerMeasureStage?.getBoundingClientRect().width || 320;
   const isCamera = sizerState.mode === "camera" && Boolean(sizerState.cameraImageSrc);
-  if (sizerCameraScaleControl) sizerCameraScaleControl.hidden = !isCamera;
   if (sizerMeasureStage) sizerMeasureStage.classList.toggle("is-camera", isCamera);
   if (sizerCameraImage) {
     sizerCameraImage.hidden = !isCamera;
@@ -11838,26 +11854,22 @@ function sizerRenderMeasureStep() {
   if (sizerRetakeCamera) sizerRetakeCamera.hidden = !isCamera;
   const help = document.querySelector(".sizer-measure-help");
   if (help) help.innerHTML = isCamera
-    ? "The scanner places two pink lines on the selected finger. Use the card reference slider below the photo, then make a small final adjustment at the <strong>widest part of the nail</strong>."
-    : "Rest this nail flat on the box below, then drag each pink handle until the lines just touch the <strong>widest part of your nail</strong>.";
+    ? "The camera estimates this nail from the hand landmarks. Check the pink lines at the <strong>widest part of the nail</strong>, then make a small adjustment if needed."
+    : "The scan needs a photo of one finger. Return to the camera step and capture or choose a photo.";
   if (!isCamera) sizerSetScanStatus("");
   const savedMm = Number(sizerState.measurements[step.hand]?.[step.finger]);
   const startMm = savedMm > 0 ? savedMm : SIZER_DEFAULT_FINGER_MM[step.finger] || 13;
   if (isCamera) {
     if (sizerState.cameraMeasureStepIndex !== sizerState.stepIndex) {
       sizerState.cameraMeasureStepIndex = sizerState.stepIndex;
-      sizerState.cameraCardLeftPx = stageWidth * 0.1;
-      sizerState.cameraCardRightPx = stageWidth * 0.48;
-      const nailWidth = Math.max(stageWidth * 0.12, Math.min(stageWidth * 0.3, (startMm / SIZER_CARD_SHORT_EDGE_MM) * (sizerState.cameraCardRightPx - sizerState.cameraCardLeftPx)));
-      sizerState.cameraNailLeftPx = stageWidth * 0.7 - nailWidth / 2;
-      sizerState.cameraNailRightPx = stageWidth * 0.7 + nailWidth / 2;
+      const nailWidth = Math.max(stageWidth * 0.12, Math.min(stageWidth * 0.3, startMm * 12));
+      sizerState.cameraNailLeftPx = stageWidth * 0.5 - nailWidth / 2;
+      sizerState.cameraNailRightPx = stageWidth * 0.5 + nailWidth / 2;
     }
-    if (sizerCameraScale) sizerCameraScale.value = String(((sizerState.cameraCardRightPx - sizerState.cameraCardLeftPx) / stageWidth) * 100);
-    if (sizerCameraScaleValue) sizerCameraScaleValue.textContent = `${Number(sizerCameraScale?.value || 38).toFixed(1).replace(/\.0$/, "")}%`;
     sizerState.guideLeftPx = sizerState.cameraNailLeftPx;
     sizerState.guideRightPx = sizerState.cameraNailRightPx;
   } else {
-    const widthPx = Math.min(stageWidth - 40, startMm * sizerState.pxPerMm);
+    const widthPx = Math.min(stageWidth - 40, startMm * 12);
     sizerState.guideLeftPx = (stageWidth - widthPx) / 2;
     sizerState.guideRightPx = (stageWidth + widthPx) / 2;
   }
@@ -11868,12 +11880,10 @@ function sizerRenderMeasureStep() {
 function sizerCurrentMm() {
   if (sizerState.mode === "camera" && sizerState.cameraImageSrc) {
     if (!sizerState.cameraScanReady) return 0;
-    const cardWidth = sizerState.cameraCardRightPx - sizerState.cameraCardLeftPx;
     const nailWidth = sizerState.cameraNailRightPx - sizerState.cameraNailLeftPx;
-    return cardWidth > 0 ? (nailWidth / cardWidth) * SIZER_CARD_SHORT_EDGE_MM : 0;
+    return sizerState.cameraPxPerMm > 0 ? nailWidth / sizerState.cameraPxPerMm : 0;
   }
-  const widthPx = sizerState.guideRightPx - sizerState.guideLeftPx;
-  return sizerState.pxPerMm > 0 ? widthPx / sizerState.pxPerMm : 0;
+  return 0;
 }
 
 function sizerRenderGuides() {
@@ -11895,10 +11905,9 @@ function sizerRenderGuides() {
 function sizerSetGuideWidthMm(mm) {
   const clamped = Math.min(SIZER_MAX_MM, Math.max(SIZER_MIN_MM, mm));
   const center = (sizerState.guideLeftPx + sizerState.guideRightPx) / 2;
-  const referenceWidth = sizerState.cameraCardRightPx - sizerState.cameraCardLeftPx;
   const halfPx = sizerState.mode === "camera" && sizerState.cameraImageSrc
-    ? ((clamped / SIZER_CARD_SHORT_EDGE_MM) * referenceWidth) / 2
-    : (clamped * sizerState.pxPerMm) / 2;
+    ? (clamped * sizerState.cameraPxPerMm) / 2
+    : (clamped * 12) / 2;
   sizerState.guideLeftPx = center - halfPx;
   sizerState.guideRightPx = center + halfPx;
   if (sizerState.mode === "camera" && sizerState.cameraImageSrc) {
@@ -11916,9 +11925,9 @@ function sizerStopCamera() {
 }
 
 function sizerCameraErrorMessage(error) {
-  if (error?.name === "NotAllowedError" || error?.name === "SecurityError") return "Camera access was blocked. Allow camera access for this site, then try again, or use the on-screen guide.";
-  if (error?.name === "NotFoundError" || error?.name === "OverconstrainedError") return "No usable camera was found. Use the on-screen guide instead.";
-  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return "Live camera needs the secure HTTPS website. Use the on-screen guide on this device for now.";
+  if (error?.name === "NotAllowedError" || error?.name === "SecurityError") return "Camera access was blocked. Allow camera access for this site, or choose a photo from your camera roll instead.";
+  if (error?.name === "NotFoundError" || error?.name === "OverconstrainedError") return "No usable camera was found. Choose a photo from your camera roll instead.";
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return "Live camera needs the secure HTTPS website. Use Choose a Photo on this device instead.";
   return "The camera could not start. Check your browser permission and try again.";
 }
 
@@ -11948,7 +11957,7 @@ async function sizerStartCamera() {
     sizerState.cameraStream = stream;
     sizerCameraVideo.srcObject = stream;
     await sizerCameraVideo.play().catch(() => {});
-    if (sizerCameraStatus) sizerCameraStatus.textContent = "Live camera is ready. Keep the card and nail flat and side by side.";
+    if (sizerCameraStatus) sizerCameraStatus.textContent = "Live camera is ready. Center one finger in the guide and keep the nail facing the camera.";
   } catch (error) {
     if (requestId === sizerState.cameraRequestId && sizerCameraStatus) sizerCameraStatus.textContent = sizerCameraErrorMessage(error);
   }
@@ -12023,7 +12032,9 @@ async function sizerProcessCapturedCanvas(canvas, step, sourceLabel) {
     sizerState.guideRightPx = sizerState.cameraNailRightPx;
     sizerState.cameraScanReady = true;
     const distanceHint = analysis.distanceHint ? ` ${analysis.distanceHint}` : "";
-    sizerSetScanStatus(`One ${step.finger} finger found.${distanceHint} Adjust the card reference slider if needed, then confirm the pink lines at the nail's widest point.`);
+    sizerState.cameraEstimatedMm = analysis.estimatedMm;
+    sizerState.cameraPxPerMm = scaledWidth / analysis.estimatedMm;
+    sizerSetScanStatus(`One ${step.finger} finger found. AI estimate: ${analysis.estimatedMm.toFixed(1)} mm.${distanceHint} Check the pink lines at the nail's widest point.`);
     sizerRenderGuides();
   } catch (error) {
     if (analysisId !== sizerState.cameraAnalysisId) return;
@@ -12073,19 +12084,18 @@ function sizerOpen() {
   // Measuring is local to the device. Ask for an account only when the user saves.
   closeAccountPanel();
   sizerStopCamera();
-  sizerState.mode = "screen";
+  sizerState.mode = "camera";
+  sizerState.stepIndex = 0;
+  sizerState.measurements = { left: {}, right: {} };
   sizerState.cameraImageSrc = "";
   sizerState.cameraMeasureStepIndex = -1;
+  sizerState.cameraPxPerMm = 0;
+  sizerState.cameraEstimatedMm = 0;
   document.body.classList.add("sizer-open");
   sizerOverlay.hidden = false;
   if (sizerStatus) sizerStatus.textContent = "";
   if (sizerSaveProfile) sizerSaveProfile.textContent = adminMode ? "Close Size Finder" : "Save To My Profile";
   if (adminMode && adminSizerStatus) adminSizerStatus.textContent = "Size Finder opened. Use the results to update the selected customer in Customers.";
-  if (!sizerIsTouchDevice()) {
-    sizerShowStep("desktop");
-    return;
-  }
-  sizerState.pxPerMm = sizerLoadCalibration();
   sizerShowStep("intro");
 }
 
@@ -12198,9 +12208,10 @@ function setupNailSizer() {
     sizerShowStep("camera");
   });
   document.querySelector("#sizerStart")?.addEventListener("click", () => {
-    sizerState.mode = "screen";
+    sizerState.mode = "camera";
     sizerState.cameraImageSrc = "";
-    sizerShowStep("calibrate");
+    sizerState.cameraMeasureStepIndex = -1;
+    sizerShowStep("camera");
   });
   document.querySelector("#sizerCameraSwitch")?.addEventListener("click", sizerSwitchCamera);
   document.querySelector("#sizerCameraCapture")?.addEventListener("click", sizerCaptureCamera);
@@ -12210,27 +12221,16 @@ function setupNailSizer() {
     event.target.value = "";
     await sizerChoosePhotoFile(file);
   });
-  document.querySelector("#sizerCameraUseScreen")?.addEventListener("click", () => {
-    sizerState.mode = "screen";
-    sizerState.cameraImageSrc = "";
-    sizerShowStep("calibrate");
-  });
-  document.querySelector("#sizerCalibrateDone")?.addEventListener("click", () => {
-    sizerSaveCalibration();
-    sizerState.stepIndex = 0;
-    sizerShowStep("measure");
-  });
   document.querySelector("#sizerBack")?.addEventListener("click", () => {
-    if (sizerState.mode === "camera" && sizerState.cameraImageSrc) {
-      sizerShowStep("camera");
-      return;
-    }
     if (sizerState.stepIndex === 0) {
-      sizerShowStep("calibrate");
+      sizerShowStep("intro");
       return;
     }
     sizerState.stepIndex -= 1;
-    sizerRenderMeasureStep();
+    sizerState.cameraImageSrc = "";
+    sizerState.cameraScanReady = false;
+    sizerState.cameraMeasureStepIndex = -1;
+    sizerShowStep("camera");
   });
   document.querySelector("#sizerSkip")?.addEventListener("click", () => {
     const step = sizerCurrentStep();
@@ -12249,32 +12249,14 @@ function setupNailSizer() {
   });
   document.querySelector("#sizerRestart")?.addEventListener("click", () => {
     sizerState.stepIndex = 0;
-    if (sizerState.mode === "camera") {
-      sizerState.cameraImageSrc = "";
-      sizerState.cameraMeasureStepIndex = -1;
-      sizerShowStep("camera");
-    } else {
-      sizerShowStep("measure");
-    }
+    sizerState.mode = "camera";
+    sizerState.measurements = { left: {}, right: {} };
+    sizerState.cameraImageSrc = "";
+    sizerState.cameraMeasureStepIndex = -1;
+    sizerShowStep("camera");
   });
   document.querySelector("#sizerSaveProfile")?.addEventListener("click", sizerApplyToProfile);
   sizerRetakeCamera?.addEventListener("click", () => sizerShowStep("camera"));
-
-  sizerBindHandleDrag(sizerCardHandle, (event) => {
-    const rect = sizerCardStage.getBoundingClientRect();
-    const width = Math.min(rect.width - 30, Math.max(60, event.clientX - rect.left));
-    sizerCardBox.style.width = `${width}px`;
-    sizerState.pxPerMm = width / SIZER_CARD_SHORT_EDGE_MM;
-  });
-  document.querySelectorAll("[data-card-nudge]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const current = sizerCardBox.getBoundingClientRect().width;
-      const rect = sizerCardStage.getBoundingClientRect();
-      const width = Math.min(rect.width - 30, Math.max(60, current + Number(button.dataset.cardNudge)));
-      sizerCardBox.style.width = `${width}px`;
-      sizerState.pxPerMm = width / SIZER_CARD_SHORT_EDGE_MM;
-    });
-  });
 
   const guideMover = (which) => (event) => {
     const rect = sizerMeasureStage.getBoundingClientRect();
@@ -12285,15 +12267,6 @@ function setupNailSizer() {
   };
   sizerBindHandleDrag(sizerGuideLeft?.querySelector(".sizer-handle"), guideMover("left"));
   sizerBindHandleDrag(sizerGuideRight?.querySelector(".sizer-handle"), guideMover("right"));
-  sizerCameraScale?.addEventListener("input", () => {
-    if (sizerState.mode !== "camera" || !sizerState.cameraImageSrc) return;
-    const rect = sizerMeasureStage?.getBoundingClientRect();
-    const stageWidth = rect?.width || 320;
-    const width = stageWidth * (Number(sizerCameraScale.value) / 100);
-    sizerState.cameraCardRightPx = Math.min(stageWidth - 4, sizerState.cameraCardLeftPx + width);
-    if (sizerCameraScaleValue) sizerCameraScaleValue.textContent = `${Number(sizerCameraScale.value).toFixed(1).replace(/\.0$/, "")}%`;
-    sizerRenderGuides();
-  });
   document.querySelectorAll("[data-measure-nudge]").forEach((button) => {
     button.addEventListener("click", () => sizerSetGuideWidthMm(sizerCurrentMm() + Number(button.dataset.measureNudge) * 0.1));
   });

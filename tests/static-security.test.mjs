@@ -46,6 +46,10 @@ test("admin order deletion handles recovered orders without weakening paid prote
   assert.match(ordersFunction, /verifyAdminCapability\(request\)/);
   assert.match(ordersFunction, /canDelete/);
   assert.match(ordersFunction, /Paid transactions cannot be deleted/);
+  assert.match(ordersFunction, /export function dedupeOrders\(/);
+  assert.match(ordersFunction, /stripe-session:/);
+  assert.match(client, /function adminOrdersSharePaidFingerprint\(/);
+  assert.match(client, /90 \* 1000/);
 });
 
 test("dropdown controls keep a visible hover state", async () => {
@@ -246,13 +250,18 @@ test("admin exposes the nail size finder tool", async () => {
   assert.match(client, /function sizerPhotoToCanvas\(file\)/);
   assert.match(client, /function sizerChoosePhotoFile\(file\)/);
   assert.match(client, /function sizerVisibleFingers\(landmarks\)/);
+  assert.match(client, /function sizerEstimateMillimeters\(geometry, worldLandmarks, step\)/);
+  assert.match(client, /worldLandmarks: result\.worldLandmarks/);
+  assert.match(client, /cameraPxPerMm/);
   assert.match(client, /distanceHint/);
-  assert.match(client, /sizerCameraScale/);
+  assert.doesNotMatch(client, /sizerCameraScale/);
   assert.match(adminHtml, /id="sizerStepCamera"/);
   assert.match(adminHtml, /id="sizerCameraCapture"/);
   assert.match(adminHtml, /id="sizerPhotoInput"/);
   assert.match(adminHtml, /id="sizerChoosePhoto"/);
-  assert.match(adminHtml, /id="sizerCameraScale"/);
+  assert.match(adminHtml, /No card required/);
+  assert.doesNotMatch(adminHtml, /id="sizerStepCalibrate"/);
+  assert.doesNotMatch(adminHtml, /id="sizerCameraScale"/);
   assert.doesNotMatch(adminHtml, /id="sizerCameraCardGuideLeft"/);
   assert.doesNotMatch(adminHtml, /id="sizerCameraCardGuideRight"/);
   assert.match(styles, /grid-template-columns: repeat\(10, minmax\(0, 1fr\)/);

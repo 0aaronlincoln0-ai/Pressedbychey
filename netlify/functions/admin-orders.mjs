@@ -51,6 +51,19 @@ function publicOrder(order = {}) {
   };
 }
 
+export function dedupeOrders(orders = []) {
+  const seen = new Set();
+  return orders.filter((order) => {
+    const identities = [
+      order?.id ? `id:${String(order.id).trim().toLowerCase()}` : "",
+      order?.stripeSessionId ? `stripe-session:${String(order.stripeSessionId).trim().toLowerCase()}` : ""
+    ].filter(Boolean);
+    if (!identities.length || identities.some((identity) => seen.has(identity))) return false;
+    identities.forEach((identity) => seen.add(identity));
+    return true;
+  });
+}
+
 async function listOrders(store) {
   const listing = await store.list({ prefix: `${ORDER_PREFIX}/` });
   const orders = (await Promise.all(
@@ -58,8 +71,8 @@ async function listOrders(store) {
       const order = await store.get(entry.key, { type: "json" });
       return order ? publicOrder(order) : null;
     })
-  )).filter(Boolean);
-  return orders.sort((a, b) => String(b.createdAt || b.paidAt).localeCompare(String(a.createdAt || a.paidAt)));
+  )).filter(Boolean).sort((a, b) => String(b.updatedAt || b.paidAt || b.createdAt).localeCompare(String(a.updatedAt || a.paidAt || a.createdAt)));
+  return dedupeOrders(orders.map(publicOrder));
 }
 
 function normalizeFulfillmentStatus(value = "") {

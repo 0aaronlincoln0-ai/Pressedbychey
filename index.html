@@ -642,59 +642,35 @@
       <div class="sizer-progress" id="sizerProgress" hidden aria-hidden="true"></div>
       <p class="sizer-zoom-warning" id="sizerZoomWarning" hidden>Your screen is zoomed in. Pinch out until the page is back to normal zoom so the measurements stay true to size.</p>
 
-      <section class="sizer-step" id="sizerStepDesktop" hidden>
-        <h3>Grab your phone for this part</h3>
-        <p>The size finder measures your real nails against your phone screen, so it only works on a phone or small touch screen.</p>
-        <p>Open <strong>pressedbychey.com</strong> on your phone and tap <strong>Find My Size</strong>. Sign in only when you are ready to save your results.</p>
-        <button class="button primary wide" type="button" data-sizer-close>Got it</button>
-      </section>
-
       <section class="sizer-step" id="sizerStepIntro" hidden>
-        <h3>Measure every nail with your phone</h3>
+        <h3>Scan one nail at a time</h3>
         <ol class="sizer-intro-list">
-          <li>Calibrate your screen with any standard card (bank, gift, or ID card).</li>
-          <li>Camera mode measures one finger per photo; the guide lets you adjust each nail.</li>
-          <li>Save the sizes straight to your nail profile for Chey.</li>
+          <li>Place one finger flat in the guide with the nail facing the camera.</li>
+          <li>Capture a photo or choose one from your camera roll.</li>
+          <li>Review the AI estimate, confirm the pink lines, and save.</li>
         </ol>
-        <p class="sizer-note">AI camera and photo scans reject extra fingers. Keep one selected finger and a standard card side by side for real millimeter scale.</p>
+        <p class="sizer-note">No card required. Keep only the selected finger in frame; unclear photos and extra fingers are rejected so you can retake them.</p>
         <div class="sizer-mode-actions">
           <button class="button primary" type="button" id="sizerUseCamera">Use Live Camera</button>
-          <button class="button secondary" type="button" id="sizerStart">Use On-Screen Guide</button>
+          <button class="button secondary" type="button" id="sizerStart">Start Photo Scan</button>
         </div>
       </section>
 
       <section class="sizer-step" id="sizerStepCamera" hidden>
         <h3 id="sizerCameraTitle">Single-finger scan</h3>
-        <p>Place one finger and the short edge of a standard card side by side, flat and in the same plane. Keep every other finger out of the frame.</p>
+        <p>Keep only your selected finger in frame. Hold the nail toward the camera and fill most of the guide without cropping the fingertip.</p>
         <div class="sizer-camera-stage">
           <video id="sizerCameraVideo" autoplay muted playsinline></video>
           <span class="sizer-camera-frame-hint">One finger only</span>
           <span class="sizer-camera-target" aria-hidden="true">One finger only - nail fills about one-third of this box</span>
         </div>
-        <p class="sizer-status" id="sizerCameraStatus" role="status">The scanner will reject a frame when it sees more than one extended finger.</p>
+        <p class="sizer-status" id="sizerCameraStatus" role="status">The scanner checks for one hand and one selected finger.</p>
         <div class="sizer-camera-actions">
           <button class="button secondary" type="button" id="sizerCameraSwitch">Switch Camera</button>
           <button class="button primary" type="button" id="sizerCameraCapture">Capture Nail</button>
         </div>
         <input class="hidden-file-input" id="sizerPhotoInput" type="file" accept="image/*" />
         <button class="button secondary wide" type="button" id="sizerChoosePhoto">Choose a Photo</button>
-        <button class="button secondary wide" type="button" id="sizerCameraUseScreen">Use On-Screen Guide Instead</button>
-      </section>
-
-      <section class="sizer-step" id="sizerStepCalibrate" hidden>
-        <h3>Match your card</h3>
-        <p>Hold any standard card <strong>upright</strong> (short edge across the screen) flat against your phone. Drag the pink handle until the outline is exactly as wide as your card.</p>
-        <div class="sizer-card-stage" id="sizerCardStage">
-          <div class="sizer-card-box" id="sizerCardBox">
-            <span class="sizer-card-hint">Card goes here, standing tall</span>
-            <button class="sizer-handle sizer-card-handle" type="button" id="sizerCardHandle" aria-label="Drag to match card width"><span aria-hidden="true">&#8596;</span></button>
-          </div>
-        </div>
-        <div class="sizer-nudge-row" aria-label="Fine adjust card width">
-          <button class="sizer-nudge" type="button" data-card-nudge="-1">&minus; smaller</button>
-          <button class="sizer-nudge" type="button" data-card-nudge="1">+ bigger</button>
-        </div>
-        <button class="button primary wide" type="button" id="sizerCalibrateDone">My Card Matches Exactly</button>
       </section>
 
       <section class="sizer-step" id="sizerStepMeasure" hidden>
@@ -702,7 +678,7 @@
         <p class="sizer-measure-help">Rest this nail flat on the box below, then drag each pink handle until the lines just touch the <strong>widest part of your nail</strong>.</p>
         <p class="sizer-status" id="sizerScanStatus" role="status" hidden></p>
         <div class="sizer-measure-stage" id="sizerMeasureStage">
-          <img id="sizerCameraImage" alt="Captured card and nail reference" hidden />
+          <img id="sizerCameraImage" alt="Captured single-finger scan" hidden />
           <div class="sizer-readout" id="sizerReadout" aria-live="polite">
             <strong id="sizerReadoutMm">15.0 mm</strong>
             <span id="sizerReadoutSize">Size 4</span>
@@ -713,11 +689,6 @@
           <div class="sizer-guide" id="sizerGuideRight">
             <button class="sizer-handle" type="button" aria-label="Drag right line"><span aria-hidden="true">&#8596;</span></button>
           </div>
-        </div>
-        <div class="sizer-camera-scale" id="sizerCameraScaleControl" hidden>
-          <label for="sizerCameraScale">Card reference width <output id="sizerCameraScaleValue">38%</output></label>
-          <input id="sizerCameraScale" type="range" min="20" max="75" step="0.5" value="38" />
-          <small>Slide until the card's short edge in the photo matches the reference width.</small>
         </div>
         <div class="sizer-nudge-row" aria-label="Fine adjust width">
           <button class="sizer-nudge" type="button" data-measure-nudge="-1">&minus; narrower</button>
@@ -1060,8 +1031,8 @@
               </div>
             </div>
             <div class="admin-sizing-overview" aria-label="Size Finder workflow">
-              <article><strong>1. Calibrate</strong><span>Match a standard card to the phone screen.</span></article>
-              <article><strong>2. Measure</strong><span>Work through every finger with live millimeter readouts.</span></article>
+              <article><strong>1. Capture</strong><span>Place one finger in the guide and take a photo.</span></article>
+              <article><strong>2. Confirm</strong><span>Review the AI estimate and align the pink lines.</span></article>
               <article><strong>3. Save the record</strong><span>Copy the result into the selected customer's Saved sizing fields.</span></article>
             </div>
             <p class="admin-status" id="adminSizerStatus" role="status">Ready to measure a customer’s fit.</p>
