@@ -302,6 +302,18 @@ test("shop separates fresh drops from the complete inventory", async () => {
   assert.match(styles, /\.shop-collection-grid\s*\{/);
 });
 
+test("live state and orders stay server-authoritative across devices", async () => {
+  const client = await source("script.js");
+  const ordersFunction = await source("netlify/functions/admin-orders.mjs");
+  assert.match(client, /const ADMIN_STATE_REFRESH_MS = 10000/);
+  assert.match(client, /function refreshAdminStateQuietly\(\)/);
+  assert.match(client, /function startAdminStateAutoRefresh\(\)/);
+  assert.match(client, /liveOrders = Array\.isArray\(payload\.orders\) \? payload\.orders : \[\]/);
+  assert.match(client, /accountingOrders = Array\.isArray\(payload\.orders\) \? payload\.orders : \[\]/);
+  assert.match(client, /liveOrders = mergeAdminOrderSources\(\[\]\)/);
+  assert.match(ordersFunction, /updatedAt: order\.updatedAt \|\| order\.createdAt \|\| ""/);
+});
+
 test("home service strip fills its three-column rhythm", async () => {
   const indexHtml = await source("index.html");
   const adminHtml = await source("admin.html");

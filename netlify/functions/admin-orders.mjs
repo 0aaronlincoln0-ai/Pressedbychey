@@ -44,6 +44,7 @@ function publicOrder(order = {}) {
     paymentStatus: order.paymentStatus || "",
     fulfillmentStatus: order.fulfillmentStatus || (order.paymentStatus === "paid" ? "Needs review" : "Payment pending"),
     createdAt: order.createdAt || "",
+    updatedAt: order.updatedAt || order.createdAt || "",
     paidAt: order.paidAt || "",
     customer: order.customer || {},
     customerEmail: order.customerEmail || "",

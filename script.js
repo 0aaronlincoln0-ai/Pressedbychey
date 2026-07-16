@@ -356,6 +356,7 @@ const ADMIN_REMOTE_PHOTO_ENDPOINT = `${ADMIN_REMOTE_STATE_ENDPOINT}?photo=upload
 const ADMIN_PENDING_REMOTE_STATE_KEY = "pressedByCheyPendingAdminRemoteState";
 const ADMIN_REMOTE_SAVE_DEBOUNCE_MS = 700;
 const ADMIN_REMOTE_RETRY_DELAY_MS = 4000;
+const ADMIN_STATE_REFRESH_MS = 10000;
 const ADMIN_LIVE_SAVE_FAILURE_MESSAGE = "Saved on this device. Live site sync is pending and will retry automatically.";
 const ADMIN_LIVE_SAVE_SUCCESS_MESSAGE = "Saved to the live website.";
 const ADMIN_LIVE_LOADING_MESSAGE = "Opening dashboard. Syncing latest live website data...";
@@ -677,6 +678,9 @@ if ("scrollRestoration" in history) {
 let currentPageKey = "home";
 let adminRemoteSaveTimer = null;
 let adminRemoteRetryTimer = null;
+let adminStateRefreshTimer = null;
+let adminStateRefreshInFlight = false;
+let adminRemoteStateSignature = "";
 let adminRemoteSyncEventsBound = false;
 let adminStateRevision = 0;
 let pageVisitStack = [];
@@ -1595,6 +1599,14 @@ function cloneAdminStateSnapshot() {
   return JSON.parse(JSON.stringify(adminState));
 }
 
+function adminStateSignature(state = {}) {
+  try {
+    return JSON.stringify(state);
+  } catch {
+    return "";
+  }
+}
+
 function loadPendingRemoteAdminStateRecord() {
   try {
     const raw = localStorage.getItem(ADMIN_PENDING_REMOTE_STATE_KEY);
@@ -1693,9 +1705,54 @@ async function hydrateAdminStateFromRemote() {
   const remoteState = await fetchRemoteAdminState();
   if (!remoteState) return false;
   adminState = remoteState;
+  adminRemoteStateSignature = adminStateSignature(adminState);
   ensureLayoutState();
   localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
   return true;
+}
+
+async function refreshAdminStateQuietly() {
+  if (adminStateRefreshInFlight || document.visibilityState !== "visible") return;
+  if (adminRemoteSaveTimer || adminRemoteRetryTimer || loadPendingRemoteAdminStateRecord()) return;
+  adminStateRefreshInFlight = true;
+  try {
+    const remoteState = await fetchRemoteAdminState();
+    if (!remoteState) return;
+    const remoteSignature = adminStateSignature(remoteState);
+    if (!remoteSignature || remoteSignature === adminRemoteStateSignature) return;
+    adminRemoteStateSignature = remoteSignature;
+    if (remoteSignature === adminStateSignature(adminState)) return;
+    adminState = remoteState;
+    ensureLayoutState();
+    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
+    applyAdminState();
+    if (IS_ADMIN_PAGE) {
+      renderAdminProducts();
+      renderAdminLookPhotos();
+      renderAdminUsers();
+      renderAdminGuestOrders();
+      renderIdeas();
+      renderProNotes();
+    }
+  } finally {
+    adminStateRefreshInFlight = false;
+  }
+}
+
+function startAdminStateAutoRefresh() {
+  if (adminStateRefreshTimer) return;
+  adminStateRefreshTimer = window.setInterval(refreshAdminStateQuietly, ADMIN_STATE_REFRESH_MS);
+}
+
+function stopAdminStateAutoRefresh() {
+  if (!adminStateRefreshTimer) return;
+  window.clearInterval(adminStateRefreshTimer);
+  adminStateRefreshTimer = null;
+}
+
+function syncAdminStateAutoRefresh() {
+  if (document.visibilityState === "visible") startAdminStateAutoRefresh();
+  else stopAdminStateAutoRefresh();
 }
 
 async function persistAdminStateRemotely(snapshot, revision = adminStateRevision) {
@@ -1719,6 +1776,7 @@ async function persistAdminStateRemotely(snapshot, revision = adminStateRevision
     }
     if (payload?.state && revision === adminStateRevision) {
       adminState = normalizeAdminState(payload.state);
+      adminRemoteStateSignature = adminStateSignature(adminState);
       ensureLayoutState();
       localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
     }
@@ -1772,6 +1830,7 @@ function bindAdminRemoteSyncEvents() {
       statusTarget: adminInventoryStatus || adminEditStatus || adminContentStatus,
       showSuccess: true
     });
+    refreshAdminStateQuietly();
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible") return;
@@ -1780,6 +1839,7 @@ function bindAdminRemoteSyncEvents() {
       statusTarget: adminInventoryStatus || adminEditStatus || adminContentStatus,
       showSuccess: true
     });
+    refreshAdminStateQuietly();
   });
 }
 
@@ -6998,7 +7058,10 @@ async function fetchAdminLiveOrders({ showStatus = true } = {}) {
       headers: adminRemoteWriteHeaders()
     });
     if (!response.ok || payload?.ok === false) throw new Error(payload?.error || "Could not load live orders.");
-    liveOrders = mergeAdminOrderSources(Array.isArray(payload.orders) ? payload.orders : []);
+    // A successful server response is authoritative. Device-only recovery records
+    // are shown only when the live endpoint is unavailable, so one computer cannot
+    // invent an order that no other device can see.
+    liveOrders = Array.isArray(payload.orders) ? payload.orders : [];
     renderAdminLiveOrders();
     if (showStatus) setLiveOrderFilterStatus("Loaded");
   } catch (error) {
@@ -7249,7 +7312,7 @@ async function fetchAccounting({ showStatus = true } = {}) {
   try {
     const { response, payload } = await fetchJsonWithTimeout(ADMIN_ORDERS_ENDPOINT, { headers: adminRemoteWriteHeaders() });
     if (!response.ok || payload?.ok === false) throw new Error(payload?.error || "Could not load accounting records.");
-    accountingOrders = mergeAdminOrderSources(Array.isArray(payload.orders) ? payload.orders : []);
+    accountingOrders = Array.isArray(payload.orders) ? payload.orders : [];
     renderAccounting();
     if (accountingStatus) accountingStatus.textContent = `${accountingOrders.length} accounting record${accountingOrders.length === 1 ? "" : "s"} loaded.`;
   } catch (error) {
@@ -8410,17 +8473,21 @@ async function setupAdmin() {
   window.addEventListener("focus", () => {
     refreshAdminLiveOrdersQuietly();
     refreshCustomerQuotesQuietly();
+    refreshAdminStateQuietly();
   });
   document.addEventListener("visibilitychange", () => {
+    syncAdminStateAutoRefresh();
     syncAdminLiveOrderAutoRefresh();
     syncCustomerQuoteRefresh();
     refreshAdminLiveOrdersQuietly();
     refreshCustomerQuotesQuietly();
+    refreshAdminStateQuietly();
   });
   document.addEventListener("input", (event) => {
     if (event.target.matches("textarea")) autoGrowTextarea(event.target);
   });
   autoGrowTextareas();
+  syncAdminStateAutoRefresh();
 }
 
 function switchAdminView(view, { focusPanel = false } = {}) {

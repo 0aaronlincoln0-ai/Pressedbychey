@@ -140,6 +140,7 @@ function publicOrder(order = {}) {
     fulfillmentStatus: order.fulfillmentStatus || "",
     date: order.createdAt || order.date || "",
     createdAt: order.createdAt || "",
+    updatedAt: order.updatedAt || order.createdAt || "",
     paidAt: order.paidAt || "",
     customer: order.customer || {},
     sizing: order.customer?.sizing || order.sizing || "",
