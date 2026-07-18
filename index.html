@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Pressed by Chey | Luxury Handmade Press-On Nails</title>
     <meta
       name="description"
@@ -23,39 +23,79 @@
       rel="stylesheet"
     />
     <link rel="preload" href="assets/nail-polish-brush-cursor.svg?v=brush3" as="image" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=20260715-cursor-glitter" />
+    <link rel="stylesheet" href="styles.css?v=20260717-ios-ready-v3" />
   </head>
   <body>
     <div class="scroll-progress" aria-hidden="true"></div>
     <div class="site-shell">
-      <header class="nav" data-reveal>
-        <a class="brand" href="#home" data-page-link="home" aria-label="Pressed by Chey home">
-          <img
-            class="brand-logo"
-            src="assets/pressed-by-chey-logo-new-header.webp"
-            alt="Pressed by Chey"
-            width="900"
-            height="423"
-            decoding="async"
-          />
-          <span class="brand-text-fallback">Pressed by Chey</span>
-        </a>
-        <nav class="nav-links" aria-label="Main navigation">
-          <a href="#home" data-page-link="home">Home</a>
-          <a href="#shop" data-page-link="shop">Shop</a>
-          <a href="#reviews" data-page-link="reviews">Reviews</a>
+      <header class="nav storefront-header" data-reveal>
+        <div class="storefront-header-main">
+          <div class="storefront-contact" aria-label="Contact Pressed by Chey">
+            <a href="mailto:callison@pressedbychey.com">Email</a>
+            <a href="tel:+19893922012">Text</a>
+          </div>
+          <a class="brand" href="#shop" data-page-link="shop" data-shop-destination="inventory" aria-label="Pressed by Chey shop">
+            <img
+              class="brand-logo"
+              src="assets/pressed-by-chey-logo-new-header.webp"
+              alt="Pressed by Chey"
+              width="900"
+              height="423"
+              decoding="async"
+            />
+            <span class="brand-text-fallback">Pressed by Chey</span>
+          </a>
+          <div class="storefront-actions">
+            <button class="header-messages-button" id="headerMessagesButton" type="button" aria-label="Open messages" title="Open messages" hidden>
+              <span class="header-messages-icon" aria-hidden="true">&#9993;</span>
+              <strong id="headerMessagesBadge" aria-live="polite" hidden>0</strong>
+            </button>
+            <button class="account-button" type="button" aria-label="Open customer account">Log In</button>
+            <button class="cart-button" type="button" aria-label="Open shopping bag">
+              <span class="cart-icon" aria-hidden="true">&hearts;</span>
+              <span class="cart-count">0</span>
+            </button>
+          </div>
+        </div>
+        <nav class="nav-links storefront-categories" aria-label="Shop navigation">
+          <a href="#shop" data-page-link="shop" data-shop-view="summer">Summer Collection</a>
+          <div class="storefront-menu">
+            <a href="#shop" data-page-link="shop" data-shop-view="all">Shop All <span aria-hidden="true">&#8964;</span></a>
+            <div class="storefront-dropdown">
+              <a href="#shop" data-page-link="shop" data-shop-view="press-ons">All Press-Ons</a>
+              <a href="#shop" data-page-link="shop" data-shop-view="new-in">Fresh Drops</a>
+              <a href="#shop" data-page-link="shop" data-shop-view="sale">Sale Sets</a>
+              <a href="#create" data-page-link="create">Create Your Set</a>
+            </div>
+          </div>
+          <a href="#shop" data-page-link="shop" data-shop-view="best-sellers">Best Sellers</a>
+          <a href="#shop" data-page-link="shop" data-shop-view="new-in">New In</a>
+          <a href="#shop" data-page-link="shop" data-shop-view="sale">Sale</a>
+          <div class="storefront-menu">
+            <a href="#shop" data-page-link="shop" data-shop-view="press-ons">Press-Ons <span aria-hidden="true">&#8964;</span></a>
+            <div class="storefront-dropdown">
+              <a href="#shop" data-page-link="shop" data-shop-view="press-ons" data-shop-shape="almond">Almond</a>
+              <a href="#shop" data-page-link="shop" data-shop-view="press-ons" data-shop-shape="square">Square</a>
+              <a href="#shop" data-page-link="shop" data-shop-view="press-ons" data-shop-shape="coffin">Coffin</a>
+              <a href="#shop" data-page-link="shop" data-shop-view="press-ons" data-shop-shape="oval">Oval</a>
+              <a href="#shop" data-page-link="shop" data-shop-view="press-ons" data-shop-shape="stiletto">Stiletto</a>
+            </div>
+          </div>
+          <a href="#shop" data-page-link="shop" data-shop-view="accessories">Accessories</a>
+          <a href="#create" data-page-link="create">Create Your Set</a>
+          <div class="storefront-menu">
+            <a href="#how-to" data-page-link="how-to">How To <span aria-hidden="true">&#8964;</span></a>
+            <div class="storefront-dropdown storefront-dropdown-right">
+              <a href="#home" data-page-link="home" data-section-target="fit">Find Your Fit</a>
+              <a href="#how-to" data-page-link="how-to" data-section-target="how-to-apply">Application Guide</a>
+              <a href="#how-to" data-page-link="how-to" data-section-target="how-to-remove">Removal Guide</a>
+              <a href="#create" data-page-link="create">Custom Creation</a>
+              <a href="#shop" data-page-link="shop" data-shop-destination="inventory">Shop Sets</a>
+            </div>
+          </div>
           <a href="#account" id="messagesNav" data-open-messages hidden>Messages <span class="messages-nav-badge" id="messagesNavBadge" hidden>0</span></a>
           <a href="admin.html" id="adminNav" hidden>Admin</a>
         </nav>
-        <button class="header-messages-button" id="headerMessagesButton" type="button" aria-label="Open messages" title="Open messages" hidden>
-          <span class="header-messages-icon" aria-hidden="true">&#9993;</span>
-          <strong id="headerMessagesBadge" aria-live="polite" hidden>0</strong>
-        </button>
-        <button class="account-button" type="button">Log In</button>
-        <button class="cart-button" type="button" aria-label="Open cart">
-          <span class="cart-icon" aria-hidden="true">&hearts;</span>
-          <span class="cart-count">0</span>
-        </button>
       </header>
 
       <main id="top" class="page-stage">
@@ -232,141 +272,320 @@
 
           <section class="site-page" data-page-panel="shop" aria-label="Shop page" hidden>
             <div class="page-surface">
-        <section class="section shop" id="shop" aria-labelledby="shop-title">
-          <div class="section-heading" data-reveal>
-            <p class="eyebrow">Shop the latest sets</p>
-            <h2 id="shop-title">Fresh uploads from Chey's current collection.</h2>
+        <section class="section shop shop-catalog" id="shop" aria-labelledby="shop-title">
+          <div class="shop-page-heading" data-reveal>
+            <p class="eyebrow">The Pressed by Chey collection</p>
+            <h2 id="shop-title">Press-On Nails</h2>
+            <p id="shopProductCount" aria-live="polite">Loading the collection...</p>
           </div>
-          <div class="filter-row" id="shopFilters" aria-label="Product filters" data-reveal hidden>
-            <div class="shop-filter-group" aria-label="Collection filters">
-              <button class="filter active" type="button" data-collection-filter="all">All sets</button>
-              <button class="filter" type="button" data-collection-filter="fresh-drops">Fresh Drops</button>
+          <div class="shop-catalog-layout">
+            <aside class="shop-sidebar" aria-label="Shop categories">
+              <div class="shop-sidebar-title">
+                <strong>Categories</strong>
+                <button id="shopFilterClose" type="button" aria-label="Close filters">&times;</button>
+              </div>
+              <div class="filter-row" id="shopFilters" aria-label="Product filters" data-reveal hidden>
+                <label class="shop-filter-search">Search
+                  <input id="shopProductSearch" type="search" placeholder="Name or product number" autocomplete="off" />
+                </label>
+                <fieldset class="shop-filter-group" aria-label="Collection filters">
+                  <legend>Collection</legend>
+                  <button class="filter active" type="button" data-collection-filter="all"><span></span>All sets</button>
+                  <button class="filter" type="button" data-collection-filter="fresh-drops"><span></span>Fresh Drops</button>
+                </fieldset>
+                <fieldset class="shop-filter-group" aria-label="Nail length filters">
+                  <legend>Nail Length</legend>
+                  <button class="filter active" type="button" data-length-filter="all"><span></span>All lengths</button>
+                  <button class="filter" type="button" data-length-filter="short"><span></span>Short</button>
+                  <button class="filter" type="button" data-length-filter="medium"><span></span>Medium</button>
+                  <button class="filter" type="button" data-length-filter="long"><span></span>Long</button>
+                  <button class="filter" type="button" data-length-filter="extra-long"><span></span>Extra Long</button>
+                </fieldset>
+                <fieldset class="shop-filter-group" aria-label="Nail finish filters">
+                  <legend>Nail Finish</legend>
+                  <button class="filter active" type="button" data-finish-filter="all"><span></span>All finishes</button>
+                  <button class="filter" type="button" data-finish-filter="glossy"><span></span>Glossy</button>
+                  <button class="filter" type="button" data-finish-filter="chrome"><span></span>Chrome</button>
+                  <button class="filter" type="button" data-finish-filter="matte"><span></span>Matte</button>
+                  <button class="filter" type="button" data-finish-filter="cat-eye"><span></span>Cat Eye</button>
+                  <button class="filter" type="button" data-finish-filter="french"><span></span>French</button>
+                </fieldset>
+                <fieldset class="shop-filter-group" aria-label="Nail shape filters">
+                  <legend>Nail Shape</legend>
+                  <button class="filter active" type="button" data-filter="all"><span></span>All shapes</button>
+                  <button class="filter" type="button" data-filter="almond"><span></span>Almond</button>
+                  <button class="filter" type="button" data-filter="square"><span></span>Square</button>
+                  <button class="filter" type="button" data-filter="coffin"><span></span>Coffin</button>
+                  <button class="filter" type="button" data-filter="oval"><span></span>Oval</button>
+                  <button class="filter" type="button" data-filter="stiletto"><span></span>Stiletto</button>
+                </fieldset>
+                <label class="shop-filter-stock">Availability
+                  <select id="shopStockFilter">
+                    <option value="all">All stock</option>
+                    <option value="in-stock">In stock</option>
+                    <option value="low-stock">Low stock</option>
+                    <option value="out-of-stock">Out of stock</option>
+                    <option value="made-to-order">Made to order</option>
+                    <option value="coming-soon">Coming soon</option>
+                  </select>
+                </label>
+              </div>
+            </aside>
+            <div class="shop-results">
+              <div class="shop-results-toolbar">
+                <button class="shop-filter-toggle" id="shopFilterToggle" type="button" aria-expanded="false" aria-controls="shopFilters">Filters</button>
+                <span class="shop-results-count" id="shopResultsCount">0 products</span>
+                <label class="shop-sort">Sort by
+                  <select id="shopSort">
+                    <option value="featured">Featured</option>
+                    <option value="newest">Newest</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                    <option value="name">Name: A to Z</option>
+                  </select>
+                </label>
+              </div>
+              <div class="product-grid"></div>
             </div>
-            <div class="shop-filter-group" aria-label="Nail shape filters">
-              <button class="filter active" type="button" data-filter="all">All shapes</button>
-              <button class="filter" type="button" data-filter="almond">Almond</button>
-              <button class="filter" type="button" data-filter="square">Square</button>
-              <button class="filter" type="button" data-filter="coffin">Coffin</button>
-              <button class="filter" type="button" data-filter="oval">Oval</button>
-              <button class="filter" type="button" data-filter="stiletto">Stiletto</button>
-            </div>
-            <label class="shop-filter-search">Find a set
-              <input id="shopProductSearch" type="search" placeholder="Name or product number" autocomplete="off" />
-            </label>
-            <label class="shop-filter-stock">Stock
-              <select id="shopStockFilter">
-                <option value="all">All stock</option>
-                <option value="in-stock">In stock</option>
-                <option value="low-stock">Low stock</option>
-                <option value="out-of-stock">Out of stock</option>
-                <option value="made-to-order">Made to order</option>
-                <option value="coming-soon">Coming soon</option>
-              </select>
-            </label>
           </div>
-          <div class="product-grid"></div>
-          <section class="custom-order-panel" aria-labelledby="customOrderTitle" data-reveal>
-            <div class="custom-order-copy">
-              <p class="eyebrow">Custom Orders</p>
-              <h3 id="customOrderTitle">Send Chey your inspo.</h3>
-              <p>
-                Upload a reference photo and write exactly what you want. Your request will be added to your bag as a quote request,
-                then Chey can review the photo, notes, sizing, and final price before making the set.
-              </p>
-              <div class="custom-order-highlights" aria-label="How custom orders work">
-                <div>
-                  <strong>1 photo required</strong>
-                  <span>Send the exact nail look Chey should match.</span>
-                </div>
-                <div>
-                  <strong>Added to your bag</strong>
-                  <span>Your request stays with the rest of your order details.</span>
-                </div>
-                <div>
-                  <strong>Reviewed before payment</strong>
-                  <span>Chey confirms sizing, notes, and final pricing first.</span>
-                </div>
-              </div>
-            </div>
-            <div class="custom-order-grid">
-              <section class="custom-order-card custom-order-request-card" aria-labelledby="customOrderWriteTitle">
-                <div class="custom-order-card-head">
-                  <strong id="customOrderWriteTitle">Tell Chey what you want</strong>
-                  <p>Keep this short and clear. Include shape, length, colors, finish, charms, and nail art.</p>
-                </div>
-                <label class="custom-order-field">
-                  Request name
-                  <input id="customOrderName" type="text" placeholder="Birthday chrome set, vacation aura set..." />
-                </label>
-                <div class="custom-order-choice-grid" aria-label="Custom order nail details">
-                  <label class="custom-order-field">
-                    Nail shape
-                    <select id="customOrderShape">
-                      <option value="">Choose shape</option>
-                      <option value="Almond">Almond</option>
-                      <option value="Square">Square</option>
-                      <option value="Coffin">Coffin</option>
-                      <option value="Oval">Oval</option>
-                      <option value="Stiletto">Stiletto</option>
-                    </select>
-                  </label>
-                  <label class="custom-order-field">
-                    Length
-                    <select id="customOrderLength">
-                      <option value="">Choose length</option>
-                      <option value="Short">Short</option>
-                      <option value="Medium">Medium</option>
-                      <option value="Long">Long</option>
-                      <option value="Extra long">Extra long</option>
-                    </select>
-                  </label>
-                  <label class="custom-order-field">
-                    Size preference
-                    <select id="customOrderSizePreference">
-                      <option value="">Choose sizing</option>
-                      <option value="Use saved profile sizes">Saved profile sizes</option>
-                      <option value="XS preset">XS preset</option>
-                      <option value="S preset">S preset</option>
-                      <option value="M preset">M preset</option>
-                      <option value="L preset">L preset</option>
-                      <option value="Custom size / penny reference">Custom penny photo</option>
-                      <option value="Need sizing kit">Need sizing kit</option>
-                    </select>
-                  </label>
-                </div>
-                <label class="custom-order-field custom-order-field-wide">
-                  Describe your custom order
-                  <textarea id="customOrderDescription" rows="4" placeholder="Example: Short almond, pink chrome, pearl charms, glossy finish, with a soft aura fade."></textarea>
-                </label>
-              </section>
-              <section class="custom-order-card custom-order-photo-card" aria-labelledby="customOrderPhotoTitle">
-                <div class="custom-order-card-head">
-                  <strong id="customOrderPhotoTitle">Upload the inspiration photo</strong>
-                  <p>This helps Chey match the exact set you want.</p>
-                </div>
-                <div class="custom-order-upload-shell">
-                  <label class="custom-order-upload" for="customOrderPhoto">
-                    <span>+</span>
-                    <strong>Upload inspiration photo</strong>
-                    <small>Required for custom order requests.</small>
-                    <input id="customOrderPhoto" type="file" accept="image/*" />
-                  </label>
-                  <div class="custom-order-preview" id="customOrderPreview" hidden>
-                    <img alt="Custom order inspiration preview" />
-                    <div>
-                      <strong id="customOrderPhotoName">Reference photo uploaded</strong>
-                      <button type="button" id="customOrderPhotoRemove">Remove Photo</button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-              <div class="custom-order-actions">
-                <button class="button primary" type="button" id="customOrderSubmit">Add Custom Order Request</button>
-                <p class="custom-order-status" id="customOrderStatus" role="status"></p>
-              </div>
+        </section>
             </div>
           </section>
-        </section>
+
+          <section class="site-page" data-page-panel="how-to" aria-label="How to apply and remove press-on nails" hidden>
+            <div class="page-surface">
+              <section class="tutorial-page" aria-labelledby="tutorialPageTitle">
+                <header class="tutorial-page-title" data-reveal>
+                  <p class="eyebrow">Pressed by Chey tutorials</p>
+                  <h1 id="tutorialPageTitle">How to Apply + Remove</h1>
+                  <p>Use Chey's tutorial and care steps for a smooth fit, longer wear, and gentle removal.</p>
+                </header>
+
+                <section class="tutorial-chapter" id="how-to-apply" aria-labelledby="tutorialApplyTitle">
+                  <header class="tutorial-banner" data-reveal>
+                    <span>Application tutorial</span>
+                    <h2 id="tutorialApplyTitle">How to apply your Pressed by Chey nails</h2>
+                    <p>Watch the full application video before starting your new set.</p>
+                    <strong>Prep is the key to longer wear</strong>
+                  </header>
+                  <div class="tutorial-video-shell" data-reveal>
+                    <button
+                      class="tutorial-video-launch"
+                      type="button"
+                      data-youtube-launch
+                      aria-label="Play the press-on nail application tutorial"
+                    >
+                      <img
+                        src="assets/tutorial-press-on-routine-hd.jpg"
+                        width="1280"
+                        height="720"
+                        alt="Press-on nail routine tutorial preview"
+                        loading="eager"
+                        decoding="async"
+                      />
+                      <span class="tutorial-play-icon" aria-hidden="true"></span>
+                      <strong>Play HD Tutorial</strong>
+                    </button>
+                    <iframe
+                      data-youtube-src="https://www.youtube-nocookie.com/embed/yk7EgdEK6XY?rel=0&amp;modestbranding=1&amp;vq=hd1080&amp;playsinline=1&amp;autoplay=1"
+                      title="Pressed by Chey press-on nail application tutorial"
+                      loading="lazy"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerpolicy="strict-origin-when-cross-origin"
+                      allowfullscreen
+                      hidden
+                    ></iframe>
+                  </div>
+                  <a
+                    class="tutorial-youtube-link"
+                    href="https://www.youtube.com/watch?v=yk7EgdEK6XY"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >Watch this tutorial on YouTube <span aria-hidden="true">&nearr;</span></a>
+                  <div class="tutorial-steps" aria-label="Application checklist" data-reveal>
+                    <article>
+                      <span>01</span>
+                      <h3>Size first</h3>
+                      <p>Match every press-on from sidewall to sidewall before using adhesive.</p>
+                    </article>
+                    <article>
+                      <span>02</span>
+                      <h3>Prep the nail</h3>
+                      <p>Push back cuticles, lightly buff away shine, and wipe each nail clean.</p>
+                    </article>
+                    <article>
+                      <span>03</span>
+                      <h3>Apply adhesive</h3>
+                      <p>Use glue or tabs based on your wear goal, keeping adhesive away from skin.</p>
+                    </article>
+                    <article>
+                      <span>04</span>
+                      <h3>Press and hold</h3>
+                      <p>Place at the cuticle edge, lower slowly, and hold firmly to remove air pockets.</p>
+                    </article>
+                  </div>
+                </section>
+
+                <section class="tutorial-chapter tutorial-removal" id="how-to-remove" aria-labelledby="tutorialRemoveTitle">
+                  <header class="tutorial-banner" data-reveal>
+                    <span>Removal guide</span>
+                    <h2 id="tutorialRemoveTitle">How to remove your Pressed by Chey nails</h2>
+                    <p>Take your time so your natural nails and reusable set stay protected.</p>
+                    <strong>Never pull or force a press-on nail</strong>
+                  </header>
+                  <div class="tutorial-removal-layout" data-reveal>
+                    <div class="tutorial-removal-intro">
+                      <p class="eyebrow">Gentle removal</p>
+                      <h3>Loosen, lift, and clean.</h3>
+                      <p>Warm soapy water and cuticle oil help loosen adhesive gradually. If a nail resists, soak longer instead of pulling.</p>
+                      <a class="button primary" href="#shop" data-page-link="shop" data-shop-view="press-ons">Shop Your Next Set</a>
+                    </div>
+                    <ol class="tutorial-removal-steps">
+                      <li><span>01</span><div><strong>Soak</strong><p>Soak fingertips in warm soapy water with a little cuticle oil for 10-15 minutes.</p></div></li>
+                      <li><span>02</span><div><strong>Loosen</strong><p>Gently work around the edges with a wooden cuticle stick. Do not pry.</p></div></li>
+                      <li><span>03</span><div><strong>Repeat</strong><p>Soak again whenever you feel resistance. The adhesive should release without force.</p></div></li>
+                      <li><span>04</span><div><strong>Clean and store</strong><p>Remove leftover adhesive, moisturize your nails, and keep reusable sets together.</p></div></li>
+                    </ol>
+                  </div>
+                </section>
+
+                <section class="tutorial-support-band" aria-label="Tutorial support" data-reveal>
+                  <div>
+                    <p class="eyebrow">Still need help?</p>
+                    <h2>Ask Chey before you apply.</h2>
+                    <p>Send a message with your sizing, prep, application, or removal question.</p>
+                  </div>
+                  <div class="tutorial-support-actions">
+                    <a class="button primary" href="#account" data-page-link="account">Message Chey</a>
+                    <a class="button secondary" href="#home" data-page-link="home" data-section-target="fit">Find Your Fit</a>
+                  </div>
+                </section>
+              </section>
+            </div>
+          </section>
+
+          <section class="site-page" data-page-panel="create" aria-label="Create your custom set page" hidden>
+            <div class="page-surface">
+              <section class="section creation-page" id="create" aria-labelledby="creationPageTitle">
+                <header class="creation-page-hero" data-reveal>
+                  <p class="eyebrow">Custom-made with Chey</p>
+                  <h1 id="creationPageTitle">Send Chey your style.</h1>
+                  <p>Build your request, upload the look that inspired you, and send everything to Chey for a personal quote.</p>
+                  <div class="creation-steps" aria-label="Custom creation steps">
+                    <span><strong>01</strong> Choose your details</span>
+                    <span><strong>02</strong> Add your inspiration</span>
+                    <span><strong>03</strong> Send for a quote</span>
+                  </div>
+                </header>
+                <section class="custom-order-panel creation-workspace" aria-labelledby="customOrderTitle" data-reveal>
+                  <div class="custom-order-copy">
+                    <p class="eyebrow">Your custom creation</p>
+                    <h2 id="customOrderTitle">Made around your vision.</h2>
+                    <p>
+                      Upload one clear reference photo and describe the shape, length, colors, finish, charms, and nail art you want.
+                      Your request goes into your bag as a quote request, not a priced product.
+                    </p>
+                    <div class="custom-order-highlights" aria-label="How custom orders work">
+                      <div>
+                        <strong>Reference required</strong>
+                        <span>Use the clearest photo of the look Chey should create.</span>
+                      </div>
+                      <div>
+                        <strong>No charge yet</strong>
+                        <span>Chey reviews the design and sends your final price first.</span>
+                      </div>
+                      <div>
+                        <strong>Quote in your account</strong>
+                        <span>Sign in to see Chey's message and pay when you are ready.</span>
+                      </div>
+                    </div>
+                    <a class="creation-shop-link" href="#shop" data-page-link="shop" data-shop-destination="inventory">&larr; Back to Shop All</a>
+                  </div>
+                  <div class="custom-order-grid">
+                    <section class="custom-order-card custom-order-request-card" aria-labelledby="customOrderWriteTitle">
+                      <div class="custom-order-card-head">
+                        <span>Step 1</span>
+                        <strong id="customOrderWriteTitle">Tell Chey what you want</strong>
+                        <p>Include every detail Chey should use when planning your set.</p>
+                      </div>
+                      <label class="custom-order-field">
+                        Creation name
+                        <input id="customOrderName" type="text" maxlength="80" autocomplete="off" placeholder="Birthday chrome set, vacation aura set..." />
+                      </label>
+                      <div class="custom-order-choice-grid" aria-label="Custom order nail details">
+                        <label class="custom-order-field">
+                          Nail shape
+                          <select id="customOrderShape" required>
+                            <option value="">Choose shape</option>
+                            <option value="Almond">Almond</option>
+                            <option value="Square">Square</option>
+                            <option value="Coffin">Coffin</option>
+                            <option value="Oval">Oval</option>
+                            <option value="Stiletto">Stiletto</option>
+                          </select>
+                        </label>
+                        <label class="custom-order-field">
+                          Length
+                          <select id="customOrderLength" required>
+                            <option value="">Choose length</option>
+                            <option value="Short">Short</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Long">Long</option>
+                            <option value="Extra long">Extra long</option>
+                          </select>
+                        </label>
+                        <label class="custom-order-field">
+                          Size preference
+                          <select id="customOrderSizePreference" required>
+                            <option value="">Choose sizing</option>
+                            <option value="Use saved profile sizes">Saved profile sizes</option>
+                            <option value="XS preset">XS preset</option>
+                            <option value="S preset">S preset</option>
+                            <option value="M preset">M preset</option>
+                            <option value="L preset">L preset</option>
+                            <option value="Custom size / penny reference">Custom penny photo</option>
+                            <option value="Need sizing kit">Need sizing kit</option>
+                          </select>
+                        </label>
+                      </div>
+                      <label class="custom-order-field custom-order-field-wide">
+                        Describe your custom creation
+                        <textarea id="customOrderDescription" rows="5" maxlength="1800" required placeholder="Example: Short almond, pink chrome, pearl charms, glossy finish, with a soft aura fade."></textarea>
+                      </label>
+                    </section>
+                    <section class="custom-order-card custom-order-photo-card" aria-labelledby="customOrderPhotoTitle">
+                      <div class="custom-order-card-head">
+                        <span>Step 2</span>
+                        <strong id="customOrderPhotoTitle">Upload your inspiration</strong>
+                        <p>A clear photo helps Chey understand the exact finish and details you want.</p>
+                      </div>
+                      <div class="custom-order-upload-shell">
+                        <label class="custom-order-upload" for="customOrderPhoto">
+                          <span>+</span>
+                          <strong>Choose inspiration photo</strong>
+                          <small>JPG, PNG, or WEBP. One photo is required.</small>
+                          <input id="customOrderPhoto" type="file" accept="image/jpeg,image/png,image/webp" required />
+                        </label>
+                        <div class="custom-order-preview" id="customOrderPreview" hidden>
+                          <img alt="Custom order inspiration preview" />
+                          <div>
+                            <strong id="customOrderPhotoName">Reference photo uploaded</strong>
+                            <button type="button" id="customOrderPhotoRemove">Remove Photo</button>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                    <div class="custom-order-actions">
+                      <div>
+                        <strong>Step 3</strong>
+                        <span>No payment is taken until Chey sends your quote.</span>
+                      </div>
+                      <button class="button primary" type="button" id="customOrderSubmit">Add Creation to My Bag</button>
+                      <p class="custom-order-status" id="customOrderStatus" role="status" aria-live="polite"></p>
+                    </div>
+                  </div>
+                </section>
+              </section>
             </div>
           </section>
 
@@ -1369,6 +1588,6 @@
     </section>
     <div class="scrim"></div>
 
-    <script src="script.js?v=20260715-cursor-glitter"></script>
+    <script src="script.js?v=20260717-ios-ready-v3"></script>
   </body>
 </html>

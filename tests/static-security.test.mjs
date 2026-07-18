@@ -302,6 +302,160 @@ test("shop separates fresh drops from the complete inventory", async () => {
   assert.match(styles, /\.shop-collection-grid\s*\{/);
 });
 
+test("customer storefront opens directly into the structured shop catalog", async () => {
+  const indexHtml = await source("index.html");
+  const client = await source("script.js");
+  const styles = await source("styles.css");
+  const shopNav = indexHtml.match(/<nav class="nav-links storefront-categories"[\s\S]*?<\/nav>/)?.[0] || "";
+
+  assert.ok(shopNav);
+  assert.doesNotMatch(shopNav, />Home</);
+  assert.match(shopNav, />Summer Collection</);
+  assert.match(shopNav, />Shop All /);
+  assert.match(shopNav, />Best Sellers</);
+  assert.match(shopNav, />New In</);
+  assert.match(shopNav, />Sale</);
+  assert.match(shopNav, />Press-Ons /);
+  assert.match(shopNav, />Accessories</);
+  assert.match(shopNav, />How To /);
+  assert.match(client, /let currentPageKey = "shop"/);
+  assert.match(client, /if \(!key \|\| key === "top"\) return "shop"/);
+  assert.match(styles, /\.shop-catalog \.product-grid\s*\{[\s\S]*grid-template-columns: repeat\(4/);
+  assert.match(styles, /\.shop-catalog-layout\s*\{[\s\S]*grid-template-columns: 220px minmax\(0, 1fr\)/);
+});
+
+test("custom creation uses a dedicated customer page without changing inventory", async () => {
+  const indexHtml = await source("index.html");
+  const client = await source("script.js");
+  const styles = await source("styles.css");
+  const shopPage = indexHtml.match(/data-page-panel="shop"[\s\S]*?(?=<section class="site-page" data-page-panel="create")/)?.[0] || "";
+  const createPage = indexHtml.match(/data-page-panel="create"[\s\S]*?(?=<section class="site-page" data-page-panel="product")/)?.[0] || "";
+
+  assert.ok(shopPage);
+  assert.ok(createPage);
+  assert.doesNotMatch(shopPage, /id="customOrderSubmit"/);
+  assert.match(createPage, /id="customOrderSubmit"/);
+  assert.match(createPage, /id="customOrderPhoto"/);
+  assert.match(createPage, /Add Creation to My Bag/);
+  assert.match(client, /\{ key: "create", label: "Create Your Set"/);
+  assert.match(client, /customOrder:\s*true/);
+  assert.match(client, /window\.setTimeout\(openCart, 180\)/);
+  assert.match(styles, /\.creation-page-hero\s*\{/);
+  assert.match(styles, /\.creation-workspace\.custom-order-panel\s*\{/);
+});
+
+test("how-to page provides a responsive YouTube tutorial and removal guide", async () => {
+  const [html, client, css, config] = await Promise.all([
+    source("index.html"),
+    source("script.js"),
+    source("styles.css"),
+    source("netlify.toml")
+  ]);
+  assert.match(html, /data-page-panel="how-to"/);
+  assert.match(html, /data-page-link="how-to"/);
+  assert.match(html, /id="how-to-apply"/);
+  assert.match(html, /id="how-to-remove"/);
+  assert.match(html, /https:\/\/www\.youtube-nocookie\.com\/embed\/yk7EgdEK6XY\?rel=0/);
+  assert.match(html, /src="assets\/tutorial-press-on-routine-hd\.jpg"/);
+  assert.match(html, /width="1280"\s+height="720"/);
+  assert.match(html, /data-youtube-launch/);
+  assert.match(html, /vq=hd1080/);
+  assert.match(html, /loading="lazy"/);
+  assert.match(html, /allowfullscreen/);
+  assert.match(client, /\{ key: "how-to", label: "How To"/);
+  assert.match(client, /iframe\[data-youtube-src\]/);
+  assert.match(css, /\.tutorial-video-shell\s*\{[^}]*aspect-ratio:\s*16\s*\/\s*9/s);
+  assert.match(config, /frame-src https:\/\/www\.youtube-nocookie\.com/);
+});
+
+test("customer and admin surfaces include iPhone Safari safeguards", async () => {
+  const [html, adminHtml, css] = await Promise.all([
+    source("index.html"),
+    source("admin.html"),
+    source("styles.css")
+  ]);
+  assert.match(html, /viewport-fit=cover/);
+  assert.match(adminHtml, /viewport-fit=cover/);
+  assert.match(html, /playsinline=1/);
+  assert.match(css, /env\(safe-area-inset-top/);
+  assert.match(css, /env\(safe-area-inset-bottom/);
+  assert.match(css, /@supports \(height: 100dvh\)/);
+  assert.match(css, /-webkit-text-size-adjust:\s*100%/);
+  assert.match(css, /input,\s*\n\s*select,\s*\n\s*textarea\s*\{\s*\n\s*font-size:\s*16px !important/s);
+  assert.match(css, /@media \(hover: none\) and \(pointer: coarse\)/);
+});
+
+test("storefront tabs and filters use admin-controlled product metadata", async () => {
+  const [html, adminHtml, client] = await Promise.all([
+    source("index.html"),
+    source("admin.html"),
+    source("script.js")
+  ]);
+  for (const view of ["summer", "best-sellers", "new-in", "sale", "press-ons", "accessories"]) {
+    assert.match(html, new RegExp(`data-shop-view="${view}"`));
+  }
+  assert.match(html, /data-length-filter="extra-long"/);
+  assert.match(html, /data-finish-filter="cat-eye"/);
+  assert.doesNotMatch(html, /data-keyword-filter=/);
+  assert.match(adminHtml, /id="adminProductStorefrontFilter"/);
+  assert.match(client, /productType:\s*normalizeProductType/);
+  assert.match(client, /bestSeller:\s*product\.bestSeller !== undefined/);
+  assert.match(client, /summerCollection:\s*Boolean/);
+  assert.match(client, /dataset\.productLength/);
+  assert.match(client, /dataset\.productFinish/);
+  assert.match(client, /dataset\.productBestSeller/);
+  assert.match(client, /dataset\.productSummer/);
+  assert.match(client, /data-field="bestSeller"/);
+  assert.match(client, /data-field="summerCollection"/);
+});
+
+test("local development can hydrate from a sanitized production catalog snapshot", async () => {
+  const [client, packageJson, syncScript, gitignore] = await Promise.all([
+    source("script.js"),
+    source("package.json"),
+    source("scripts/sync-production-state.mjs"),
+    source(".gitignore")
+  ]);
+  assert.match(packageJson, /"sync:production-data":\s*"node scripts\/sync-production-state\.mjs"/);
+  assert.match(syncScript, /https:\/\/www\.pressedbychey\.com\/\.netlify\/functions\/admin-state/);
+  assert.match(syncScript, /accountingExpenses:\s*\[\]/);
+  assert.match(syncScript, /ideas:\s*\[\]/);
+  assert.match(syncScript, /proNotes:\s*\[\]/);
+  assert.match(syncScript, /url\.startsWith\("\/\.netlify\/functions\/"\)/);
+  assert.match(client, /LOCAL_PRODUCTION_STATE_ENDPOINT = "\/local-production-state\.json"/);
+  assert.match(client, /fetchLocalProductionStateSnapshot/);
+  assert.match(gitignore, /local-production-state\.json/);
+});
+
+test("local Admin server keeps credentials and working data out of Git", async () => {
+  const [server, packageJson, gitignore] = await Promise.all([
+    source("scripts/local-dev-server.mjs"),
+    source("package.json"),
+    source(".gitignore")
+  ]);
+  assert.match(packageJson, /"dev:local":\s*"node scripts\/local-dev-server\.mjs"/);
+  assert.match(server, /handleAdminAuth/);
+  assert.match(server, /handleAdminState/);
+  assert.match(server, /handlePhotoUpload/);
+  assert.match(server, /handleAdminOrders/);
+  assert.match(server, /handleCustomerAccount/);
+  assert.match(server, /handleCustomerAdmin/);
+  assert.match(server, /handleMessages/);
+  assert.match(server, /handleCustomRequest/);
+  assert.match(server, /handleCreateCheckout/);
+  assert.match(server, /handleCheckoutStatus/);
+  assert.match(server, /No payment will be charged/);
+  assert.match(server, /function publicState/);
+  assert.match(server, /timingSafeEqual/);
+  assert.match(gitignore, /^\.env$/m);
+  assert.match(gitignore, /^local-working-state\.json$/m);
+  assert.match(gitignore, /^local-orders\.json$/m);
+  assert.match(gitignore, /^local-customers\.json$/m);
+  assert.match(gitignore, /^local-messages\.json$/m);
+  assert.match(gitignore, /^local-checkout-sessions\.json$/m);
+  assert.match(gitignore, /^\.local-admin-uploads\/$/m);
+});
+
 test("live state and orders stay server-authoritative across devices", async () => {
   const client = await source("script.js");
   const ordersFunction = await source("netlify/functions/admin-orders.mjs");

@@ -11,3 +11,12 @@ Pressedbychey-netlify-ready-latest/
 
 # Local Netlify folder
 .netlify
+local-production-state.json
+local-working-state.json
+local-orders.json
+local-customers.json
+local-messages.json
+local-checkout-sessions.json
+.local-admin-uploads/
+.env
+.env.local

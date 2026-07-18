@@ -116,6 +116,11 @@ const productDetailContent = document.querySelector("#productDetailContent");
 const filterRow = document.querySelector("#shopFilters");
 const shopProductSearch = document.querySelector("#shopProductSearch");
 const shopStockFilter = document.querySelector("#shopStockFilter");
+const shopSort = document.querySelector("#shopSort");
+const shopProductCount = document.querySelector("#shopProductCount");
+const shopResultsCount = document.querySelector("#shopResultsCount");
+const shopFilterToggle = document.querySelector("#shopFilterToggle");
+const shopFilterClose = document.querySelector("#shopFilterClose");
 const pageBook = document.querySelector("#pageBook");
 const bookStatus = document.querySelector("#bookStatus");
 const sitePages = () => document.querySelectorAll("[data-page-panel]");
@@ -285,6 +290,7 @@ const adminProductVisibilityFilter = document.querySelector("#adminProductVisibi
 const adminProductReadinessFilter = document.querySelector("#adminProductReadinessFilter");
 const adminProductStockFilter = document.querySelector("#adminProductStockFilter");
 const adminProductShapeFilter = document.querySelector("#adminProductShapeFilter");
+const adminProductStorefrontFilter = document.querySelector("#adminProductStorefrontFilter");
 const clearAdminProductFilters = document.querySelector("#clearAdminProductFilters");
 const adminProductShowing = document.querySelector("#adminProductShowing");
 const adminProductsTotalCount = document.querySelector("#adminProductsTotalCount");
@@ -353,12 +359,15 @@ const ADMIN_STORAGE_KEY = "pressedByCheyEdits";
 const ADMIN_AUTH_ENDPOINT = "/.netlify/functions/admin-auth";
 const ADMIN_REMOTE_STATE_ENDPOINT = "/.netlify/functions/admin-state";
 const ADMIN_REMOTE_PHOTO_ENDPOINT = `${ADMIN_REMOTE_STATE_ENDPOINT}?photo=upload`;
+const LOCAL_PRODUCTION_STATE_ENDPOINT = "/local-production-state.json";
+const LOCAL_PRODUCTION_STATE_VERSION_KEY = "pressedByCheyLocalProductionStateVersion";
 const ADMIN_PENDING_REMOTE_STATE_KEY = "pressedByCheyPendingAdminRemoteState";
 const ADMIN_REMOTE_SAVE_DEBOUNCE_MS = 700;
 const ADMIN_REMOTE_RETRY_DELAY_MS = 4000;
 const ADMIN_STATE_REFRESH_MS = 10000;
 const ADMIN_LIVE_SAVE_FAILURE_MESSAGE = "Saved on this device. Live site sync is pending and will retry automatically.";
 const ADMIN_LIVE_SAVE_SUCCESS_MESSAGE = "Saved to the live website.";
+const ADMIN_LOCAL_SAVE_SUCCESS_MESSAGE = "Saved in the local Admin workspace. Production was not changed.";
 const ADMIN_LIVE_LOADING_MESSAGE = "Opening dashboard. Syncing latest live website data...";
 const CUSTOMER_STORAGE_KEY = "pressedByCheyCustomers";
 const GUEST_ORDER_STORAGE_KEY = "pressedByCheyGuestOrders";
@@ -477,6 +486,8 @@ const quickContentFields = [
 const layoutSectionMeta = [
   { key: "home", label: "Home", selector: '[data-page-panel="home"]', note: "Hero, fit guide, and welcome content" },
   { key: "shop", label: "Shop", selector: '[data-page-panel="shop"]', note: "Product grid and shopping page" },
+  { key: "how-to", label: "How To", selector: '[data-page-panel="how-to"]', note: "Application tutorials and safe removal guide" },
+  { key: "create", label: "Create Your Set", selector: '[data-page-panel="create"]', note: "Customer custom creation and quote request page" },
   { key: "reviews", label: "Reviews", selector: '[data-page-panel="reviews"]', note: "Customer social proof page" }
 ];
 const LOOK_SLOT_BATCH_SIZE = 12;
@@ -675,12 +686,13 @@ if ("scrollRestoration" in history) {
   history.scrollRestoration = "manual";
 }
 
-let currentPageKey = "home";
+let currentPageKey = "shop";
 let adminRemoteSaveTimer = null;
 let adminRemoteRetryTimer = null;
 let adminStateRefreshTimer = null;
 let adminStateRefreshInFlight = false;
 let adminRemoteStateSignature = "";
+let adminStateIsLocalWorkspace = false;
 let adminRemoteSyncEventsBound = false;
 let adminStateRevision = 0;
 let pageVisitStack = [];
@@ -696,10 +708,10 @@ let textDragState = null;
 
 function pageKeyFromHash(hash = window.location.hash) {
   const key = hash.replace("#", "").trim().toLowerCase();
-  if (!key || key === "top") return "home";
+  if (!key || key === "top") return "shop";
   if (/^product-\d+$/.test(key)) return "product";
   if (key === "account") return "account";
-  return allPageKeys().includes(key) ? key : "home";
+  return allPageKeys().includes(key) ? key : "shop";
 }
 
 function productIndexFromHash(hash = window.location.hash) {
@@ -916,6 +928,54 @@ const productCollectionOptions = [
   ["inventory", "Main Inventory"],
   ["fresh-drops", "Fresh Drops"]
 ];
+
+const productTypeOptions = [
+  ["press-on", "Press-On Nails"],
+  ["accessory", "Accessory"]
+];
+
+const productLengthOptions = [
+  ["unspecified", "Not specified"],
+  ["short", "Short"],
+  ["medium", "Medium"],
+  ["long", "Long"],
+  ["extra-long", "Extra Long"]
+];
+
+const productFinishOptions = [
+  ["unspecified", "Not specified"],
+  ["glossy", "Glossy"],
+  ["chrome", "Chrome"],
+  ["matte", "Matte"],
+  ["cat-eye", "Cat Eye"],
+  ["french", "French"],
+  ["jelly", "Jelly"],
+  ["glitter", "Glitter"]
+];
+
+function normalizeProductType(value) {
+  return String(value || "").trim().toLowerCase() === "accessory" ? "accessory" : "press-on";
+}
+
+function normalizeProductLength(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "-");
+  return productLengthOptions.some(([option]) => option === normalized) ? normalized : "unspecified";
+}
+
+function normalizeProductFinish(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "-");
+  return productFinishOptions.some(([option]) => option === normalized) ? normalized : "unspecified";
+}
+
+function storefrontPlacementFor(product = {}) {
+  return {
+    productType: normalizeProductType(product.productType),
+    length: normalizeProductLength(product.length),
+    finish: normalizeProductFinish(product.finish || product.nailFinish),
+    bestSeller: product.bestSeller !== undefined ? Boolean(product.bestSeller) : Boolean(product.hotDrop),
+    summerCollection: Boolean(product.summerCollection)
+  };
+}
 
 function productCollectionFor(product = {}) {
   const value = String(product.collection || "inventory").trim().toLowerCase().replace(/[\s_]+/g, "-");
@@ -1513,7 +1573,12 @@ function normalizeAdminState(saved = {}) {
       ...safeDetail,
       sku: safeDetail.sku || `PBC-${String(Number(index) + 1).padStart(3, "0")}`,
       inventoryCount: normalizeInventoryCount(safeDetail.inventoryCount, defaultInventoryCountForStock(safeDetail.stock)),
-      hotDrop: Boolean(safeDetail.hotDrop)
+      hotDrop: Boolean(safeDetail.hotDrop),
+      productType: normalizeProductType(safeDetail.productType),
+      length: normalizeProductLength(safeDetail.length),
+      nailFinish: normalizeProductFinish(safeDetail.nailFinish),
+      bestSeller: safeDetail.bestSeller !== undefined ? Boolean(safeDetail.bestSeller) : Boolean(safeDetail.hotDrop),
+      summerCollection: Boolean(safeDetail.summerCollection)
     }];
   }));
   const nextState = {
@@ -1536,6 +1601,7 @@ function normalizeAdminState(saved = {}) {
           inventoryCount: normalizeInventoryCount(product.inventoryCount, defaultInventoryCountForStock(product.stock)),
           collection: productCollectionFor(product),
           hotDrop: Boolean(product.hotDrop),
+          ...storefrontPlacementFor(product),
           imageFit: sanitizePhotoFit(product.imageFit),
           imagePosition: sanitizePhotoPosition(product.imagePosition),
           imageZoom: sanitizePhotoZoom(product.imageZoom),
@@ -1695,7 +1761,31 @@ async function fetchRemoteAdminState() {
     if (!response.ok) return null;
     const payload = await response.json();
     if (!payload?.state) return null;
+    adminStateIsLocalWorkspace = Boolean(payload.local);
     return normalizeAdminState(payload.state);
+  } catch {
+    return null;
+  }
+}
+
+function isLocalPreviewHost() {
+  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+}
+
+async function fetchLocalProductionStateSnapshot() {
+  if (!isLocalPreviewHost()) return null;
+  try {
+    const response = await fetch(LOCAL_PRODUCTION_STATE_ENDPOINT, {
+      headers: { Accept: "application/json" },
+      cache: "no-store"
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    if (!payload?.state || !payload?.syncedAt) return null;
+    return {
+      syncedAt: String(payload.syncedAt),
+      state: normalizeAdminState(payload.state)
+    };
   } catch {
     return null;
   }
@@ -1703,11 +1793,26 @@ async function fetchRemoteAdminState() {
 
 async function hydrateAdminStateFromRemote() {
   const remoteState = await fetchRemoteAdminState();
-  if (!remoteState) return false;
-  adminState = remoteState;
+  let nextState = remoteState;
+  let localSnapshotVersion = "";
+  if (!nextState) {
+    const localSnapshot = await fetchLocalProductionStateSnapshot();
+    const appliedSnapshotVersion = localStorage.getItem(LOCAL_PRODUCTION_STATE_VERSION_KEY) || "";
+    const hasLocalState = Boolean(localStorage.getItem(ADMIN_STORAGE_KEY));
+    if (localSnapshot && (!hasLocalState || localSnapshot.syncedAt !== appliedSnapshotVersion)) {
+      nextState = localSnapshot.state;
+      localSnapshotVersion = localSnapshot.syncedAt;
+      adminStateIsLocalWorkspace = true;
+    }
+  }
+  if (!nextState) return false;
+  adminState = nextState;
   adminRemoteStateSignature = adminStateSignature(adminState);
   ensureLayoutState();
   localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
+  if (localSnapshotVersion) {
+    localStorage.setItem(LOCAL_PRODUCTION_STATE_VERSION_KEY, localSnapshotVersion);
+  }
   return true;
 }
 
@@ -1781,7 +1886,8 @@ async function persistAdminStateRemotely(snapshot, revision = adminStateRevision
       localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminState));
     }
     clearPendingRemoteAdminState();
-    return { ok: true, state: payload?.state || snapshot };
+    adminStateIsLocalWorkspace = Boolean(payload?.local);
+    return { ok: true, state: payload?.state || snapshot, local: adminStateIsLocalWorkspace };
   } catch (error) {
     return { ok: false, error: error.message || "network error" };
   }
@@ -1794,7 +1900,10 @@ async function flushPendingRemoteAdminState(options = {}) {
   const result = await persistAdminStateRemotely(pending.state, pending.revision);
   if (result.ok) {
     if (options.showSuccess) {
-      setAdminSaveMessage(options.statusTarget || null, options.successMessage || ADMIN_LIVE_SAVE_SUCCESS_MESSAGE);
+      setAdminSaveMessage(
+        options.statusTarget || null,
+        result.local ? ADMIN_LOCAL_SAVE_SUCCESS_MESSAGE : (options.successMessage || ADMIN_LIVE_SAVE_SUCCESS_MESSAGE)
+      );
     }
     return result;
   }
@@ -1894,7 +2003,7 @@ async function saveAdminState(options = {}) {
   const result = await persistAdminStateRemotely(snapshot, revision);
 
   if (result.ok) {
-    if (showSuccess) setAdminSaveMessage(statusTarget, successMessage);
+    if (showSuccess) setAdminSaveMessage(statusTarget, result.local ? ADMIN_LOCAL_SAVE_SUCCESS_MESSAGE : successMessage);
     return result;
   }
 
@@ -1920,7 +2029,7 @@ function scheduleRemoteAdminStateSave(options = {}) {
   adminRemoteSaveTimer = window.setTimeout(async () => {
     const result = await persistAdminStateRemotely(snapshot, revision);
     if (result.ok) {
-      if (options.showSuccess) setAdminSaveMessage(target, successMessage);
+      if (options.showSuccess) setAdminSaveMessage(target, result.local ? ADMIN_LOCAL_SAVE_SUCCESS_MESSAGE : successMessage);
       return;
     }
     schedulePendingRemoteAdminStateFlush({
@@ -1947,7 +2056,7 @@ function visiblePageKeys() {
 }
 
 function firstVisiblePageKey() {
-  return visiblePageKeys()[0] || "home";
+  return visiblePageKeys()[0] || "shop";
 }
 
 function updatePageLinkVisibility() {
@@ -1962,7 +2071,10 @@ function updatePageLinkVisibility() {
 function updatePageNavState(key) {
   currentPageKey = key;
   pageLinks().forEach((link) => {
-    const isCurrent = link.dataset.pageLink === key;
+    const isShopCategoryLink = key === "shop" && Boolean(link.closest(".storefront-categories"));
+    const activeShopView = document.body.dataset.shopView || "all";
+    const linkShopView = link.dataset.shopView || "all";
+    const isCurrent = link.dataset.pageLink === key && (!isShopCategoryLink || linkShopView === activeShopView);
     link.classList.toggle("is-current", isCurrent);
     if (isCurrent) {
       link.setAttribute("aria-current", "page");
@@ -2098,6 +2210,20 @@ function setShopCollectionFilter(destination = "") {
   applyProductFilter(document.querySelector("#shopFilters [data-filter].active")?.dataset.filter || "all");
 }
 
+function updateShopViewHeading(view = "all") {
+  const headings = {
+    all: "Shop All",
+    summer: "Summer Collection",
+    "best-sellers": "Best Sellers",
+    "new-in": "New In",
+    sale: "Sale",
+    "press-ons": "Press-On Nails",
+    accessories: "Accessories"
+  };
+  const heading = document.querySelector("#shop-title");
+  if (heading) heading.textContent = headings[view] || headings.all;
+}
+
 function setupPromoCursorGlitter() {
   const triggers = document.querySelectorAll(".shop-promo-actions .button");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -2204,7 +2330,18 @@ function setupPromoCursorGlitter() {
 }
 
 function showSitePage(pageKey, options = {}) {
-  const { updateHash = true, force = false, behavior = "smooth", track = true, shopDestination = "" } = options;
+  const {
+    updateHash = true,
+    force = false,
+    behavior = "smooth",
+    track = true,
+    shopDestination = "",
+    shopShape = "",
+    shopView = "all",
+    sectionTarget = "",
+    shopSale = false,
+    shopHotDrop = false
+  } = options;
   const resolvedKey = adminState.hiddenSections[pageKey] ? firstVisiblePageKey() : pageKey;
   const productPage = pageElement("product");
   if (productPage) productPage.hidden = resolvedKey !== "product";
@@ -2233,13 +2370,34 @@ function showSitePage(pageKey, options = {}) {
     history.replaceState(null, "", `#${resolvedKey}`);
   }
 
-  if (resolvedKey === "shop") setShopCollectionFilter(shopDestination);
+  if (resolvedKey === "shop") {
+    setShopCollectionFilter(shopDestination);
+    if (shopShape) {
+      const shapeButton = document.querySelector(`#shopFilters [data-filter="${CSS.escape(shopShape)}"]`);
+      if (shapeButton) {
+        document.querySelectorAll("#shopFilters [data-filter]").forEach((button) => button.classList.remove("active"));
+        shapeButton.classList.add("active");
+      }
+    }
+    document.body.dataset.shopView = shopView || "all";
+    updateShopViewHeading(shopView || "all");
+    updatePageNavState("shop");
+    document.body.dataset.shopSaleOnly = shopSale ? "true" : "false";
+    document.body.dataset.shopHotDropOnly = shopHotDrop ? "true" : "false";
+    document.querySelectorAll(".storefront-categories [data-shop-view]").forEach((link) => {
+      link.classList.toggle("active", link.dataset.shopView === (shopView || "all"));
+    });
+    applyProductFilter(document.querySelector("#shopFilters [data-filter].active")?.dataset.filter || "all");
+  }
 
   const performScroll = () => {
     const shopSection = resolvedKey === "shop" && ["hot-drop", "fresh-drops", "inventory"].includes(shopDestination)
       ? document.getElementById(`shop-${shopDestination}`)
       : null;
-    const top = shopSection
+    const pageSection = sectionTarget ? document.getElementById(sectionTarget) : null;
+    const top = pageSection
+      ? Math.max(window.scrollY + pageSection.getBoundingClientRect().top - navOffset() - 12, 0)
+      : shopSection
       ? Math.max(window.scrollY + shopSection.getBoundingClientRect().top - navOffset() - 12, 0)
       : resolvedKey === firstVisiblePageKey()
       ? 0
@@ -2870,9 +3028,26 @@ function renderAdminInventoryPanel() {
                   ${productCollectionOptionsMarkup(look.collection)}
                 </select>
               </label>
+              <label>Product type
+                <select data-inventory-index="${look.index}" data-inventory-field="productType">
+                  ${optionMarkup(productTypeOptions, look.productType)}
+                </select>
+              </label>
+              <label>Nail length
+                <select data-inventory-index="${look.index}" data-inventory-field="length">
+                  ${optionMarkup(productLengthOptions, look.length)}
+                </select>
+              </label>
+              <label>Nail finish
+                <select data-inventory-index="${look.index}" data-inventory-field="nailFinish">
+                  ${optionMarkup(productFinishOptions, look.nailFinish)}
+                </select>
+              </label>
             </div>
           </section>
           <label class="admin-hot-drop-toggle"><input type="checkbox" data-inventory-index="${look.index}" data-inventory-field="hotDrop"${look.hotDrop ? " checked" : ""} /><span>Post to Hot Drop</span><small>Spotlight this set until you remove it.</small></label>
+          <label class="admin-hot-drop-toggle"><input type="checkbox" data-inventory-index="${look.index}" data-inventory-field="bestSeller"${look.bestSeller ? " checked" : ""} /><span>Show in Best Sellers</span><small>Controls the Best Sellers tab in the customer menu.</small></label>
+          <label class="admin-hot-drop-toggle"><input type="checkbox" data-inventory-index="${look.index}" data-inventory-field="summerCollection"${look.summerCollection ? " checked" : ""} /><span>Show in Summer Collection</span><small>Controls the Summer Collection tab in the customer menu.</small></label>
           <section class="admin-inventory-section">
             <div class="admin-inventory-section-head">
               <h3>Descriptions and notes</h3>
@@ -3058,6 +3233,12 @@ async function createInventoryDraft(options = {}) {
     sku: nextGeneratedSku(),
     inventoryCount: 10,
     finish: "custom",
+    productType: "press-on",
+    length: "unspecified",
+    nailFinish: "unspecified",
+    collection: "inventory",
+    bestSeller: false,
+    summerCollection: false,
     copy: "Describe this set for customers before publishing it.",
     notes: "",
     tag: "New from Chey"
@@ -3627,6 +3808,18 @@ function handleInlineEditKeydown(event) {
 }
 
 document.addEventListener("click", (event) => {
+  const youtubeLaunch = event.target.closest("[data-youtube-launch]");
+  if (youtubeLaunch) {
+    const videoShell = youtubeLaunch.closest(".tutorial-video-shell");
+    const videoFrame = videoShell?.querySelector("iframe[data-youtube-src]");
+    if (videoFrame?.dataset.youtubeSrc) {
+      videoFrame.src = videoFrame.dataset.youtubeSrc;
+      videoFrame.hidden = false;
+      youtubeLaunch.hidden = true;
+    }
+    return;
+  }
+
   const removeButton = event.target.closest("[data-remove-text-key]");
   if (removeButton) {
     event.preventDefault();
@@ -3649,10 +3842,30 @@ document.addEventListener("click", (event) => {
   const pageKey = link.dataset.pageLink;
   if (!pageKey) return;
   event.preventDefault();
+  if (pageKey === "shop" && link.closest(".storefront-categories")) {
+    if (shopProductSearch) shopProductSearch.value = "";
+    if (shopStockFilter) shopStockFilter.value = "all";
+    document.querySelectorAll("#shopFilters [data-length-filter]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.lengthFilter === "all");
+    });
+    document.querySelectorAll("#shopFilters [data-finish-filter]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.finishFilter === "all");
+    });
+    if (!link.dataset.shopShape) {
+      document.querySelectorAll("#shopFilters [data-filter]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.filter === "all");
+      });
+    }
+  }
   showSitePage(pageKey, {
     updateHash: true,
     behavior: "auto",
-    shopDestination: link.dataset.shopDestination || ""
+    shopDestination: link.dataset.shopDestination || "",
+    shopShape: link.dataset.shopShape || "",
+    shopView: link.dataset.shopView || "all",
+    sectionTarget: link.dataset.sectionTarget || "",
+    shopSale: link.dataset.shopSale === "true",
+    shopHotDrop: link.dataset.shopHotDrop === "true"
   });
 });
 document.addEventListener("focusin", (event) => {
@@ -3964,6 +4177,7 @@ function submitCustomOrderRequest() {
   if (customOrderSizePreference) customOrderSizePreference.value = "";
   customOrderDescription.value = "";
   clearCustomOrderPhoto();
+  window.setTimeout(openCart, 180);
 }
 
 function renderCart() {
@@ -5547,7 +5761,7 @@ function logoutCustomer() {
   renderCustomerAccountPage();
   renderCart();
   if (currentPageKey === "account") {
-    showSitePage("home", { updateHash: true, behavior: "smooth", force: true });
+    showSitePage("shop", { updateHash: true, behavior: "smooth", force: true });
     openAccount("You are signed out.");
   }
 }
@@ -7856,6 +8070,10 @@ closeCart.addEventListener("click", closeCartDrawer);
 scrim.addEventListener("click", closeCartDrawer);
 scrim.addEventListener("click", closeAccountPanel);
 scrim.addEventListener("click", closeAdmin);
+scrim.addEventListener("click", () => {
+  document.body.classList.remove("shop-filters-open");
+  shopFilterToggle?.setAttribute("aria-expanded", "false");
+});
 
 function applyProductFilter(filter) {
   const existingEmptyState = productGrid?.querySelector(".product-filter-empty");
@@ -7863,6 +8081,11 @@ function applyProductFilter(filter) {
   const collectionFilter = document.querySelector("#shopFilters [data-collection-filter].active")?.dataset.collectionFilter || "all";
   const query = (shopProductSearch?.value || "").trim().toLowerCase();
   const stockFilter = shopStockFilter?.value || "all";
+  const shopView = document.body.dataset.shopView || "all";
+  const saleOnly = document.body.dataset.shopSaleOnly === "true";
+  const hotDropOnly = document.body.dataset.shopHotDropOnly === "true";
+  const lengthFilter = document.querySelector("#shopFilters [data-length-filter].active")?.dataset.lengthFilter || "all";
+  const finishFilter = document.querySelector("#shopFilters [data-finish-filter].active")?.dataset.finishFilter || "all";
   let visibleCount = 0;
   document.querySelectorAll(".product").forEach((product) => {
     if (product.dataset.inlineEditorCard === "true") {
@@ -7872,9 +8095,28 @@ function applyProductFilter(filter) {
     const searchable = `${product.dataset.productNumber || ""} ${product.querySelector("h3")?.textContent || ""} ${product.dataset.productDescription || ""}`.toLowerCase();
     const matchesSearch = !query || searchable.includes(query);
     const matchesStock = stockFilter === "all" || product.dataset.stockState === stockFilter;
+    const matchesSale = !saleOnly || product.dataset.productSale === "true";
+    const matchesHotDrop = !hotDropOnly || product.dataset.productHotDrop === "true";
     const sectionCollection = product.closest("[data-collection-section]")?.dataset.collectionSection || "";
     const matchesCollection = collectionFilter === "all" || sectionCollection === collectionFilter;
-    const isMatch = (filter === "all" || product.dataset.shape === filter) && matchesCollection && matchesSearch && matchesStock;
+    const matchesLength = lengthFilter === "all" || product.dataset.productLength === lengthFilter;
+    const matchesFinish = finishFilter === "all" || product.dataset.productFinish === finishFilter;
+    const matchesView = shopView === "all"
+      || (shopView === "summer" && product.dataset.productSummer === "true")
+      || (shopView === "best-sellers" && (product.dataset.productBestSeller === "true" || product.dataset.productHotDrop === "true"))
+      || (shopView === "new-in" && sectionCollection === "fresh-drops")
+      || (shopView === "sale" && product.dataset.productSale === "true")
+      || (shopView === "press-ons" && product.dataset.productType === "press-on")
+      || (shopView === "accessories" && product.dataset.productType === "accessory");
+    const isMatch = (filter === "all" || product.dataset.shape === filter)
+      && matchesCollection
+      && matchesSearch
+      && matchesStock
+      && matchesSale
+      && matchesHotDrop
+      && matchesLength
+      && matchesFinish
+      && matchesView;
     product.classList.toggle("hidden", !isMatch);
     if (isMatch) visibleCount += 1;
   });
@@ -7888,10 +8130,29 @@ function applyProductFilter(filter) {
     emptyState.className = "store-empty-state product-filter-empty";
     emptyState.innerHTML = `
       <strong>No sets match this view.</strong>
-      <p>Try ${escapeHTML(activeCollectionLabel)} or ${escapeHTML(activeFilterLabel)} with another product number or stock filter.</p>
+      <p>Try ${escapeHTML(activeCollectionLabel)} or ${escapeHTML(activeFilterLabel)} with another length, finish, product number, or stock filter.</p>
     `;
     productGrid.appendChild(emptyState);
   }
+  sortShopProducts();
+  const countLabel = `${visibleCount} product${visibleCount === 1 ? "" : "s"}`;
+  if (shopProductCount) shopProductCount.textContent = countLabel;
+  if (shopResultsCount) shopResultsCount.textContent = countLabel;
+}
+
+function sortShopProducts() {
+  const products = [...document.querySelectorAll(".product:not([data-inline-editor-card='true'])")];
+  const sortValue = shopSort?.value || "featured";
+  const sorted = [...products].sort((left, right) => {
+    if (sortValue === "newest") return Number(right.dataset.productIndex || 0) - Number(left.dataset.productIndex || 0);
+    if (sortValue === "price-low") return Number(left.dataset.productPrice || 0) - Number(right.dataset.productPrice || 0);
+    if (sortValue === "price-high") return Number(right.dataset.productPrice || 0) - Number(left.dataset.productPrice || 0);
+    if (sortValue === "name") return String(left.dataset.productName || "").localeCompare(String(right.dataset.productName || ""));
+    return Number(left.dataset.productIndex || 0) - Number(right.dataset.productIndex || 0);
+  });
+  sorted.forEach((product, index) => {
+    product.style.order = String(index);
+  });
 }
 
 document.querySelectorAll("#shopFilters [data-filter]").forEach((button) => {
@@ -7906,11 +8167,29 @@ document.querySelectorAll("#shopFilters [data-collection-filter]").forEach((butt
   button.addEventListener("click", () => setShopCollectionFilter(button.dataset.collectionFilter));
 });
 
+document.querySelectorAll("#shopFilters [data-length-filter], #shopFilters [data-finish-filter]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const selector = button.dataset.lengthFilter !== undefined ? "[data-length-filter]" : "[data-finish-filter]";
+    document.querySelectorAll(`#shopFilters ${selector}`).forEach((filter) => filter.classList.remove("active"));
+    button.classList.add("active");
+    applyProductFilter(document.querySelector("#shopFilters [data-filter].active")?.dataset.filter || "all");
+  });
+});
+
 shopProductSearch?.addEventListener("input", () => {
-  applyProductFilter(document.querySelector(".filter.active")?.dataset.filter || "all");
+  applyProductFilter(document.querySelector("#shopFilters [data-filter].active")?.dataset.filter || "all");
 });
 shopStockFilter?.addEventListener("change", () => {
-  applyProductFilter(document.querySelector(".filter.active")?.dataset.filter || "all");
+  applyProductFilter(document.querySelector("#shopFilters [data-filter].active")?.dataset.filter || "all");
+});
+shopSort?.addEventListener("change", sortShopProducts);
+shopFilterToggle?.addEventListener("click", () => {
+  const isOpen = document.body.classList.toggle("shop-filters-open");
+  shopFilterToggle.setAttribute("aria-expanded", String(isOpen));
+});
+shopFilterClose?.addEventListener("click", () => {
+  document.body.classList.remove("shop-filters-open");
+  shopFilterToggle?.setAttribute("aria-expanded", "false");
 });
 
 function updateBuilder() {
@@ -8002,6 +8281,14 @@ function readLookData(index) {
   const photoPosition = sanitizePhotoPosition((adminState.lookPhotoPositions && adminState.lookPhotoPositions[index]) || detail.photoPosition || sourceProduct?.imagePosition);
   const photoZoom = sanitizePhotoZoom((adminState.lookPhotoZooms && adminState.lookPhotoZooms[index]) || detail.photoZoom || sourceProduct?.imageZoom);
   const photoTransform = sanitizePhotoTransform((adminState.lookPhotoTransforms && adminState.lookPhotoTransforms[index]) || detail.photoTransform || sourceProduct?.imageTransform);
+  const placement = storefrontPlacementFor({
+    productType: detail.productType ?? sourceProduct?.productType,
+    length: detail.length ?? sourceProduct?.length,
+    finish: detail.nailFinish ?? sourceProduct?.finish,
+    bestSeller: detail.bestSeller !== undefined ? detail.bestSeller : sourceProduct?.bestSeller,
+    summerCollection: detail.summerCollection !== undefined ? detail.summerCollection : sourceProduct?.summerCollection,
+    hotDrop: detail.hotDrop !== undefined ? detail.hotDrop : sourceProduct?.hotDrop
+  });
   return {
     index,
     slotLabel: `Design Slot ${index + 1}`,
@@ -8016,6 +8303,11 @@ function readLookData(index) {
     stock: detail.stock && detail.stock.trim() ? detail.stock.trim() : "",
     collection: productCollectionFor(detail.collection || sourceProduct?.collection),
     hotDrop: detail.hotDrop !== undefined ? Boolean(detail.hotDrop) : Boolean(sourceProduct?.hotDrop),
+    productType: placement.productType,
+    length: placement.length,
+    bestSeller: placement.bestSeller,
+    summerCollection: placement.summerCollection,
+    nailFinish: placement.finish,
     sku: detail.sku && detail.sku.trim() ? detail.sku.trim() : "",
     inventoryCount: normalizeInventoryCount(detail.inventoryCount, defaultInventoryCountForStock(detail.stock)),
     tag: detail.tag && detail.tag.trim() ? detail.tag.trim() : "New from Chey",
@@ -8142,21 +8434,29 @@ function setPreviewDetail() {
 function setupProductTryOns() {
   productElementsForTryOn().forEach((product) => {
     const bottom = product.querySelector(".product-bottom");
+    const preview = product.querySelector(".nail-preview");
+    if (!bottom || !preview) return;
     const addButton = bottom.querySelector("[data-name]");
-    let actions = bottom.querySelector(".product-actions");
+    let actions = preview.querySelector(".product-image-actions");
     if (!actions) {
       actions = document.createElement("div");
-      actions.className = "product-actions";
-      bottom.appendChild(actions);
+      actions.className = "product-image-actions";
+      preview.appendChild(actions);
     }
-    if (!actions.contains(addButton)) actions.appendChild(addButton);
+    if (addButton && !actions.contains(addButton)) actions.appendChild(addButton);
     if (!product.querySelector(".save-product")) {
       const saveButton = document.createElement("button");
       saveButton.className = "save-product";
       saveButton.type = "button";
-      saveButton.textContent = "Save";
+      saveButton.textContent = "Save product";
+      saveButton.setAttribute("aria-label", "Save product");
+      saveButton.title = "Save product";
       saveButton.addEventListener("click", () => saveProductForCustomer(product));
       actions.insertBefore(saveButton, addButton);
+    }
+    if (addButton) {
+      addButton.setAttribute("aria-label", addButton.disabled ? addButton.textContent : `Add ${addButton.dataset.name || "product"} to bag`);
+      addButton.title = addButton.disabled ? addButton.textContent : "Add to bag";
     }
   });
 }
@@ -8374,7 +8674,10 @@ async function setupAdmin() {
     renderProNotes();
     if (IS_ADMIN_PAGE) {
       switchAdminView("orders");
-      setAdminSaveMessage(adminContentStatus, liveSyncSuccessMessage());
+      setAdminSaveMessage(
+        adminContentStatus,
+        adminStateIsLocalWorkspace ? "Local Admin workspace loaded. Production was not changed." : liveSyncSuccessMessage()
+      );
     }
   } else if (hadPendingRemoteState) {
     setAdminSaveMessage(adminContentStatus, ADMIN_LIVE_SAVE_FAILURE_MESSAGE);
@@ -8444,7 +8747,7 @@ async function setupAdmin() {
   if (saveProductChangesButton) saveProductChangesButton.addEventListener("click", saveProductChangesFromSection);
   adminOpenInventory?.addEventListener("click", openAdminInventoryShelf);
   adminCreateProduct?.addEventListener("click", () => createInventoryDraft({ focusCommandCenter: true }));
-  [adminProductSearch, adminProductVisibilityFilter, adminProductReadinessFilter, adminProductStockFilter, adminProductShapeFilter].forEach((filter) => {
+  [adminProductSearch, adminProductVisibilityFilter, adminProductReadinessFilter, adminProductStockFilter, adminProductShapeFilter, adminProductStorefrontFilter].forEach((filter) => {
     filter?.addEventListener(filter === adminProductSearch ? "input" : "change", applyAdminProductFilters);
   });
   clearAdminProductFilters?.addEventListener("click", clearAdminProductFiltersAndRender);
@@ -9382,7 +9685,7 @@ function updateAdminProductCatalogSummary() {
   if (adminProductsDraftCount) adminProductsDraftCount.textContent = String(drafts);
   if (adminProductsStockCount) adminProductsStockCount.textContent = String(inStock);
   if (adminProductsAttentionCount) adminProductsAttentionCount.textContent = String(attention);
-  if (adminProductShowing && !adminProductSearch?.value && (adminProductVisibilityFilter?.value || "all") === "all" && (adminProductReadinessFilter?.value || "all") === "all" && (adminProductStockFilter?.value || "all") === "all" && (adminProductShapeFilter?.value || "all") === "all") {
+  if (adminProductShowing && !adminProductSearch?.value && (adminProductVisibilityFilter?.value || "all") === "all" && (adminProductReadinessFilter?.value || "all") === "all" && (adminProductStockFilter?.value || "all") === "all" && (adminProductShapeFilter?.value || "all") === "all" && (adminProductStorefrontFilter?.value || "all") === "all") {
     adminProductShowing.textContent = `Showing ${total.toLocaleString()} product${total === 1 ? "" : "s"}`;
   }
 }
@@ -9394,6 +9697,7 @@ function applyAdminProductFilters() {
   const readiness = adminProductReadinessFilter?.value || "all";
   const stock = adminProductStockFilter?.value || "all";
   const shape = adminProductShapeFilter?.value || "all";
+  const storefront = adminProductStorefrontFilter?.value || "all";
   const cards = [...adminLookList.querySelectorAll("[data-look-card]")];
   let visible = 0;
   cards.forEach((card) => {
@@ -9402,13 +9706,20 @@ function applyAdminProductFilters() {
     const matchesReadiness = readiness === "all" || card.dataset.catalogReadiness === readiness;
     const matchesStock = stock === "all" || card.dataset.catalogStock === stock;
     const matchesShape = shape === "all" || card.dataset.catalogShape === shape;
-    const matches = matchesQuery && matchesVisibility && matchesReadiness && matchesStock && matchesShape;
+    const matchesStorefront = storefront === "all"
+      || (storefront === "summer" && card.dataset.catalogSummer === "true")
+      || (storefront === "best-sellers" && (card.dataset.catalogBestSeller === "true" || card.dataset.catalogHotDrop === "true"))
+      || (storefront === "new-in" && card.dataset.catalogCollection === "fresh-drops")
+      || (storefront === "sale" && card.dataset.catalogSale === "true")
+      || (storefront === "press-ons" && card.dataset.catalogType === "press-on")
+      || (storefront === "accessories" && card.dataset.catalogType === "accessory");
+    const matches = matchesQuery && matchesVisibility && matchesReadiness && matchesStock && matchesShape && matchesStorefront;
     card.hidden = !matches;
     if (matches) visible += 1;
   });
   const total = cards.length;
   if (adminProductShowing) {
-    adminProductShowing.textContent = query || visibility !== "all" || readiness !== "all" || stock !== "all" || shape !== "all"
+    adminProductShowing.textContent = query || visibility !== "all" || readiness !== "all" || stock !== "all" || shape !== "all" || storefront !== "all"
       ? `Showing ${visible.toLocaleString()} of ${total.toLocaleString()} products`
       : `Showing ${total.toLocaleString()} product${total === 1 ? "" : "s"}`;
   }
@@ -9429,6 +9740,7 @@ function clearAdminProductFiltersAndRender() {
   if (adminProductReadinessFilter) adminProductReadinessFilter.value = "all";
   if (adminProductStockFilter) adminProductStockFilter.value = "all";
   if (adminProductShapeFilter) adminProductShapeFilter.value = "all";
+  if (adminProductStorefrontFilter) adminProductStorefrontFilter.value = "all";
   applyAdminProductFilters();
 }
 
@@ -9462,6 +9774,11 @@ function productFromLook(look) {
     inventoryCount: inventoryCountFor(look),
     collection: productCollectionFor(look),
     hotDrop: Boolean(look.hotDrop),
+    productType: normalizeProductType(look.productType),
+    length: normalizeProductLength(look.length),
+    finish: normalizeProductFinish(look.nailFinish || look.finishStyle),
+    bestSeller: Boolean(look.bestSeller),
+    summerCollection: Boolean(look.summerCollection),
     category: look.finish || "custom",
     image: look.photo,
     imageFit: look.photoFit,
@@ -9483,6 +9800,11 @@ const productToLookFieldMap = {
   inventoryCount: "inventoryCount",
   collection: "collection",
   hotDrop: "hotDrop",
+  productType: "productType",
+  length: "length",
+  finish: "nailFinish",
+  bestSeller: "bestSeller",
+  summerCollection: "summerCollection",
   category: "finish",
   description: "copy",
   notes: "notes",
@@ -9708,7 +10030,12 @@ function writeProductToInventory(product, index, options = {}) {
     notes: product.notes || "",
     tag: product.tag || "New from Chey",
     collection: productCollectionFor(product),
-    hotDrop: Boolean(product.hotDrop)
+    hotDrop: Boolean(product.hotDrop),
+    productType: normalizeProductType(product.productType),
+    length: normalizeProductLength(product.length),
+    nailFinish: normalizeProductFinish(product.finish),
+    bestSeller: product.bestSeller !== undefined ? Boolean(product.bestSeller) : Boolean(product.hotDrop),
+    summerCollection: Boolean(product.summerCollection)
   };
   if (options.publishedAt || product.publishedAt) {
     adminState.lookDetails[index].publishedAt = options.publishedAt || product.publishedAt;
@@ -9744,6 +10071,12 @@ async function copyIdeaToProductLibrary(idea) {
     price: idea.price || "",
     sku: adminState.lookDetails[index]?.sku || nextGeneratedSku(),
     finish: [idea.shape, idea.length, idea.status].filter(Boolean).join(", "),
+    productType: "press-on",
+    length: normalizeProductLength(idea.length),
+    nailFinish: "unspecified",
+    collection: "inventory",
+    bestSeller: false,
+    summerCollection: false,
     copy: [idea.shape, idea.length, idea.art].filter(Boolean).join(" - "),
     notes: [
       idea.colors ? `Colors: ${idea.colors}` : "",
@@ -9888,6 +10221,14 @@ function renderAdminLookPhotos() {
     card.dataset.catalogReadiness = productReadinessFor(look);
     card.dataset.catalogStock = inventoryStateFor(look).key;
     card.dataset.catalogShape = productShapeFilterValue({ category: look.finish, name: look.name, description: look.copy });
+    card.dataset.catalogType = normalizeProductType(look.productType);
+    card.dataset.catalogLength = normalizeProductLength(look.length);
+    card.dataset.catalogFinish = normalizeProductFinish(look.nailFinish);
+    card.dataset.catalogCollection = productCollectionFor(look);
+    card.dataset.catalogHotDrop = look.hotDrop ? "true" : "false";
+    card.dataset.catalogBestSeller = look.bestSeller ? "true" : "false";
+    card.dataset.catalogSummer = look.summerCollection ? "true" : "false";
+    card.dataset.catalogSale = productDiscountLabel(look) ? "true" : "false";
     card.style.setProperty("--look-base", look.base);
     card.style.setProperty("--look-accent", look.accent);
     card.open = expandedIndices.has(index);
@@ -9957,7 +10298,26 @@ function renderAdminLookPhotos() {
             ${productCollectionOptionsMarkup(look.collection)}
           </select>
         </label>
+        <div class="admin-field-row">
+          <label>Product type
+            <select data-look-detail="${index}" data-look-field="productType">
+              ${optionMarkup(productTypeOptions, look.productType)}
+            </select>
+          </label>
+          <label>Nail length
+            <select data-look-detail="${index}" data-look-field="length">
+              ${optionMarkup(productLengthOptions, look.length)}
+            </select>
+          </label>
+          <label>Nail finish
+            <select data-look-detail="${index}" data-look-field="nailFinish">
+              ${optionMarkup(productFinishOptions, look.nailFinish)}
+            </select>
+          </label>
+        </div>
         <label class="admin-hot-drop-toggle"><input type="checkbox" data-look-detail="${index}" data-look-field="hotDrop"${look.hotDrop ? " checked" : ""} /><span>Post to Hot Drop</span><small>Spotlight this set until you remove it.</small></label>
+        <label class="admin-hot-drop-toggle"><input type="checkbox" data-look-detail="${index}" data-look-field="bestSeller"${look.bestSeller ? " checked" : ""} /><span>Show in Best Sellers</span><small>Controls the Best Sellers tab in the customer menu.</small></label>
+        <label class="admin-hot-drop-toggle"><input type="checkbox" data-look-detail="${index}" data-look-field="summerCollection"${look.summerCollection ? " checked" : ""} /><span>Show in Summer Collection</span><small>Controls the Summer Collection tab in the customer menu.</small></label>
         <label>Description <textarea data-look-detail="${index}" data-look-field="copy" placeholder="Tell customers about the shape, finish, color, charms, and vibe.">${escapeTextarea((adminState.lookDetails[index] && adminState.lookDetails[index].copy) || "")}</textarea></label>
        <details class="admin-optional">
          <summary>Optional product details</summary>
@@ -10191,7 +10551,26 @@ function renderAdminProducts() {
             ${productCollectionOptionsMarkup(product.collection)}
           </select>
         </label>
+        <div class="admin-field-row">
+          <label>Product type
+            <select data-custom-product="${index}" data-field="productType">
+              ${optionMarkup(productTypeOptions, product.productType)}
+            </select>
+          </label>
+          <label>Nail length
+            <select data-custom-product="${index}" data-field="length">
+              ${optionMarkup(productLengthOptions, product.length)}
+            </select>
+          </label>
+          <label>Nail finish
+            <select data-custom-product="${index}" data-field="finish">
+              ${optionMarkup(productFinishOptions, product.finish)}
+            </select>
+          </label>
+        </div>
         <label class="admin-hot-drop-toggle"><input type="checkbox" data-custom-product="${index}" data-field="hotDrop"${product.hotDrop ? " checked" : ""} /><span>Post to Hot Drop</span><small>Spotlight this set until you remove it.</small></label>
+        <label class="admin-hot-drop-toggle"><input type="checkbox" data-custom-product="${index}" data-field="bestSeller"${product.bestSeller ? " checked" : ""} /><span>Show in Best Sellers</span><small>Controls the Best Sellers tab in the customer menu.</small></label>
+        <label class="admin-hot-drop-toggle"><input type="checkbox" data-custom-product="${index}" data-field="summerCollection"${product.summerCollection ? " checked" : ""} /><span>Show in Summer Collection</span><small>Controls the Summer Collection tab in the customer menu.</small></label>
         <label>Description <textarea data-custom-product="${index}" data-field="description">${escapeTextarea(product.description)}</textarea></label>
         <label>Maker notes <textarea data-custom-product="${index}" data-field="notes" placeholder="Private notes: polish colors, pigments, charms, sizing, timing, or customer preferences.">${escapeTextarea(product.notes || "")}</textarea></label>
        <details class="admin-optional">
@@ -10396,7 +10775,9 @@ function bindProductFieldEditors() {
       const index = Number(input.dataset.customProduct);
       const field = input.dataset.field;
       if (!adminState.customProducts[index] || !field) return;
-      const value = field === "price" || field === "salePrice"
+      const value = input.type === "checkbox"
+        ? input.checked
+        : field === "price" || field === "salePrice"
         ? normalizeMoneyValue(input.value)
         : field === "inventoryCount"
           ? normalizeInventoryCount(input.value, null)
@@ -10437,7 +10818,9 @@ function saveProductEdits() {
     const index = Number(input.dataset.customProduct);
     const field = input.dataset.field;
     if (!adminState.customProducts[index] || !field) return;
-    const value = field === "price" || field === "salePrice"
+    const value = input.type === "checkbox"
+      ? input.checked
+      : field === "price" || field === "salePrice"
       ? normalizeMoneyValue(input.value)
       : field === "inventoryCount"
         ? normalizeInventoryCount(input.value, null)
@@ -11875,6 +12258,8 @@ function renderCustomProducts() {
   });
   if (filterRow) filterRow.hidden = !adminState.customProducts.length;
   if (!adminState.customProducts.length) {
+    if (shopProductCount) shopProductCount.textContent = "0 products";
+    if (shopResultsCount) shopResultsCount.textContent = "0 products";
     collectionSections.forEach((section) => {
       if (section.dataset.collectionSection === "hot-drop") {
         section.hidden = true;
@@ -11905,6 +12290,16 @@ function renderCustomProducts() {
     article.dataset.productDescription = String(product.description || "").toLowerCase();
     article.dataset.stockState = inventoryState.key;
     article.dataset.adminProductIndex = String(index);
+    article.dataset.productIndex = String(index);
+    article.dataset.productName = String(product.name || "").toLowerCase();
+    article.dataset.productPrice = String(checkoutPrice);
+    article.dataset.productSale = discountLabel ? "true" : "false";
+    article.dataset.productHotDrop = product.hotDrop ? "true" : "false";
+    article.dataset.productType = normalizeProductType(product.productType);
+    article.dataset.productLength = normalizeProductLength(product.length);
+    article.dataset.productFinish = normalizeProductFinish(product.finish);
+    article.dataset.productBestSeller = product.bestSeller ? "true" : "false";
+    article.dataset.productSummer = product.summerCollection ? "true" : "false";
     article.tabIndex = 0;
     article.setAttribute("role", "link");
     article.setAttribute("aria-label", `View details for ${product.name || "this product"}`);
@@ -11912,6 +12307,7 @@ function renderCustomProducts() {
       <div class="nail-preview photo-preview" aria-hidden="true">
         ${productImageMarkup(product, index)}
         ${discountLabel ? `<span class="product-sale-badge">${escapeHTML(discountLabel)}</span>` : ""}
+        ${product.hotDrop ? `<span class="product-hot-badge">Hot Drop</span>` : ""}
         ${canInlineEdit ? `<div class="inline-product-actions photo-actions"><button type="button" data-inline-edit-product-photo="${index}">${product.image ? "Edit Photo" : "Add Photo"}</button></div>` : ""}
       </div>
       <div class="product-copy">
@@ -11960,7 +12356,24 @@ function renderCustomProducts() {
                 ${productCollectionOptionsMarkup(product.collection)}
               </select>
             </label>
+            <label>Product type
+              <select data-inline-product-index="${index}" data-inline-product-input="productType">
+                ${optionMarkup(productTypeOptions, product.productType)}
+              </select>
+            </label>
+            <label>Nail length
+              <select data-inline-product-index="${index}" data-inline-product-input="length">
+                ${optionMarkup(productLengthOptions, product.length)}
+              </select>
+            </label>
+            <label>Nail finish
+              <select data-inline-product-index="${index}" data-inline-product-input="finish">
+                ${optionMarkup(productFinishOptions, product.finish)}
+              </select>
+            </label>
             <label class="admin-hot-drop-toggle"><input type="checkbox" data-inline-product-index="${index}" data-inline-product-input="hotDrop"${product.hotDrop ? " checked" : ""} /><span>Post to Hot Drop</span><small>Spotlight this set until you remove it.</small></label>
+            <label class="admin-hot-drop-toggle"><input type="checkbox" data-inline-product-index="${index}" data-inline-product-input="bestSeller"${product.bestSeller ? " checked" : ""} /><span>Show in Best Sellers</span><small>Controls the Best Sellers tab.</small></label>
+            <label class="admin-hot-drop-toggle"><input type="checkbox" data-inline-product-index="${index}" data-inline-product-input="summerCollection"${product.summerCollection ? " checked" : ""} /><span>Show in Summer Collection</span><small>Controls the Summer Collection tab.</small></label>
             <label>Private notes
               <textarea data-inline-product-index="${index}" data-inline-product-input="notes" placeholder="Polish colors, charms, sizing notes, timing...">${escapeTextarea(product.notes || "")}</textarea>
             </label>
@@ -11980,21 +12393,6 @@ function renderCustomProducts() {
       const total = collectionGrid.querySelectorAll(".product").length;
       count.textContent = `${total} set${total === 1 ? "" : "s"}`;
     }
-    if (product.hotDrop) {
-      const hotGrid = productGrid.querySelector('[data-collection-grid="hot-drop"]');
-      if (hotGrid) {
-        const hotArticle = article.cloneNode(true);
-        hotArticle.dataset.hotDropCopy = "true";
-        hotArticle.setAttribute("aria-label", `View Hot Drop details for ${product.name || "this product"}`);
-        bindRenderedCustomProductCard(hotArticle, index);
-        hotGrid.appendChild(hotArticle);
-        const hotCount = hotGrid.parentElement?.querySelector(".shop-collection-count");
-        if (hotCount) {
-          const total = hotGrid.querySelectorAll(".product").length;
-          hotCount.textContent = `${total} set${total === 1 ? "" : "s"}`;
-        }
-      }
-    }
   });
   if (canInlineEdit) {
     lookLibrary
@@ -12005,7 +12403,7 @@ function renderCustomProducts() {
         inventoryGrid.insertAdjacentHTML("beforeend", inlineInventoryCardMarkup(look));
       });
   }
-  const activeFilter = document.querySelector(".filter.active")?.dataset.filter || "all";
+  const activeFilter = document.querySelector("#shopFilters [data-filter].active")?.dataset.filter || "all";
   applyProductFilter(activeFilter);
   bindInlineShopEditorControls();
   setupProductTryOns();

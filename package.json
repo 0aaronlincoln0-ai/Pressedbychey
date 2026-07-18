@@ -4,7 +4,9 @@
   "packageManager": "pnpm@11.7.0",
   "scripts": {
     "check": "node --check script.js && node --test tests/*.test.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "dev:local": "node scripts/local-dev-server.mjs",
+    "sync:production-data": "node scripts/sync-production-state.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.35",
